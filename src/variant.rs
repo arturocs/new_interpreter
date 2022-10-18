@@ -28,24 +28,24 @@ type Dictionary = IndexMap<Variant, Variant, RandomState>;
 dyn_clone::clone_trait_object!(VariantIter);
 #[derive(Debug, Clone)]
 pub enum Variant {
-    Error(String),
+    Error(Box<String>),
     Int(i64),
     Float(f64),
     Bool(bool),
     Byte(u8),
-    Bytes(Vec<u8>),
-    Vec(Vec<Variant>),
-    Str(String),
+    Bytes(Box<Vec<u8>>),
+    Vec(Box<Vec<Variant>>),
+    Str(Box<String>),
     Dict(Box<Dictionary>),
-    Regex(Regex),
-    Iterator(Box<dyn VariantIter>),
+    Regex(Box<Regex>),
+    Iterator(Box<Box<dyn VariantIter>>),
     NativeFunc(NativeFunction),
     Func(Box<Function>),
 }
 
 impl Default for Variant {
     fn default() -> Self {
-        Variant::Error("Uninitialized value".to_string())
+        Variant::Error(Box::new("Uninitialized value".to_string()))
     }
 }
 
@@ -193,19 +193,19 @@ fn apply_op_between_vecs(
     for (i, v) in smaller.iter().enumerate() {
         unsafe { *result.get_unchecked_mut(i) = op(result.get_unchecked(i), v)? }
     }
-    Ok(Variant::Vec(result))
+    Ok(Variant::Vec(Box::new(result)))
 }
 
 impl Variant {
     pub fn str(s: impl ToString) -> Variant {
-        Variant::Str(s.to_string())
+        Variant::Str(Box::new(s.to_string()))
     }
 
     pub fn error(e: impl ToString) -> Variant {
-        Variant::Error(e.to_string())
+        Variant::Error(Box::new(e.to_string()))
     }
     pub fn iterator(i: impl VariantIter + 'static) -> Variant {
-        Variant::Iterator(Box::new(i))
+        Variant::Iterator(Box::new(Box::new(i)))
     }
     pub fn dict(v: &[(Variant, Variant)]) -> Variant {
         Variant::Dict(Box::new(v.iter().cloned().collect()))
@@ -248,7 +248,7 @@ impl Variant {
             (a, Variant::Str(b)) => {
                 let mut c = a.to_string().trim_matches('"').to_string();
                 c.push_str(b);
-                Variant::Str(c)
+                Variant::Str(Box::new(c))
             }
             _ => return Err(anyhow!("Cannot add {self:?} and {other:?}")),
         };
@@ -301,7 +301,7 @@ impl Variant {
             (Variant::Vec(a), Variant::Vec(b)) => apply_op_between_vecs(a, b, Self::mul)?,
             (Variant::Str(a), &Variant::Int(b)) => {
                 if b >= 0 {
-                    Variant::Str(a.repeat(b as usize))
+                    Variant::Str(Box::new(a.repeat(b as usize)))
                 } else {
                     return Err(anyhow!("Cannot multiply a string by a negative value"));
                 }
@@ -427,12 +427,12 @@ impl Variant {
 
     pub fn into_vec(self) -> Result<Variant> {
         match self {
-            Variant::Dict(d) => Ok(Variant::Vec(
+            Variant::Dict(d) => Ok(Variant::Vec(Box::new(
                 d.into_iter()
-                    .map(|(a, b)| Variant::Vec(vec![a.clone(), b.clone()]))
+                    .map(|(a, b)| Variant::Vec(Box::new(vec![a.clone(), b.clone()])))
                     .collect(),
-            )),
-            Variant::Iterator(r) => Ok(Variant::Vec(r.clone().collect())),
+            ))),
+            Variant::Iterator(r) => Ok(Variant::Vec(Box::new(r.clone().collect()))),
             Variant::Vec(v) => Ok(Variant::Vec(v)),
             a => Err(anyhow!("Can't convert {a:?} to Vec")),
         }
@@ -482,7 +482,7 @@ impl Variant {
             Variant::Vec(v) => Ok(Variant::iterator(v.into_iter())),
             Variant::Dict(d) => Ok(Variant::iterator(
                 d.into_iter()
-                    .map(|(k, v)| Variant::Vec(vec![k, v]))
+                    .map(|(k, v)| Variant::Vec(Box::new(vec![k, v])))
                     .collect::<Vec<_>>()
                     .into_iter(),
             )),
@@ -633,13 +633,13 @@ mod tests {
 
     #[test]
     fn variant_format() {
-        let s = Variant::Vec(vec![
+        let s = Variant::Vec(Box::new(vec![
             Variant::Int(1),
             Variant::Float(2.0),
             Variant::Bool(true),
-            Variant::Vec(vec![Variant::Int(3), Variant::str("string")]),
+            Variant::Vec(Box::new(vec![Variant::Int(3), Variant::str("string")])),
             Variant::str("hello"),
-        ])
+        ]))
         .to_string();
         assert_eq!(&s, r#"[1, 2, true, [3, "string"], "hello"]"#)
     }
@@ -649,15 +649,15 @@ mod tests {
             (Variant::str("hola"), Variant::Int(5)),
             (Variant::str("zuelo"), Variant::Float(3.1)),
             (
-                Variant::Vec(vec![Variant::Int(3), Variant::str("string")]),
+                Variant::Vec(Box::new(vec![Variant::Int(3), Variant::str("string")])),
                 Variant::str("agua"),
             ),
             (
-                Variant::Vec(vec![
+                Variant::Vec(Box::new(vec![
                     Variant::Int(1),
                     Variant::Float(2.4),
                     Variant::error("error"),
-                ]),
+                ])),
                 Variant::error("error"),
             ),
             (Variant::Bool(true), Variant::Bool(true)),
@@ -678,25 +678,25 @@ mod tests {
 
     #[test]
     fn index_vector() {
-        let var = Variant::Vec(vec![
+        let var = Variant::Vec(Box::new(vec![
             Variant::Int(1),
             Variant::Float(2.0),
             Variant::Bool(true),
-            Variant::Vec(vec![Variant::Int(3), Variant::str("string")]),
+            Variant::Vec(Box::new(vec![Variant::Int(3), Variant::str("string")])),
             Variant::str("hello"),
-        ]);
+        ]));
         assert_eq!(*var.index(&Variant::Int(2)).unwrap(), Variant::Bool(true));
     }
 
     #[test]
     fn index_mut_vector() {
-        let mut var = Variant::Vec(vec![
+        let mut var = Variant::Vec(Box::new(vec![
             Variant::Int(1),
             Variant::Float(2.0),
             Variant::Bool(true),
-            Variant::Vec(vec![Variant::Int(3)]),
+            Variant::Vec(Box::new(vec![Variant::Int(3)])),
             Variant::str("hello"),
-        ]);
+        ]));
         *var.index_mut(&Variant::Float(4.)).unwrap() = Variant::error("Empty value");
         assert_eq!(
             &var.to_string(),
@@ -707,16 +707,16 @@ mod tests {
     #[test]
     fn tag() {
         let v = [
-            Variant::Error("".to_string()),
+            Variant::Error(Box::new("".to_string())),
             Variant::Int(1),
             Variant::Float(2.0),
             Variant::Bool(true),
             Variant::Byte(0),
-            Variant::Bytes(vec![]),
-            Variant::Vec(vec![]),
-            Variant::Str("string".to_string()),
+            Variant::Bytes(Box::new(vec![])),
+            Variant::Vec(Box::new(vec![])),
+            Variant::Str(Box::new("string".to_string())),
             Variant::Dict(Box::new(Dictionary::default())),
-            Variant::Regex(Regex::new("a").unwrap()),
+            Variant::Regex(Box::new(Regex::new("a").unwrap())),
         ]
         .map(|i| i.get_tag());
         assert_eq!([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], v);
@@ -724,12 +724,12 @@ mod tests {
 
     #[test]
     fn to_dict_to_vec() {
-        let v1 = Variant::Vec(vec![
-            Variant::Vec(vec![Variant::default(), Variant::Int(0)]),
-            Variant::Vec(vec![Variant::Int(1), Variant::Int(1)]),
-            Variant::Vec(vec![Variant::Float(2.0), Variant::Int(2)]),
-            Variant::Vec(vec![Variant::str("s"), Variant::Int(3)]),
-        ]);
+        let v1 = Variant::Vec(Box::new(vec![
+            Variant::Vec(Box::new(vec![Variant::default(), Variant::Int(0)])),
+            Variant::Vec(Box::new(vec![Variant::Int(1), Variant::Int(1)])),
+            Variant::Vec(Box::new(vec![Variant::Float(2.0), Variant::Int(2)])),
+            Variant::Vec(Box::new(vec![Variant::str("s"), Variant::Int(3)])),
+        ]));
         assert_eq!(v1, v1.clone().into_dict().unwrap().into_vec().unwrap())
     }
 
@@ -758,12 +758,12 @@ mod tests {
 
     #[test]
     fn iterator_map() {
-        let var = Variant::Vec(vec![
+        let var = Variant::Vec(Box::new(vec![
             Variant::Int(1),
             Variant::Float(2.0),
             Variant::Bool(true),
             Variant::str("hello"),
-        ]);
+        ]));
 
         let a = var
             .into_iterator()
@@ -776,22 +776,22 @@ mod tests {
             .unwrap();
         assert_eq!(
             a,
-            Variant::Vec(vec![
+            Variant::Vec(Box::new(vec![
                 Variant::str("1a"),
                 Variant::str("2a"),
                 Variant::str("truea"),
                 Variant::str("helloa")
-            ])
+            ]))
         );
     }
     #[test]
     fn iterator_filter() {
-        let var = Variant::Vec(vec![
+        let var = Variant::Vec(Box::new(vec![
             Variant::Int(1),
             Variant::Float(2.0),
             Variant::Bool(true),
             Variant::str("hello"),
-        ]);
+        ]));
 
         let a = var
             .into_iterator()
@@ -805,17 +805,17 @@ mod tests {
             .unwrap()
             .into_vec()
             .unwrap();
-        assert_eq!(a, Variant::Vec(vec![Variant::Int(1),]));
+        assert_eq!(a, Variant::Vec(Box::new(vec![Variant::Int(1),])));
     }
 
     #[test]
     fn iterator_reduce() {
-        let var = Variant::Vec(vec![
+        let var = Variant::Vec(Box::new(vec![
             Variant::str("hello"),
             Variant::Int(1),
             Variant::Float(2.0),
             Variant::Bool(true),
-        ]);
+        ]));
 
         let a = var
             .into_iterator()
@@ -827,12 +827,12 @@ mod tests {
 
     #[test]
     fn filter_map_reduce() {
-        let var = Variant::Vec(vec![
+        let var = Variant::Vec(Box::new(vec![
             Variant::Int(1),
             Variant::Float(2.0),
             Variant::Bool(true),
             Variant::str("hello"),
-        ]);
+        ]));
 
         let a = var
             .into_iterator()

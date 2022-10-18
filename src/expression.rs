@@ -245,7 +245,7 @@ impl Expression {
 
     fn evaluate_vector(variables: Memory, i: &[Expression]) -> Result<Variant> {
         let vec: Result<Vec<_>> = i.iter().map(|i| i.evaluate(variables)).collect();
-        Ok(Variant::Vec(vec?))
+        Ok(Variant::Vec(Box::new(vec?)))
     }
 
     fn evaluate_dictionary(variables: Memory, i: &[(Expression, Expression)]) -> Result<Variant> {
@@ -485,7 +485,7 @@ mod tests {
     fn test_vec_access() {
         let mut variables = Vec::new();
         let expr = Expression::Index(Box::new((
-            Expression::value(Variant::Vec(vec![Variant::Int(1)])),
+            Expression::value(Variant::Vec(Box::new(vec![Variant::Int(1)]))),
             Expression::value(Variant::Int(0)),
         )));
         assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Int(1));
@@ -495,7 +495,7 @@ mod tests {
     fn test_vec_access_not_found() {
         let mut variables = Vec::new();
         let expr = Expression::Index(Box::new((
-            Expression::value(Variant::Vec(vec![Variant::Int(1)])),
+            Expression::value(Variant::Vec(Box::new(vec![Variant::Int(1)]))),
             Expression::value(Variant::Int(1)),
         )));
         assert_eq!(
@@ -591,12 +591,12 @@ mod tests {
         let mut variables = vec![AHashMap::default()];
         variables[0].insert(
             "v".to_string(),
-            Variant::Vec(vec![
+            Variant::Vec(Box::new(vec![
                 Variant::Int(0),
                 Variant::Int(1),
                 Variant::Int(2),
                 Variant::Int(3),
-            ]),
+            ])),
         );
         let expr = Expression::For {
             i_name: "i".to_string(),
@@ -624,12 +624,12 @@ mod tests {
         let mut variables = vec![AHashMap::default()];
         variables[0].insert(
             "v".to_string(),
-            Variant::Vec(vec![
+            Variant::Vec(Box::new(vec![
                 Variant::Int(0),
                 Variant::Int(1),
                 Variant::Int(2),
                 Variant::Int(3),
-            ]),
+            ])),
         );
         variables[0].insert(
             "filter".to_string(),
@@ -660,7 +660,7 @@ mod tests {
         dbg!(&variables);
         assert_eq!(
             expr.evaluate(&mut variables).unwrap(),
-            Variant::Vec(vec![Variant::Int(0), Variant::Int(2),])
+            Variant::Vec(Box::new(vec![Variant::Int(0), Variant::Int(2),]))
         );
     }
 
