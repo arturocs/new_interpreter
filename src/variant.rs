@@ -5,7 +5,6 @@
 use crate::{
     expression::Expression,
     function::{Function, NativeFunction},
-    number::{Int, Number},
 };
 use ahash::RandomState;
 use anyhow::{anyhow, Result};
@@ -17,19 +16,21 @@ use std::{
     cmp::Ordering,
     fmt,
     hash::{Hash, Hasher},
-    ops::Neg,
 };
 use unicode_segmentation::UnicodeSegmentation;
 
-type Dictionary = IndexMap<Variant, Variant, RandomState>;
 pub trait VariantIter: Iterator<Item = Variant> + fmt::Debug + DynClone {}
 impl<T> VariantIter for T where T: Iterator<Item = Variant> + fmt::Debug + DynClone {}
 
+type Int = i64;
+type Float = f64;
+type Dictionary = IndexMap<Variant, Variant, RandomState>;
 dyn_clone::clone_trait_object!(VariantIter);
 #[derive(Debug, Clone)]
 pub enum Variant {
     Error(String),
-    Number(Number),
+    Int(i64),
+    Float(f64),
     Bool(bool),
     Byte(u8),
     Bytes(Vec<u8>),
@@ -52,7 +53,10 @@ impl Ord for Variant {
     fn cmp(&self, other: &Self) -> Ordering {
         match (self, other) {
             (Variant::Error(a), Variant::Error(b)) => a.cmp(b),
-            (&Variant::Number(a), Variant::Number(b)) => a.cmp(b),
+            (&Variant::Int(a), Variant::Float(b)) => (a as Float).total_cmp(b),
+            (&Variant::Float(a), &Variant::Int(b)) => a.total_cmp(&(b as Float)),
+            (&Variant::Int(a), Variant::Int(b)) => a.cmp(b),
+            (&Variant::Float(a), Variant::Float(b)) => a.total_cmp(b),
             (&Variant::Bool(a), Variant::Bool(b)) => a.cmp(b),
             (&Variant::Byte(a), Variant::Byte(b)) => a.cmp(b),
             (Variant::Bytes(a), Variant::Bytes(b)) => a.cmp(b),
@@ -79,7 +83,10 @@ impl PartialOrd for Variant {
 impl PartialEq for Variant {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (&Variant::Number(a), &Variant::Number(b)) => a == b,
+            (&Variant::Int(a), &Variant::Float(b)) => (a as Float) == b,
+            (&Variant::Float(a), &Variant::Int(b)) => a == (b as Float),
+            (&Variant::Int(a), &Variant::Int(b)) => a == b,
+            (&Variant::Float(a), &Variant::Float(b)) => a == b,
             (&Variant::Bool(a), &Variant::Bool(b)) => a == b,
             (Variant::Error(a), Variant::Error(b)) => a == b,
             (&Variant::Byte(a), &Variant::Byte(b)) => a == b,
@@ -110,7 +117,8 @@ impl fmt::Display for Variant {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Variant::Bool(b) => write!(fmt, "{b}"),
-            Variant::Number(n) => write!(fmt, "{n}"),
+            Variant::Float(f) => write!(fmt, "{f}"),
+            Variant::Int(i) => write!(fmt, "{i}"),
             Variant::Str(s) => write!(fmt, "{s}"),
             Variant::Error(e) => write!(fmt, "Error: {e}"),
             Variant::Vec(v) => {
@@ -155,7 +163,8 @@ impl Hash for Variant {
                 0_u8.hash(state);
                 e.hash(state)
             }
-            Variant::Number(a) => a.hash(state),
+            Variant::Int(a) => a.hash(state),
+            Variant::Float(a) => a.to_bits().hash(state),
             Variant::Bool(a) => a.hash(state),
             Variant::Str(a) => a.hash(state),
             Variant::Vec(a) => a.hash(state),
@@ -192,13 +201,6 @@ impl Variant {
         Variant::Str(s.to_string())
     }
 
-    pub fn float(f: f64) -> Variant {
-        Variant::Number(Number::Float(f))
-    }
-
-    pub fn int(i: Int) -> Variant {
-        Variant::Number(Number::Int(i))
-    }
     pub fn error(e: impl ToString) -> Variant {
         Variant::Error(e.to_string())
     }
@@ -233,7 +235,10 @@ impl Variant {
 
     pub fn add(&self, other: &Variant) -> Result<Variant> {
         let result = match (self, other) {
-            (&Variant::Number(a), &Variant::Number(b)) => Variant::Number(a + b),
+            (Variant::Int(a), Variant::Int(b)) => Variant::Int(a + b),
+            (Variant::Float(a), Variant::Float(b)) => Variant::Float(a + b),
+            (Variant::Int(a), Variant::Float(b)) => Variant::Float(*a as Float + b),
+            (Variant::Float(a), Variant::Int(b)) => Variant::Float(a + *b as Float),
             (Variant::Vec(a), Variant::Vec(b)) => apply_op_between_vecs(a, b, Self::add)?,
             (Variant::Str(a), b) => {
                 let mut c = a.clone();
@@ -252,7 +257,10 @@ impl Variant {
 
     pub fn sub(&self, other: &Variant) -> Result<Variant> {
         let result = match (self, other) {
-            (&Variant::Number(a), &Variant::Number(b)) => Variant::Number(a - b),
+            (Variant::Int(a), Variant::Int(b)) => Variant::Int(a - b),
+            (Variant::Float(a), Variant::Float(b)) => Variant::Float(a - b),
+            (Variant::Int(a), Variant::Float(b)) => Variant::Float(*a as Float - b),
+            (Variant::Float(a), Variant::Int(b)) => Variant::Float(a - *b as Float),
             (Variant::Vec(a), Variant::Vec(b)) => apply_op_between_vecs(a, b, Self::sub)?,
 
             _ => return Err(anyhow!("Cannot sub {self:?} and {other:?}")),
@@ -262,7 +270,10 @@ impl Variant {
 
     pub fn div(&self, other: &Variant) -> Result<Variant> {
         let result = match (self, other) {
-            (&Variant::Number(a), &Variant::Number(b)) => Variant::Number(a / b),
+            (Variant::Int(a), Variant::Int(b)) => Variant::Float(*a as Float / *b as Float),
+            (Variant::Float(a), Variant::Float(b)) => Variant::Float(a / b),
+            (Variant::Int(a), Variant::Float(b)) => Variant::Float(*a as Float / b),
+            (Variant::Float(a), Variant::Int(b)) => Variant::Float(a / *b as Float),
             (Variant::Vec(a), Variant::Vec(b)) => apply_op_between_vecs(a, b, Self::div)?,
             _ => return Err(anyhow!("Cannot div {self:?} and {other:?}")),
         };
@@ -271,7 +282,10 @@ impl Variant {
 
     fn div_exact(&self, other: &Variant) -> Result<Variant> {
         let result = match (self, other) {
-            (&Variant::Number(a), &Variant::Number(b)) => Variant::Number(a.div_exact(b)),
+            (Variant::Int(a), Variant::Int(b)) => Variant::Int(a / b),
+            (Variant::Float(a), Variant::Float(b)) => Variant::Int(*a as Int / *b as Int),
+            (Variant::Int(a), Variant::Float(b)) => Variant::Int(a / *b as Int),
+            (Variant::Float(a), Variant::Int(b)) => Variant::Int(*a as Int / b),
             (Variant::Vec(a), Variant::Vec(b)) => apply_op_between_vecs(a, b, Self::div_exact)?,
             _ => return Err(anyhow!("Cannot div_exact {self:?} and {other:?}")),
         };
@@ -280,10 +294,12 @@ impl Variant {
 
     pub fn mul(&self, other: &Variant) -> Result<Variant> {
         let result = match (self, other) {
-            (&Variant::Number(a), &Variant::Number(b)) => Variant::Number(a * b),
+            (Variant::Int(a), Variant::Int(b)) => Variant::Int(a * b),
+            (Variant::Float(a), Variant::Float(b)) => Variant::Float(a * b),
+            (Variant::Int(a), Variant::Float(b)) => Variant::Float(*a as Float * b),
+            (Variant::Float(a), Variant::Int(b)) => Variant::Float(a * *b as Float),
             (Variant::Vec(a), Variant::Vec(b)) => apply_op_between_vecs(a, b, Self::mul)?,
-            (Variant::Str(a), &Variant::Number(b)) if b.is_int() => {
-                let b = b.into_int();
+            (Variant::Str(a), &Variant::Int(b)) => {
                 if b >= 0 {
                     Variant::Str(a.repeat(b as usize))
                 } else {
@@ -297,7 +313,10 @@ impl Variant {
 
     pub fn rem(&self, other: &Variant) -> Result<Variant> {
         let result = match (self, other) {
-            (&Variant::Number(a), &Variant::Number(b)) => Variant::Number(a % b),
+            (Variant::Int(a), Variant::Int(b)) => Variant::Int(a % b),
+            (Variant::Float(a), Variant::Float(b)) => Variant::Float(a % b),
+            (Variant::Int(a), Variant::Float(b)) => Variant::Float(*a as Float % b),
+            (Variant::Float(a), Variant::Int(b)) => Variant::Float(a % *b as Float),
             (Variant::Vec(a), Variant::Vec(b)) => apply_op_between_vecs(a, b, Self::rem)?,
             _ => return Err(anyhow!("Cannot rem {self:?} and {other:?}")),
         };
@@ -306,7 +325,10 @@ impl Variant {
 
     fn pow(&self, other: &Variant) -> Result<Variant> {
         let result = match (self, other) {
-            (&Variant::Number(a), &Variant::Number(b)) => Variant::Number(a.pow(b)),
+            (Variant::Int(a), Variant::Int(b)) => Variant::Float((*a as Float).powf(*b as Float)),
+            (Variant::Float(a), Variant::Float(b)) => Variant::Float(a.powf(*b)),
+            (Variant::Int(a), Variant::Float(b)) => Variant::Float((*a as Float).powf(*b)),
+            (Variant::Float(a), Variant::Int(b)) => Variant::Float(a.powf(*b as Float)),
             _ => return Err(anyhow!("Cannot elevate {self:?} to {other:?}")),
         };
         Ok(result)
@@ -337,15 +359,15 @@ impl Variant {
 
     pub fn neg(&self) -> Result<Variant> {
         match self {
-            Variant::Number(i) => Ok(Variant::Number(i.neg())),
+            Variant::Int(i) => Ok(Variant::Int(-i)),
+            Variant::Float(i) => Ok(Variant::Float(-i)),
             _ => Err(anyhow!("Cannot negate {self:?}")),
         }
     }
 
     fn is_indexable_guard(&self, index: &Variant) -> Result<()> {
         match (self, index) {
-            (Variant::Vec(a), &Variant::Number(i)) if i.is_int() => {
-                let i = i.into_int();
+            (Variant::Vec(a), &Variant::Int(i)) => {
                 if i >= 0 {
                     a.get(i as usize)
                         .map(|_| ())
@@ -357,17 +379,17 @@ impl Variant {
                 }
             }
 
-            (Variant::Vec(a), &Variant::Number(i)) if i.is_float() => match i {
-                _ if i.into_float() < 0.0 => Err(anyhow!(
-                    "Cannot index a vector with {i} because it is negative number"
+            (Variant::Vec(a), &Variant::Float(f)) => match f {
+                _ if f < 0.0 => Err(anyhow!(
+                    "Cannot index a vector with {f} because it is negative number"
                 )),
-                _ if i.into_float().fract() != 0.0 => Err(anyhow!(
-                    "Cannot index a vector with {i} because it is an FP number"
+                _ if f.fract() != 0.0 => Err(anyhow!(
+                    "Cannot index a vector with {f} because it is an FP number"
                 )),
                 _ => a
-                    .get(i.into_float() as usize)
+                    .get(f as usize)
                     .map(|_| ())
-                    .ok_or_else(|| anyhow!("Index {i} out of bounds")),
+                    .ok_or_else(|| anyhow!("Index {f} out of bounds")),
             },
 
             (Variant::Dict(a), _) => a
@@ -382,7 +404,8 @@ impl Variant {
     pub fn index(&self, index: &Variant) -> Result<&Variant> {
         self.is_indexable_guard(index)?;
         let reference = match (self, index) {
-            (Variant::Vec(a), &Variant::Number(i)) => a.get(i.into_int() as usize).unwrap(),
+            (Variant::Vec(a), &Variant::Int(i)) => a.get(i as usize).unwrap(),
+            (Variant::Vec(a), &Variant::Float(f)) => a.get(f as usize).unwrap(),
             (Variant::Dict(a), _) => a.get(index).unwrap(),
             _ => unreachable!(),
         };
@@ -392,8 +415,8 @@ impl Variant {
     pub fn index_mut(&mut self, index: &Variant) -> Result<&mut Variant> {
         self.is_indexable_guard(index)?;
         let reference = match (self, index) {
-            (Variant::Vec(a), &Variant::Number(i)) => a.get_mut(i.into_int() as usize).unwrap(),
-
+            (Variant::Vec(a), &Variant::Int(i)) => a.get_mut(i as usize).unwrap(),
+            (Variant::Vec(a), &Variant::Float(f)) => a.get_mut(f as usize).unwrap(),
             (Variant::Dict(a), _) => a
                 .entry(index.clone())
                 .or_insert(Variant::error("Uninitialized key")),
@@ -598,10 +621,7 @@ mod tests {
         hash::{Hash, Hasher},
     };
 
-    use crate::{
-        number::Number,
-        variant::{Dictionary, Variant},
-    };
+    use crate::variant::{Dictionary, Variant};
     #[test]
     fn string_addition() {
         let a = Variant::str("hello");
@@ -614,10 +634,10 @@ mod tests {
     #[test]
     fn variant_format() {
         let s = Variant::Vec(vec![
-            Variant::int(1),
-            Variant::float(2.0),
+            Variant::Int(1),
+            Variant::Float(2.0),
             Variant::Bool(true),
-            Variant::Vec(vec![Variant::int(3), Variant::str("string")]),
+            Variant::Vec(vec![Variant::Int(3), Variant::str("string")]),
             Variant::str("hello"),
         ])
         .to_string();
@@ -626,16 +646,16 @@ mod tests {
     #[test]
     fn dictionary() {
         let bt = Variant::dict(&[
-            (Variant::str("hola"), Variant::int(5)),
-            (Variant::str("zuelo"), Variant::float(3.1)),
+            (Variant::str("hola"), Variant::Int(5)),
+            (Variant::str("zuelo"), Variant::Float(3.1)),
             (
-                Variant::Vec(vec![Variant::int(3), Variant::str("string")]),
+                Variant::Vec(vec![Variant::Int(3), Variant::str("string")]),
                 Variant::str("agua"),
             ),
             (
                 Variant::Vec(vec![
-                    Variant::int(1),
-                    Variant::float(2.4),
+                    Variant::Int(1),
+                    Variant::Float(2.4),
                     Variant::error("error"),
                 ]),
                 Variant::error("error"),
@@ -643,41 +663,41 @@ mod tests {
             (Variant::Bool(true), Variant::Bool(true)),
             (Variant::Bool(false), Variant::Bool(true)),
             (Variant::error("error"), Variant::str("str")),
-            (Variant::float(3.1), Variant::error("error")),
-            (Variant::float(4.1), Variant::error("error")),
-            (Variant::int(4), Variant::str("int4")),
-            (Variant::int(3), Variant::str("int3")),
+            (Variant::Float(3.1), Variant::error("error")),
+            (Variant::Float(4.1), Variant::error("error")),
+            (Variant::Int(4), Variant::str("int4")),
+            (Variant::Int(3), Variant::str("int3")),
         ]);
         let a = bt.index(&Variant::error("error")).unwrap();
         assert_eq!(*a, Variant::str("str"))
     }
     #[test]
     fn comp_int_float() {
-        assert_eq!(Variant::float(1.0), Variant::int(1));
+        assert_eq!(Variant::Float(1.0), Variant::Int(1));
     }
 
     #[test]
     fn index_vector() {
         let var = Variant::Vec(vec![
-            Variant::int(1),
-            Variant::float(2.0),
+            Variant::Int(1),
+            Variant::Float(2.0),
             Variant::Bool(true),
-            Variant::Vec(vec![Variant::int(3), Variant::str("string")]),
+            Variant::Vec(vec![Variant::Int(3), Variant::str("string")]),
             Variant::str("hello"),
         ]);
-        assert_eq!(*var.index(&Variant::int(2)).unwrap(), Variant::Bool(true));
+        assert_eq!(*var.index(&Variant::Int(2)).unwrap(), Variant::Bool(true));
     }
 
     #[test]
     fn index_mut_vector() {
         let mut var = Variant::Vec(vec![
-            Variant::int(1),
-            Variant::float(2.0),
+            Variant::Int(1),
+            Variant::Float(2.0),
             Variant::Bool(true),
-            Variant::Vec(vec![Variant::int(3)]),
+            Variant::Vec(vec![Variant::Int(3)]),
             Variant::str("hello"),
         ]);
-        *var.index_mut(&Variant::float(4.)).unwrap() = Variant::error("Empty value");
+        *var.index_mut(&Variant::Float(4.)).unwrap() = Variant::error("Empty value");
         assert_eq!(
             &var.to_string(),
             "[1, 2, true, [3], \"Error: Empty value\"]"
@@ -688,7 +708,8 @@ mod tests {
     fn tag() {
         let v = [
             Variant::Error("".to_string()),
-            Variant::Number(Number::Int(1)),
+            Variant::Int(1),
+            Variant::Float(2.0),
             Variant::Bool(true),
             Variant::Byte(0),
             Variant::Bytes(vec![]),
@@ -698,16 +719,16 @@ mod tests {
             Variant::Regex(Regex::new("a").unwrap()),
         ]
         .map(|i| i.get_tag());
-        assert_eq!([0, 1, 2, 3, 4, 5, 6, 7, 8], v);
+        assert_eq!([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], v);
     }
 
     #[test]
     fn to_dict_to_vec() {
         let v1 = Variant::Vec(vec![
-            Variant::Vec(vec![Variant::default(), Variant::int(0)]),
-            Variant::Vec(vec![Variant::int(1), Variant::int(1)]),
-            Variant::Vec(vec![Variant::float(2.0), Variant::int(2)]),
-            Variant::Vec(vec![Variant::str("s"), Variant::int(3)]),
+            Variant::Vec(vec![Variant::default(), Variant::Int(0)]),
+            Variant::Vec(vec![Variant::Int(1), Variant::Int(1)]),
+            Variant::Vec(vec![Variant::Float(2.0), Variant::Int(2)]),
+            Variant::Vec(vec![Variant::str("s"), Variant::Int(3)]),
         ]);
         assert_eq!(v1, v1.clone().into_dict().unwrap().into_vec().unwrap())
     }
@@ -725,12 +746,12 @@ mod tests {
             s.finish()
         }
 
-        let mut a = Variant::dict(&[(Variant::int(1), Variant::str("hola"))]);
+        let mut a = Variant::dict(&[(Variant::Int(1), Variant::str("hola"))]);
 
-        let mut b = Variant::dict(&[(Variant::int(1), Variant::str("hola"))]);
+        let mut b = Variant::dict(&[(Variant::Int(1), Variant::str("hola"))]);
 
-        a.insert(Variant::float(4.0), Variant::default()).unwrap();
-        b.insert(Variant::float(4.0), Variant::default()).unwrap();
+        a.insert(Variant::Float(4.0), Variant::default()).unwrap();
+        b.insert(Variant::Float(4.0), Variant::default()).unwrap();
 
         assert_eq!(calculate_hash(&a), calculate_hash(&b))
     }
@@ -738,8 +759,8 @@ mod tests {
     #[test]
     fn iterator_map() {
         let var = Variant::Vec(vec![
-            Variant::int(1),
-            Variant::float(2.0),
+            Variant::Int(1),
+            Variant::Float(2.0),
             Variant::Bool(true),
             Variant::str("hello"),
         ]);
@@ -766,8 +787,8 @@ mod tests {
     #[test]
     fn iterator_filter() {
         let var = Variant::Vec(vec![
-            Variant::int(1),
-            Variant::float(2.0),
+            Variant::Int(1),
+            Variant::Float(2.0),
             Variant::Bool(true),
             Variant::str("hello"),
         ]);
@@ -777,22 +798,22 @@ mod tests {
             .unwrap()
             .filter(Variant::native_fn(|i| {
                 Variant::Bool(match i[0] {
-                    Variant::Number(i) if i.is_int() => true,
+                    Variant::Int(_) => true,
                     _ => false,
                 })
             }))
             .unwrap()
             .into_vec()
             .unwrap();
-        assert_eq!(a, Variant::Vec(vec![Variant::int(1),]));
+        assert_eq!(a, Variant::Vec(vec![Variant::Int(1),]));
     }
 
     #[test]
     fn iterator_reduce() {
         let var = Variant::Vec(vec![
             Variant::str("hello"),
-            Variant::int(1),
-            Variant::float(2.0),
+            Variant::Int(1),
+            Variant::Float(2.0),
             Variant::Bool(true),
         ]);
 
@@ -807,8 +828,8 @@ mod tests {
     #[test]
     fn filter_map_reduce() {
         let var = Variant::Vec(vec![
-            Variant::int(1),
-            Variant::float(2.0),
+            Variant::Int(1),
+            Variant::Float(2.0),
             Variant::Bool(true),
             Variant::str("hello"),
         ]);

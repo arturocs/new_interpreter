@@ -301,7 +301,6 @@ impl Expression {
 
 #[cfg(test)]
 mod tests {
-    use crate::number::Number;
 
     use super::*;
 
@@ -313,58 +312,58 @@ mod tests {
     fn test_mul() {
         let mut variables = Vec::new();
         let expr = Expression::Mul(Box::new((
-            Expression::value(Variant::int(1)),
-            Expression::value(Variant::int(2)),
+            Expression::value(Variant::Int(1)),
+            Expression::value(Variant::Int(2)),
         )));
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::int(2));
+        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Int(2));
     }
 
     #[test]
     fn test_div() {
         let mut variables = Vec::new();
         let expr = Expression::Div(Box::new((
-            Expression::value(Variant::int(1)),
-            Expression::value(Variant::int(2)),
+            Expression::value(Variant::Int(1)),
+            Expression::value(Variant::Int(2)),
         )));
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::float(0.5));
+        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Float(0.5));
     }
 
     #[test]
     fn test_rem() {
         let mut variables = Vec::new();
         let expr = Expression::Rem(Box::new((
-            Expression::value(Variant::int(1)),
-            Expression::value(Variant::int(2)),
+            Expression::value(Variant::Int(1)),
+            Expression::value(Variant::Int(2)),
         )));
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::int(1));
+        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Int(1));
     }
 
     #[test]
     fn test_add() {
         let mut variables = Vec::new();
         let expr = Expression::Add(Box::new((
-            Expression::value(Variant::int(1)),
-            Expression::value(Variant::int(2)),
+            Expression::value(Variant::Int(1)),
+            Expression::value(Variant::Int(2)),
         )));
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::int(3));
+        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Int(3));
     }
 
     #[test]
     fn test_sub() {
         let mut variables = Vec::new();
         let expr = Expression::Sub(Box::new((
-            Expression::value(Variant::int(1)),
-            Expression::value(Variant::int(2)),
+            Expression::value(Variant::Int(1)),
+            Expression::value(Variant::Int(2)),
         )));
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::int(-1));
+        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Int(-1));
     }
 
     #[test]
     fn test_eq() {
         let mut variables = Vec::new();
         let expr = Expression::Eq(Box::new((
-            Expression::value(Variant::int(1)),
-            Expression::value(Variant::int(2)),
+            Expression::value(Variant::Int(1)),
+            Expression::value(Variant::Int(2)),
         )));
         assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Bool(false));
     }
@@ -373,8 +372,8 @@ mod tests {
     fn test_not_eq() {
         let mut variables = Vec::new();
         let expr = Expression::NotEq(Box::new((
-            Expression::value(Variant::int(1)),
-            Expression::value(Variant::int(2)),
+            Expression::value(Variant::Int(1)),
+            Expression::value(Variant::Int(2)),
         )));
         assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Bool(true));
     }
@@ -383,8 +382,8 @@ mod tests {
     fn test_gt() {
         let mut variables = Vec::new();
         let expr = Expression::Gt(Box::new((
-            Expression::value(Variant::int(1)),
-            Expression::value(Variant::int(2)),
+            Expression::value(Variant::Int(1)),
+            Expression::value(Variant::Int(2)),
         )));
         assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Bool(false));
     }
@@ -393,8 +392,8 @@ mod tests {
     fn test_lt() {
         let mut variables = Vec::new();
         let expr = Expression::Lt(Box::new((
-            Expression::value(Variant::int(1)),
-            Expression::value(Variant::int(2)),
+            Expression::value(Variant::Int(1)),
+            Expression::value(Variant::Int(2)),
         )));
         assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Bool(true));
     }
@@ -403,8 +402,8 @@ mod tests {
     fn test_gtoe() {
         let mut variables = Vec::new();
         let expr = Expression::Gtoe(Box::new((
-            Expression::value(Variant::int(1)),
-            Expression::value(Variant::int(2)),
+            Expression::value(Variant::Int(1)),
+            Expression::value(Variant::Int(2)),
         )));
         assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Bool(false));
     }
@@ -413,8 +412,8 @@ mod tests {
     fn test_ltoe() {
         let mut variables = Vec::new();
         let expr = Expression::Ltoe(Box::new((
-            Expression::value(Variant::int(1)),
-            Expression::value(Variant::int(2)),
+            Expression::value(Variant::Int(1)),
+            Expression::value(Variant::Int(2)),
         )));
         assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Bool(true));
     }
@@ -450,8 +449,8 @@ mod tests {
     fn test_dict_access() {
         let mut variables = Vec::new();
         let expr = Expression::Index(Box::new((
-            Expression::value(Variant::dict(&[(Variant::int(1), Variant::str("test"))])),
-            Expression::value(Variant::int(1)),
+            Expression::value(Variant::dict(&[(Variant::Int(1), Variant::str("test"))])),
+            Expression::value(Variant::Int(1)),
         )));
         assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::str("test"));
     }
@@ -460,8 +459,8 @@ mod tests {
     fn test_dict_access_not_found() {
         let mut variables = Vec::new();
         let expr = Expression::Index(Box::new((
-            Expression::value(Variant::dict(&[(Variant::int(1), Variant::str("test"))])),
-            Expression::value(Variant::int(2)),
+            Expression::value(Variant::dict(&[(Variant::Int(1), Variant::str("test"))])),
+            Expression::value(Variant::Int(2)),
         )));
         assert_eq!(
             expr.evaluate(&mut variables).err().unwrap().to_string(),
@@ -473,12 +472,12 @@ mod tests {
     fn test_dict_access_not_dict() {
         let mut variables = Vec::new();
         let expr = Expression::Index(Box::new((
-            Expression::value(Variant::int(1)),
-            Expression::value(Variant::int(1)),
+            Expression::value(Variant::Int(1)),
+            Expression::value(Variant::Int(1)),
         )));
         assert_eq!(
             expr.evaluate(&mut variables).err().unwrap().to_string(),
-            "Cannot index Number(Int(1))"
+            "Cannot index Int(1)"
         );
     }
 
@@ -486,18 +485,18 @@ mod tests {
     fn test_vec_access() {
         let mut variables = Vec::new();
         let expr = Expression::Index(Box::new((
-            Expression::value(Variant::Vec(vec![Variant::int(1)])),
-            Expression::value(Variant::int(0)),
+            Expression::value(Variant::Vec(vec![Variant::Int(1)])),
+            Expression::value(Variant::Int(0)),
         )));
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::int(1));
+        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Int(1));
     }
 
     #[test]
     fn test_vec_access_not_found() {
         let mut variables = Vec::new();
         let expr = Expression::Index(Box::new((
-            Expression::value(Variant::Vec(vec![Variant::int(1)])),
-            Expression::value(Variant::int(1)),
+            Expression::value(Variant::Vec(vec![Variant::Int(1)])),
+            Expression::value(Variant::Int(1)),
         )));
         assert_eq!(
             expr.evaluate(&mut variables).err().unwrap().to_string(),
@@ -509,12 +508,12 @@ mod tests {
     fn test_vec_access_not_vec() {
         let mut variables = Vec::new();
         let expr = Expression::Index(Box::new((
-            Expression::value(Variant::int(1)),
-            Expression::value(Variant::int(0)),
+            Expression::value(Variant::Int(1)),
+            Expression::value(Variant::Int(0)),
         )));
         assert_eq!(
             expr.evaluate(&mut variables).err().unwrap().to_string(),
-            "Cannot index Number(Int(1))"
+            "Cannot index Int(1)"
         );
     }
 
@@ -524,8 +523,8 @@ mod tests {
         let expr = Expression::Fstring(vec![
             Expression::value(Variant::str("test A ")),
             Expression::Div(Box::new((
-                Expression::value(Variant::int(1)),
-                Expression::value(Variant::int(2)),
+                Expression::value(Variant::Int(1)),
+                Expression::value(Variant::Int(2)),
             ))),
             Expression::value(Variant::str(" test B ")),
             Expression::And(Box::new((
@@ -543,19 +542,14 @@ mod tests {
     #[test]
     fn test_native_function_call() {
         let mut variables = vec![AHashMap::default()];
-        variables[0].insert("arg".to_string(), Variant::int(1));
-        let native_function = Expression::value(Variant::native_fn(|i| {
-            // let a = i[0].replace(Variant::int(2));
-            // assert_eq!(i[0], Variant::int(2));
-            //a
-            i[0].add(&Variant::int(2)).unwrap()
-        }));
+        variables[0].insert("arg".to_string(), Variant::Int(1));
+        let native_function =
+            Expression::value(Variant::native_fn(|i| i[0].add(&Variant::Int(2)).unwrap()));
         let expr = Expression::FunctionCall {
             function: Box::new(native_function),
             arguments: vec![Expression::Identifier("arg".to_string())],
         };
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::int(1));
-        assert_eq!(variables[0]["arg"], Variant::int(2));
+        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Int(3));
     }
 
     #[test]
@@ -563,26 +557,26 @@ mod tests {
         let mut variables = vec![AHashMap::default()];
         let expr = Expression::Declaration {
             name: "arg".to_string(),
-            value: Box::new(Expression::value(Variant::int(1))),
+            value: Box::new(Expression::value(Variant::Int(1))),
         };
         expr.evaluate(&mut variables).unwrap();
-        assert_eq!(variables[0]["arg"], Variant::int(1));
+        assert_eq!(variables[0]["arg"], Variant::Int(1));
     }
 
     #[test]
     fn test_while_loop() {
         let mut variables = vec![AHashMap::default()];
-        variables[0].insert("i".to_string(), Variant::int(0));
+        variables[0].insert("i".to_string(), Variant::Int(0));
         let expr = Expression::While(Box::new((
             Expression::Lt(Box::new((
                 Expression::Identifier("i".to_string()),
-                Expression::value(Variant::int(10)),
+                Expression::value(Variant::Int(10)),
             ))),
             Expression::Declaration {
                 name: "i".to_string(),
                 value: Box::new(Expression::Add(Box::new((
                     Expression::Identifier("i".to_string()),
-                    Expression::value(Variant::int(1)),
+                    Expression::value(Variant::Int(1)),
                 )))),
             },
         )));
@@ -590,7 +584,7 @@ mod tests {
             expr.evaluate(&mut variables).unwrap(),
             Variant::error("While loop does not return a value")
         );
-        assert_eq!(variables.last().unwrap()["i"].clone(), Variant::int(10));
+        assert_eq!(variables.last().unwrap()["i"].clone(), Variant::Int(10));
     }
     #[test]
     fn test_for_loop() {
@@ -598,10 +592,10 @@ mod tests {
         variables[0].insert(
             "v".to_string(),
             Variant::Vec(vec![
-                Variant::int(0),
-                Variant::int(1),
-                Variant::int(2),
-                Variant::int(3),
+                Variant::Int(0),
+                Variant::Int(1),
+                Variant::Int(2),
+                Variant::Int(3),
             ]),
         );
         let expr = Expression::For {
@@ -631,10 +625,10 @@ mod tests {
         variables[0].insert(
             "v".to_string(),
             Variant::Vec(vec![
-                Variant::int(0),
-                Variant::int(1),
-                Variant::int(2),
-                Variant::int(3),
+                Variant::Int(0),
+                Variant::Int(1),
+                Variant::Int(2),
+                Variant::Int(3),
             ]),
         );
         variables[0].insert(
@@ -653,7 +647,7 @@ mod tests {
         variables[0].insert(
             "is_even".to_string(),
             Variant::native_fn(|i| {
-                Variant::Bool(i[0].rem(&Variant::int(2)).unwrap() == Variant::int(0))
+                Variant::Bool(i[0].rem(&Variant::Int(2)).unwrap() == Variant::Int(0))
             }),
         );
         let expr = Expression::FunctionCall {
@@ -666,38 +660,38 @@ mod tests {
         dbg!(&variables);
         assert_eq!(
             expr.evaluate(&mut variables).unwrap(),
-            Variant::Vec(vec![Variant::int(0), Variant::int(2),])
+            Variant::Vec(vec![Variant::Int(0), Variant::Int(2),])
         );
     }
 
     #[test]
     fn test_if() {
         let mut variables = vec![AHashMap::default()];
-        variables[0].insert("v".to_string(), Variant::int(0));
+        variables[0].insert("v".to_string(), Variant::Int(0));
         let expr = Expression::Conditional(Box::new((
             Expression::Eq(Box::new((
                 Expression::Identifier("v".to_string()),
-                Expression::value(Variant::int(0)),
+                Expression::value(Variant::Int(0)),
             ))),
-            Expression::value(Variant::int(1)),
-            Some(Expression::value(Variant::int(2))),
+            Expression::value(Variant::Int(1)),
+            Some(Expression::value(Variant::Int(2))),
         )));
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::int(1));
+        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Int(1));
     }
 
     #[test]
     fn test_if_else() {
         let mut variables = vec![AHashMap::default()];
-        variables[0].insert("v".to_string(), Variant::int(0));
+        variables[0].insert("v".to_string(), Variant::Int(0));
         let expr = Expression::Conditional(Box::new((
             Expression::Eq(Box::new((
                 Expression::Identifier("v".to_string()),
-                Expression::value(Variant::int(1)),
+                Expression::value(Variant::Int(1)),
             ))),
-            Expression::value(Variant::int(1)),
-            Some(Expression::value(Variant::int(2))),
+            Expression::value(Variant::Int(1)),
+            Some(Expression::value(Variant::Int(2))),
         )));
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::int(2));
+        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Int(2));
     }
 
     #[test]
@@ -709,15 +703,15 @@ mod tests {
                 vec!["i".to_string()],
                 vec![Expression::Add(Box::new((
                     Expression::Identifier("i".to_string()),
-                    Expression::value(Variant::int(1)),
+                    Expression::value(Variant::Int(1)),
                 )))],
             ),
         );
         let expr = Expression::FunctionCall {
             function: Box::new(Expression::Identifier("add_1".to_string())),
-            arguments: vec![Expression::value(Variant::int(1))],
+            arguments: vec![Expression::value(Variant::Int(1))],
         };
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::int(2));
+        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Int(2));
     }
 
     /* #[test]
@@ -729,11 +723,11 @@ mod tests {
                    vec!["i".to_string()],
                    vec![Expression::Declaration {
                        name: "i".to_string(),
-                       value: Box::new(Expression::value(Variant::int(1))),
+                       value: Box::new(Expression::value(Variant::Int(1))),
                    }],
                ),
            );
-           variables[0].insert("j".to_string(), Variant::int(0));
+           variables[0].insert("j".to_string(), Variant::Int(0));
            dbg!(&variables);
            let expr = Expression::FunctionCall {
                function: Box::new(Expression::Identifier("set_arg_to_1".to_string())),
@@ -744,7 +738,7 @@ mod tests {
                Variant::error("Statement does not return a value")
            );
            dbg!(&variables);
-           assert_eq!(variables.last().unwrap()["j"].clone(), Variant::int(1));
+           assert_eq!(variables.last().unwrap()["j"].clone(), Variant::Int(1));
        }
     */
     #[test]
@@ -754,17 +748,17 @@ mod tests {
         let expr = Expression::Block(vec![
             Expression::Declaration {
                 name: "i".to_string(),
-                value: Box::new(Expression::value(Variant::int(1))),
+                value: Box::new(Expression::value(Variant::Int(1))),
             },
             Expression::Declaration {
                 name: "j".to_string(),
-                value: Box::new(Expression::value(Variant::int(2))),
+                value: Box::new(Expression::value(Variant::Int(2))),
             },
             Expression::Add(Box::new((
                 Expression::Identifier("i".to_string()),
                 Expression::Identifier("j".to_string()),
             ))),
         ]);
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::int(3));
+        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Int(3));
     }
 }

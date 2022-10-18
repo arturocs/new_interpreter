@@ -15,8 +15,8 @@ fn benchmark1(c: &mut Criterion) {
                 let expr = Expression::Fstring(vec![
                     acc,
                     Expression::Div(Box::new((
-                        Expression::value(Variant::int(i)),
-                        Expression::value(Variant::int(i + 1)),
+                        Expression::value(Variant::Int(i)),
+                        Expression::value(Variant::Int(i + 1)),
                     ))),
                     Expression::value(Variant::str(" test B ")),
                     Expression::And(Box::new((
@@ -36,8 +36,8 @@ fn benchmark2(c: &mut Criterion) {
     c.bench_function("filter map reduce", |b| {
         b.iter(|| {
             let var = Variant::Vec(vec![
-                Variant::int(1),
-                Variant::float(2.0),
+                Variant::Int(1),
+                Variant::Float(2.0),
                 Variant::Bool(true),
                 Variant::str("hello"),
             ]);
@@ -67,10 +67,10 @@ fn benchmark3(c: &mut Criterion) {
         b.iter(|| {
             let expr = Expression::Mul(Box::new((
                 Expression::Add(Box::new((
-                    Expression::value(Variant::int(1)),
-                    Expression::value(Variant::int(2)),
+                    Expression::value(Variant::Int(1)),
+                    Expression::value(Variant::Int(2)),
                 ))),
-                Expression::value(Variant::int(3)),
+                Expression::value(Variant::Int(3)),
             )));
             let val = expr.evaluate(&mut variables).unwrap();
             black_box(val)
@@ -82,7 +82,7 @@ fn benchmark4(c: &mut Criterion) {
     let mut variables = vec![AHashMap::default()];
     variables[0].insert(
         "v".to_string(),
-        Variant::Vec((0..100).map(Variant::int).collect()),
+        Variant::Vec((0..100).map(Variant::Int).collect()),
     );
     variables[0].insert(
         "filter".to_string(),
@@ -100,7 +100,7 @@ fn benchmark4(c: &mut Criterion) {
     variables[0].insert(
         "is_even".to_string(),
         Variant::native_fn(|i| {
-            Variant::Bool(i[0].rem(&Variant::int(2)).unwrap() == Variant::int(0))
+            Variant::Bool(i[0].rem(&Variant::Int(2)).unwrap() == Variant::Int(0))
         }),
     );
     c.bench_function("filter with native function", |b| {
@@ -122,7 +122,7 @@ fn benchmark5(c: &mut Criterion) {
     let mut variables = vec![AHashMap::default()];
     variables[0].insert(
         "v".to_string(),
-        Variant::Vec((0..100).map(Variant::int).collect()),
+        Variant::Vec((0..100).map(Variant::Int).collect()),
     );
     variables[0].insert(
         "filter".to_string(),
@@ -144,9 +144,9 @@ fn benchmark5(c: &mut Criterion) {
             vec![Expression::Eq(Box::new((
                 Expression::Rem(Box::new((
                     Expression::Identifier("i".to_string()),
-                    Expression::value(Variant::int(2)),
+                    Expression::value(Variant::Int(2)),
                 ))),
-                Expression::value(Variant::int(0)),
+                Expression::value(Variant::Int(0)),
             )))],
         ),
     );
