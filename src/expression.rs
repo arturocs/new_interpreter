@@ -107,17 +107,15 @@ impl Expression {
         match function.evaluate(variables)? {
             Variant::NativeFunc(f) => {
                 let evaluated_args = arguments
-                    .into_iter()
+                    .iter()
                     .map(|e| e.evaluate(variables))
                     .collect::<Result<Vec<_>>>()?;
                 let ref_args: Vec<_> = evaluated_args.iter().collect();
                 Ok(f.call(&ref_args))
             }
             Variant::Func(f) => {
-                let evaluated_args: Result<Vec<_>> = arguments
-                    .into_iter()
-                    .map(|e| e.evaluate(variables))
-                    .collect();
+                let evaluated_args: Result<Vec<_>> =
+                    arguments.iter().map(|e| e.evaluate(variables)).collect();
                 f.call(&evaluated_args?, variables)
             }
             a => Err(anyhow::anyhow!("{a:?} is not a function")),
@@ -233,7 +231,7 @@ impl Expression {
 
     fn evaluate_fstring(variables: Memory, i: &[Expression]) -> Result<Variant> {
         let s: Result<String> = i
-            .into_iter()
+            .iter()
             .map(|e| Ok(e.evaluate(variables)?.to_string()))
             .collect();
         Ok(Variant::str(s?))

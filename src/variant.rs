@@ -29,8 +29,8 @@ dyn_clone::clone_trait_object!(VariantIter);
 #[derive(Debug, Clone)]
 pub enum Variant {
     Error(String),
-    Int(i64),
-    Float(f64),
+    Int(Int),
+    Float(Float),
     Bool(bool),
     Byte(u8),
     Bytes(Vec<u8>),
@@ -127,7 +127,7 @@ impl fmt::Display for Variant {
                     .map(Variant::to_string_in_collection)
                     .intersperse(", ".to_string())
                     .collect();
-                write!(fmt, "[{}]", content)
+                write!(fmt, "[{content}]")
             }
             Variant::Dict(d) => {
                 let content: String = d
@@ -135,16 +135,16 @@ impl fmt::Display for Variant {
                     .map(|(v1, v2)| {
                         let s1 = v1.to_string_in_collection();
                         let s2 = v2.to_string_in_collection();
-                        format!("{} : {}", s1, s2)
+                        format!("{s1} : {s2}")
                     })
                     .intersperse(", ".to_string())
                     .collect();
-                write!(fmt, "{{{}}}", content)
+                write!(fmt, "{{{content}}}")
             }
             Variant::Func(a) => write!(fmt, "Function at {:#X}", a as *const _ as usize),
             Variant::Bytes(v) => {
                 let s: String = v.iter().map(|b| format!("\\{:#01x}", b)).collect();
-                write!(fmt, "{}", s)
+                write!(fmt, "{s}")
             }
             Variant::Byte(b) => write!(fmt, "\\{:#01x}", b),
             Variant::Regex(r) => write!(fmt, "{}", r.as_str()),
@@ -220,8 +220,8 @@ impl Variant {
 
     fn to_string_in_collection(&self) -> String {
         match self {
-            Variant::Error(_) => format!("\"{}\"", self.to_string()),
-            Variant::Str(s) => format!("\"{}\"", s),
+            Variant::Error(_) => format!("\"{self}\"",),
+            Variant::Str(s) => format!("\"{s}\""),
             _ => self.to_string(),
         }
     }
@@ -429,7 +429,7 @@ impl Variant {
         match self {
             Variant::Dict(d) => Ok(Variant::Vec(
                 d.into_iter()
-                    .map(|(a, b)| Variant::Vec(vec![a.clone(), b.clone()]))
+                    .map(|(a, b)| Variant::Vec(vec![a, b]))
                     .collect(),
             )),
             Variant::Iterator(r) => Ok(Variant::Vec(r.clone().collect())),
@@ -486,7 +486,7 @@ impl Variant {
                     .collect::<Vec<_>>()
                     .into_iter(),
             )),
-            Variant::Bytes(b) => Ok(Variant::iterator(b.into_iter().map(|i| Variant::Byte(i)))),
+            Variant::Bytes(b) => Ok(Variant::iterator(b.into_iter().map(Variant::Byte))),
             Variant::Iterator(i) => Ok(Variant::Iterator(i)),
 
             a => Err(anyhow!("Can't convert {a:?} to iterator")),
