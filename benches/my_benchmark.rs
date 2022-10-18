@@ -35,12 +35,12 @@ fn benchmark1(c: &mut Criterion) {
 fn benchmark2(c: &mut Criterion) {
     c.bench_function("filter map reduce", |b| {
         b.iter(|| {
-            let var = Variant::Vec(Box::new(vec![
+            let var = Variant::Vec(vec![
                 Variant::Int(1),
                 Variant::Float(2.0),
                 Variant::Bool(true),
                 Variant::str("hello"),
-            ]));
+            ]);
 
             let a = var
                 .into_iterator()
@@ -82,7 +82,7 @@ fn benchmark4(c: &mut Criterion) {
     let mut variables = vec![AHashMap::default()];
     variables[0].insert(
         "v".to_string(),
-        Variant::Vec(Box::new((0..100).map(Variant::Int).collect())),
+        Variant::Vec((0..100).map(Variant::Int).collect()),
     );
     variables[0].insert(
         "filter".to_string(),
@@ -122,7 +122,7 @@ fn benchmark5(c: &mut Criterion) {
     let mut variables = vec![AHashMap::default()];
     variables[0].insert(
         "v".to_string(),
-        Variant::Vec(Box::new((0..100).map(Variant::Int).collect())),
+        Variant::Vec((0..100).map(Variant::Int).collect()),
     );
     variables[0].insert(
         "filter".to_string(),
