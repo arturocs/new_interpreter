@@ -323,17 +323,6 @@ impl Variant {
         Ok(result)
     }
 
-    fn pow(&self, other: &Variant) -> Result<Variant> {
-        let result = match (self, other) {
-            (Variant::Int(a), Variant::Int(b)) => Variant::Float((*a as Float).powf(*b as Float)),
-            (Variant::Float(a), Variant::Float(b)) => Variant::Float(a.powf(*b)),
-            (Variant::Int(a), Variant::Float(b)) => Variant::Float((*a as Float).powf(*b)),
-            (Variant::Float(a), Variant::Int(b)) => Variant::Float(a.powf(*b as Float)),
-            _ => return Err(anyhow!("Cannot elevate {self:?} to {other:?}")),
-        };
-        Ok(result)
-    }
-
     pub fn not(&self) -> Result<Variant> {
         match self {
             Variant::Bool(b) => Ok(Variant::Bool(!b)),
