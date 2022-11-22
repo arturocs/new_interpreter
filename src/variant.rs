@@ -241,7 +241,12 @@ impl Variant {
 
     pub fn add(&self, other: &Variant) -> Result<Variant> {
         let result = match (self, other) {
-            (Variant::Int(a), Variant::Int(b)) => Variant::Int(a + b),
+            (Variant::Int(a), Variant::Int(b)) => {
+                return a
+                    .checked_add(*b)
+                    .map(Variant::Int)
+                    .ok_or_else(|| anyhow!("Sum of {self:?} and {other:?} resulted in overflow"))
+            }
             (Variant::Float(a), Variant::Float(b)) => Variant::Float(a + b),
             (Variant::Int(a), Variant::Float(b)) => Variant::Float(*a as Float + b),
             (Variant::Float(a), Variant::Int(b)) => Variant::Float(a + *b as Float),
@@ -263,7 +268,12 @@ impl Variant {
 
     pub fn sub(&self, other: &Variant) -> Result<Variant> {
         let result = match (self, other) {
-            (Variant::Int(a), Variant::Int(b)) => Variant::Int(a - b),
+            (Variant::Int(a), Variant::Int(b)) => {
+                return a
+                    .checked_sub(*b)
+                    .map(Variant::Int)
+                    .ok_or_else(|| anyhow!("Sub of {self:?} and {other:?} resulted in overflow"))
+            }
             (Variant::Float(a), Variant::Float(b)) => Variant::Float(a - b),
             (Variant::Int(a), Variant::Float(b)) => Variant::Float(*a as Float - b),
             (Variant::Float(a), Variant::Int(b)) => Variant::Float(a - *b as Float),
@@ -300,7 +310,12 @@ impl Variant {
 
     pub fn mul(&self, other: &Variant) -> Result<Variant> {
         let result = match (self, other) {
-            (Variant::Int(a), Variant::Int(b)) => Variant::Int(a * b),
+            (Variant::Int(a), Variant::Int(b)) => {
+                return a
+                    .checked_mul(*b)
+                    .map(Variant::Int)
+                    .ok_or_else(|| anyhow!("Mul of {self:?} and {other:?} resulted in overflow"))
+            }
             (Variant::Float(a), Variant::Float(b)) => Variant::Float(a * b),
             (Variant::Int(a), Variant::Float(b)) => Variant::Float(*a as Float * b),
             (Variant::Float(a), Variant::Int(b)) => Variant::Float(a * *b as Float),
