@@ -231,6 +231,14 @@ impl Variant {
         }
     }
 
+    fn is_zero(&self) -> bool {
+        match self {
+            Variant::Int(i) => *i == 0,
+            Variant::Float(f) => *f == 0.0,
+            _ => false,
+        }
+    }
+
     pub fn add(&self, other: &Variant) -> Result<Variant> {
         let result = match (self, other) {
             (Variant::Int(a), Variant::Int(b)) => Variant::Int(a + b),
