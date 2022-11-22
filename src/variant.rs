@@ -285,6 +285,9 @@ impl Variant {
     }
 
     pub fn div(&self, other: &Variant) -> Result<Variant> {
+        if other.is_zero() {
+            return Err(anyhow!("Cannot divide by zero"));
+        }
         let result = match (self, other) {
             (Variant::Int(a), Variant::Int(b)) => Variant::Float(*a as Float / *b as Float),
             (Variant::Float(a), Variant::Float(b)) => Variant::Float(a / b),
@@ -297,6 +300,9 @@ impl Variant {
     }
 
     fn div_exact(&self, other: &Variant) -> Result<Variant> {
+        if other.is_zero() {
+            return Err(anyhow!("Cannot divide by zero"));
+        }
         let result = match (self, other) {
             (Variant::Int(a), Variant::Int(b)) => Variant::Int(a / b),
             (Variant::Float(a), Variant::Float(b)) => Variant::Int(*a as Int / *b as Int),
@@ -333,8 +339,11 @@ impl Variant {
     }
 
     pub fn rem(&self, other: &Variant) -> Result<Variant> {
+        if other.is_zero() {
+            return Err(anyhow!("Cannot divide by zero"));
+        }
         let result = match (self, other) {
-            (Variant::Int(a), Variant::Int(b)) => Variant::Int(a % b),
+            (Variant::Int(a), Variant::Int(b)) => Variant::Float(*a as Float % *b as Float),
             (Variant::Float(a), Variant::Float(b)) => Variant::Float(a % b),
             (Variant::Int(a), Variant::Float(b)) => Variant::Float(*a as Float % b),
             (Variant::Float(a), Variant::Int(b)) => Variant::Float(a % *b as Float),
