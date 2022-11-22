@@ -22,8 +22,8 @@ use unicode_segmentation::UnicodeSegmentation;
 pub trait VariantIter: Iterator<Item = Variant> + fmt::Debug + DynClone {}
 impl<T> VariantIter for T where T: Iterator<Item = Variant> + fmt::Debug + DynClone {}
 
-type Int = i64;
-type Float = f64;
+pub(crate) type Int = i64;
+pub(crate) type Float = f64;
 type Dictionary = IndexMap<Variant, Variant, RandomState>;
 dyn_clone::clone_trait_object!(VariantIter);
 #[derive(Debug, Clone)]
