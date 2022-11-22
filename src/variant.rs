@@ -107,12 +107,6 @@ impl PartialEq for Variant {
 
 impl Eq for Variant {}
 
-impl Variant {
-    fn get_tag(&self) -> u8 {
-        unsafe { *(self as *const _ as *const u8) }
-    }
-}
-
 impl fmt::Display for Variant {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -197,6 +191,10 @@ fn apply_op_between_vecs(
 }
 
 impl Variant {
+    fn get_tag(&self) -> u8 {
+        unsafe { *(self as *const _ as *const u8) }
+    }
+
     pub fn str(s: impl ToString) -> Variant {
         Variant::Str(s.to_string())
     }
