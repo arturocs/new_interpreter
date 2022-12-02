@@ -1,8 +1,6 @@
 use new_interpreter::expression::Expression;
 use new_interpreter::variant::Variant;
 
-#[macro_use]
-extern crate lalrpop_util;
 
 //lalrpop_mod!(pub parser); // syntesized by LALRPOP
 
