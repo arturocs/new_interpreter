@@ -13,7 +13,7 @@ use bstr::{BString, ByteVec};
 use dyn_clone::DynClone;
 use indexmap::IndexMap;
 use itertools::Itertools;
-use regex::Regex;
+//use regex::Regex;
 use std::{
     cmp::Ordering,
     fmt,
@@ -37,7 +37,6 @@ pub enum Variant {
     Vec(Vec<Variant>),
     Str(BString),
     Dict(Box<Dictionary>),
-    Regex(Regex),
     Iterator(Box<dyn VariantIter>),
     NativeFunc(NativeFunction),
     Func(Box<Function>),
@@ -63,7 +62,7 @@ impl Ord for Variant {
             (Variant::Str(a), Variant::Str(b)) => a.cmp(b),
             (Variant::Dict(a), Variant::Dict(b)) => a.iter().cmp(b.iter()),
             (Variant::Vec(a), Variant::Vec(b)) => a.cmp(b),
-            (Variant::Regex(a), Variant::Regex(b)) => a.as_str().cmp(b.as_str()),
+            // (Variant::Regex(a), Variant::Regex(b)) => a.as_str().cmp(b.as_str()),
             (Variant::Iterator(a), Variant::Iterator(b)) => a.clone().cmp(b.clone()),
             (Variant::NativeFunc(a), Variant::NativeFunc(b)) => {
                 (a as *const _ as usize).cmp(&(b as *const _ as usize))
@@ -93,7 +92,6 @@ impl PartialEq for Variant {
             (Variant::Str(a), Variant::Str(b)) => a == b,
             (Variant::Dict(a), Variant::Dict(b)) => a == b,
             (Variant::Vec(a), Variant::Vec(b)) => a == b,
-            (Variant::Regex(a), Variant::Regex(b)) => a.as_str() == b.as_str(),
             (Variant::Iterator(a), Variant::Iterator(b)) => a.clone().eq(b.clone()),
             (Variant::NativeFunc(a), Variant::NativeFunc(b)) => {
                 (a as *const _ as usize).eq(&(b as *const _ as usize))
@@ -140,7 +138,7 @@ impl fmt::Display for Variant {
                 write!(fmt, "{s}")
             } */
             Variant::Byte(b) => write!(fmt, "\\{:#01x}", b),
-            Variant::Regex(r) => write!(fmt, "{}", r.as_str()),
+            //Variant::Regex(r) => write!(fmt, "{}", r.as_str()),
             Variant::Iterator(i) => write!(fmt, "{i:?}"),
             Variant::NativeFunc(f) => {
                 write!(fmt, "Native function at {:?}", f as *const _)
@@ -165,7 +163,7 @@ impl Hash for Variant {
             Variant::Func(f) => f.hash(state),
             //Variant::Bytes(v) => v.hash(state),
             Variant::Byte(b) => b.hash(state),
-            Variant::Regex(r) => r.as_str().hash(state),
+            //Variant::Regex(r) => r.as_str().hash(state),
             Variant::Iterator(a) => a.clone().for_each(|i| i.hash(state)),
             Variant::NativeFunc(f) => (&f as *const _ as usize).hash(state),
         };
@@ -736,10 +734,10 @@ mod tests {
             Variant::Vec(vec![]),
             Variant::str("string"),
             Variant::Dict(Box::new(Dictionary::default())),
-            Variant::Regex(Regex::new("a").unwrap()),
+            //Variant::Regex(Regex::new("a").unwrap()),
         ]
         .map(|i| i.get_tag());
-        assert_eq!([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], v);
+        assert_eq!([0, 1, 2, 3, 4, 5, 6, 7], v);
     }
 
     #[test]
