@@ -5,6 +5,7 @@
 use crate::{
     expression::Expression,
     function::{Function, NativeFunction},
+    memory::Memory,
 };
 use ahash::RandomState;
 use anyhow::{anyhow, Result};
@@ -521,7 +522,7 @@ impl Variant {
             (Variant::Iterator(i), Variant::Func(f)) => {
                 //TODO: Remove unwrap and allow access to global variables
                 Ok(Variant::iterator(
-                    i.map(move |i| f.call(&[i], &mut vec![]).unwrap()),
+                    i.map(move |i| f.call(&[i], &mut Memory::new()).unwrap()),
                 ))
             }
             (i, Variant::NativeFunc(_)) => {
@@ -551,7 +552,7 @@ impl Variant {
             (Variant::Iterator(i), Variant::Func(f)) => {
                 //TODO: Remove unwrap and allow access to global variables
                 let a = i.filter(move |j| {
-                    match (f.call(std::slice::from_ref(j), &mut vec![])).unwrap() {
+                    match (f.call(std::slice::from_ref(j), &mut Memory::new())).unwrap() {
                         Variant::Bool(b) => b,
                         a => {
                             eprintln!(
@@ -586,7 +587,7 @@ impl Variant {
             }
             //TODO: Remove unwrap and allow access to global variables
             (Variant::Iterator(i), Variant::Func(f)) => {
-                match i.reduce(move |acc, x| f.call(&[acc, x], &mut vec![]).unwrap()) {
+                match i.reduce(move |acc, x| f.call(&[acc, x], &mut Memory::new()).unwrap()) {
                     Some(j) => Ok(j),
                     None => Ok(Variant::error("Empty iterator")),
                 }
