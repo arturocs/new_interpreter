@@ -859,7 +859,7 @@ mod tests {
             .map(Variant::native_fn(|i| Variant::str(i[0].clone())))
             .unwrap()
             .filter(Variant::native_fn(|i| {
-                Variant::Bool(match i[0] {
+                Variant::Bool(match &i[0] {
                     Variant::Str(s) => s.parse::<f64>().is_ok(),
                     _ => false,
                 })
