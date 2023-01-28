@@ -3,6 +3,7 @@
 #![allow(non_snake_case)]
 pub mod expression;
 pub mod function;
-pub mod variant;
 pub mod maths;
+pub mod variant;
+pub mod memory;
 pub mod builtins;
