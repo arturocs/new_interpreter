@@ -36,7 +36,7 @@ impl Function {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct NativeFunction(fn(&[Variant]) -> Variant);
 impl fmt::Debug for NativeFunction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
