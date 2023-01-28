@@ -1,14 +1,15 @@
 #![allow(dead_code)]
 #![allow(unstable_name_collisions)]
 #![allow(non_snake_case)]
-use ahash::AHashMap;
+
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 use new_interpreter::expression::Expression;
+use new_interpreter::memory::Memory;
 use new_interpreter::variant::Variant;
 
 fn benchmark1(c: &mut Criterion) {
-    let mut variables = vec![AHashMap::default()];
+    let mut variables = Memory::new();
     c.bench_function("fstring 1000 times", |b| {
         b.iter(|| {
             let a = (0..1000).fold(Expression::value(Variant::str("first")), |acc, i| {
@@ -62,7 +63,7 @@ fn benchmark2(c: &mut Criterion) {
 }
 
 fn benchmark3(c: &mut Criterion) {
-    let mut variables = vec![AHashMap::default()];
+    let mut variables = Memory::new();
     c.bench_function("integer maths", |b| {
         b.iter(|| {
             let expr = Expression::Mul(Box::new((
@@ -79,37 +80,40 @@ fn benchmark3(c: &mut Criterion) {
 }
 
 fn benchmark4(c: &mut Criterion) {
-    let mut variables = vec![AHashMap::default()];
-    variables[0].insert(
-        "v".to_string(),
-        Variant::Vec((0..100).map(Variant::Int).collect()),
-    );
-    variables[0].insert(
-        "filter".to_string(),
-        Variant::native_fn(|i| {
-            let iter = &i[0];
-            let func = &i[1];
-            iter.clone()
-                .filter(func.clone())
-                .unwrap()
-                .into_vec()
-                .unwrap()
-        }),
-    );
+    let mut variables = Memory::new();
+    variables
+        .set("v", Variant::Vec((0..100).map(Variant::Int).collect()))
+        .unwrap();
+    variables
+        .set(
+            "filter",
+            Variant::native_fn(|i| {
+                let iter = &i[0];
+                let func = &i[1];
+                iter.clone()
+                    .filter(func.clone())
+                    .unwrap()
+                    .into_vec()
+                    .unwrap()
+            }),
+        )
+        .unwrap();
 
-    variables[0].insert(
-        "is_even".to_string(),
-        Variant::native_fn(|i| {
-            Variant::Bool(i[0].rem(&Variant::Int(2)).unwrap() == Variant::Int(0))
-        }),
-    );
+    variables
+        .set(
+            "is_even",
+            Variant::native_fn(|i| {
+                Variant::Bool(i[0].rem(&Variant::Int(2)).unwrap() == Variant::Int(0))
+            }),
+        )
+        .unwrap();
     c.bench_function("filter with native function", |b| {
         b.iter(|| {
             let expr = Expression::FunctionCall {
-                function: Box::new(Expression::Identifier("filter".to_string())),
+                function: Box::new(Expression::Identifier("filter".into())),
                 arguments: vec![
-                    Expression::Identifier("v".to_string()),
-                    Expression::Identifier("is_even".to_string()),
+                    Expression::Identifier("v".into()),
+                    Expression::Identifier("is_even".into()),
                 ],
             };
 
@@ -119,45 +123,48 @@ fn benchmark4(c: &mut Criterion) {
 }
 
 fn benchmark5(c: &mut Criterion) {
-    let mut variables = vec![AHashMap::default()];
-    variables[0].insert(
-        "v".to_string(),
-        Variant::Vec((0..100).map(Variant::Int).collect()),
-    );
-    variables[0].insert(
-        "filter".to_string(),
-        Variant::native_fn(|i| {
-            let iter = &i[0];
-            let func = &i[1];
-            iter.clone()
-                .filter(func.clone())
-                .unwrap()
-                .into_vec()
-                .unwrap()
-        }),
-    );
+    let mut variables = Memory::new();
+    variables
+        .set("v", Variant::Vec((0..100).map(Variant::Int).collect()))
+        .unwrap();
+    variables
+        .set(
+            "filter",
+            Variant::native_fn(|i| {
+                let iter = &i[0];
+                let func = &i[1];
+                iter.clone()
+                    .filter(func.clone())
+                    .unwrap()
+                    .into_vec()
+                    .unwrap()
+            }),
+        )
+        .unwrap();
 
-    variables[0].insert(
-        "is_even".to_string(),
-        Variant::func(
-            vec!["i".to_string()],
-            vec![Expression::Eq(Box::new((
-                Expression::Rem(Box::new((
-                    Expression::Identifier("i".to_string()),
-                    Expression::value(Variant::Int(2)),
-                ))),
-                Expression::value(Variant::Int(0)),
-            )))],
-        ),
-    );
+    variables
+        .set(
+            "is_even",
+            Variant::func(
+                vec!["i".into()],
+                vec![Expression::Eq(Box::new((
+                    Expression::Rem(Box::new((
+                        Expression::Identifier("i".to_string()),
+                        Expression::value(Variant::Int(2)),
+                    ))),
+                    Expression::value(Variant::Int(0)),
+                )))],
+            ),
+        )
+        .unwrap();
 
     c.bench_function("filter with non native function", |b| {
         b.iter(|| {
             let expr = Expression::FunctionCall {
-                function: Box::new(Expression::Identifier("filter".to_string())),
+                function: Box::new(Expression::Identifier("filter".into())),
                 arguments: vec![
-                    Expression::Identifier("v".to_string()),
-                    Expression::Identifier("is_even".to_string()),
+                    Expression::Identifier("v".into()),
+                    Expression::Identifier("is_even".into()),
                 ],
             };
 
