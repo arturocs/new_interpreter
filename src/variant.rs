@@ -34,7 +34,6 @@ pub enum Variant {
     Float(Float),
     Bool(bool),
     Byte(u8),
-    Bytes(Vec<u8>),
     Vec(Vec<Variant>),
     Str(String),
     Dict(Box<Dictionary>),
@@ -60,7 +59,7 @@ impl Ord for Variant {
             (&Variant::Float(a), Variant::Float(b)) => a.total_cmp(b),
             (&Variant::Bool(a), Variant::Bool(b)) => a.cmp(b),
             (&Variant::Byte(a), Variant::Byte(b)) => a.cmp(b),
-            (Variant::Bytes(a), Variant::Bytes(b)) => a.cmp(b),
+            // (Variant::Bytes(a), Variant::Bytes(b)) => a.cmp(b),
             (Variant::Str(a), Variant::Str(b)) => a.cmp(b),
             (Variant::Dict(a), Variant::Dict(b)) => a.iter().cmp(b.iter()),
             (Variant::Vec(a), Variant::Vec(b)) => a.cmp(b),
@@ -91,7 +90,6 @@ impl PartialEq for Variant {
             (&Variant::Bool(a), &Variant::Bool(b)) => a == b,
             (Variant::Error(a), Variant::Error(b)) => a == b,
             (&Variant::Byte(a), &Variant::Byte(b)) => a == b,
-            (Variant::Bytes(a), Variant::Bytes(b)) => a == b,
             (Variant::Str(a), Variant::Str(b)) => a == b,
             (Variant::Dict(a), Variant::Dict(b)) => a == b,
             (Variant::Vec(a), Variant::Vec(b)) => a == b,
@@ -137,10 +135,10 @@ impl fmt::Display for Variant {
                 write!(fmt, "{{{content}}}")
             }
             Variant::Func(a) => write!(fmt, "Function at {:#X}", a as *const _ as usize),
-            Variant::Bytes(v) => {
+            /* Variant::Bytes(v) => {
                 let s: String = v.iter().map(|b| format!("\\{:#01x}", b)).collect();
                 write!(fmt, "{s}")
-            }
+            } */
             Variant::Byte(b) => write!(fmt, "\\{:#01x}", b),
             Variant::Regex(r) => write!(fmt, "{}", r.as_str()),
             Variant::Iterator(i) => write!(fmt, "{i:?}"),
@@ -165,7 +163,7 @@ impl Hash for Variant {
             Variant::Vec(a) => a.hash(state),
             Variant::Dict(a) => a.iter().for_each(|i| i.hash(state)),
             Variant::Func(f) => f.hash(state),
-            Variant::Bytes(v) => v.hash(state),
+            //Variant::Bytes(v) => v.hash(state),
             Variant::Byte(b) => b.hash(state),
             Variant::Regex(r) => r.as_str().hash(state),
             Variant::Iterator(a) => a.clone().for_each(|i| i.hash(state)),
@@ -506,7 +504,7 @@ impl Variant {
                     .collect::<Vec<_>>()
                     .into_iter(),
             )),
-            Variant::Bytes(b) => Ok(Variant::iterator(b.into_iter().map(Variant::Byte))),
+            //Variant::Bytes(b) => Ok(Variant::iterator(b.into_iter().map(Variant::Byte))),
             Variant::Iterator(i) => Ok(Variant::Iterator(i)),
 
             a => Err(anyhow!("Can't convert {a:?} to iterator")),
@@ -622,7 +620,7 @@ impl Variant {
 
     fn len(&self) -> Result<usize> {
         let l = match self {
-            Variant::Bytes(b) => b.len(),
+            //Variant::Bytes(b) => b.len(),
             Variant::Vec(v) => v.len(),
             Variant::Str(s) => s.graphemes(true).count(),
             Variant::Dict(d) => d.len(),
@@ -732,7 +730,7 @@ mod tests {
             Variant::Float(2.0),
             Variant::Bool(true),
             Variant::Byte(0),
-            Variant::Bytes(vec![]),
+            //Variant::Bytes(vec![]),
             Variant::Vec(vec![]),
             Variant::Str("string".to_string()),
             Variant::Dict(Box::new(Dictionary::default())),
