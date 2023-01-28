@@ -9,11 +9,11 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.68"
 indexmap = "1.9.2"
-unicode-segmentation = "1.10.0"
 dyn-clone = "1.0.9"
 regex = "1.7.1"
 itertools = "0.10.5"
 ahash = "0.8.2"
+bstr = "1.1.0"
 
 [dev-dependencies]
 criterion = "0.4.0"

@@ -7,6 +7,7 @@
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
  */
+use bstr::ByteSlice;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 use new_interpreter::expression::Expression;
@@ -55,7 +56,7 @@ fn benchmark2(c: &mut Criterion) {
                 .unwrap()
                 .filter(Variant::native_fn(|i| {
                     Variant::Bool(match &i[0] {
-                        Variant::Str(s) => s.parse::<f64>().is_ok(),
+                        Variant::Str(s) => s.to_str_lossy().parse::<f64>().is_ok(),
                         _ => false,
                     })
                 }))

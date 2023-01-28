@@ -9,6 +9,7 @@ use crate::{
 };
 use ahash::RandomState;
 use anyhow::{anyhow, Result};
+use bstr::{BString, ByteVec};
 use dyn_clone::DynClone;
 use indexmap::IndexMap;
 use itertools::Itertools;
@@ -18,7 +19,6 @@ use std::{
     fmt,
     hash::{Hash, Hasher},
 };
-use unicode_segmentation::UnicodeSegmentation;
 
 pub trait VariantIter: Iterator<Item = Variant> + fmt::Debug + DynClone {}
 impl<T> VariantIter for T where T: Iterator<Item = Variant> + fmt::Debug + DynClone {}
@@ -35,7 +35,7 @@ pub enum Variant {
     Bool(bool),
     Byte(u8),
     Vec(Vec<Variant>),
-    Str(String),
+    Str(BString),
     Dict(Box<Dictionary>),
     Regex(Regex),
     Iterator(Box<dyn VariantIter>),
@@ -195,7 +195,7 @@ impl Variant {
     }
 
     pub fn str(s: impl ToString) -> Variant {
-        Variant::Str(s.to_string())
+        Variant::Str(s.to_string().into())
     }
 
     pub fn error(e: impl ToString) -> Variant {
@@ -256,7 +256,7 @@ impl Variant {
                 Variant::Str(c)
             }
             (a, Variant::Str(b)) => {
-                let mut c = a.to_string().trim_matches('"').to_string();
+                let mut c: BString = a.to_string().trim_matches('"').to_string().into();
                 c.push_str(b);
                 Variant::Str(c)
             }
@@ -327,7 +327,7 @@ impl Variant {
             (Variant::Vec(a), Variant::Vec(b)) => apply_op_between_vecs(a, b, Self::mul)?,
             (Variant::Str(a), &Variant::Int(b)) => {
                 if b >= 0 {
-                    Variant::Str(a.repeat(b as usize))
+                    Variant::Str(a.repeat(b as usize).into())
                 } else {
                     return Err(anyhow!("Cannot multiply a string by a negative value"));
                 }
@@ -494,8 +494,9 @@ impl Variant {
     pub fn into_iterator(self) -> Result<Variant> {
         match self {
             Variant::Str(s) => {
-                let g: Vec<_> = s.graphemes(true).map(Variant::str).collect();
-                Ok(Variant::iterator(g.into_iter()))
+                //let g: Vec<_> = s.graphemes(true).map(Variant::str).collect();
+                let i = s.to_vec().into_iter();
+                Ok(Variant::iterator(i.map(Variant::Byte)))
             }
             Variant::Vec(v) => Ok(Variant::iterator(v.into_iter())),
             Variant::Dict(d) => Ok(Variant::iterator(
@@ -622,9 +623,9 @@ impl Variant {
         let l = match self {
             //Variant::Bytes(b) => b.len(),
             Variant::Vec(v) => v.len(),
-            Variant::Str(s) => s.graphemes(true).count(),
+            Variant::Str(s) => s.len(),
             Variant::Dict(d) => d.len(),
-            Variant::Regex(r) => r.as_str().len(),
+            //Variant::Regex(r) => r.as_str().len(),
             _ => return Err(anyhow!("{self:?} doesn't have a lenght attribute")),
         };
         Ok(l)
@@ -633,6 +634,7 @@ impl Variant {
 
 #[cfg(test)]
 mod tests {
+    use bstr::ByteSlice;
     use regex::Regex;
     use std::{
         collections::hash_map::DefaultHasher,
@@ -732,7 +734,7 @@ mod tests {
             Variant::Byte(0),
             //Variant::Bytes(vec![]),
             Variant::Vec(vec![]),
-            Variant::Str("string".to_string()),
+            Variant::str("string"),
             Variant::Dict(Box::new(Dictionary::default())),
             Variant::Regex(Regex::new("a").unwrap()),
         ]
@@ -859,7 +861,7 @@ mod tests {
             .unwrap()
             .filter(Variant::native_fn(|i| {
                 Variant::Bool(match &i[0] {
-                    Variant::Str(s) => s.parse::<f64>().is_ok(),
+                    Variant::Str(s) => s.to_str_lossy().parse::<f64>().is_ok(),
                     _ => false,
                 })
             }))
