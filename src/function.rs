@@ -37,7 +37,7 @@ impl Function {
 }
 
 #[derive(Clone)]
-pub struct NativeFunction(fn(&[&Variant]) -> Variant);
+pub struct NativeFunction(fn(&[Variant]) -> Variant);
 impl fmt::Debug for NativeFunction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("NativeFunction")
@@ -47,11 +47,11 @@ impl fmt::Debug for NativeFunction {
 }
 
 impl NativeFunction {
-    pub fn new(f: fn(&[&Variant]) -> Variant) -> Self {
+    pub fn new(f: fn(&[Variant]) -> Variant) -> Self {
         NativeFunction(f)
     }
 
-    pub fn call(&self, args: &[&Variant]) -> Variant {
+    pub fn call(&self, args: &[Variant]) -> Variant {
         self.0(args)
     }
 }

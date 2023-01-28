@@ -110,8 +110,7 @@ impl Expression {
                     .iter()
                     .map(|e| e.evaluate(variables))
                     .collect::<Result<Vec<_>>>()?;
-                let ref_args: Vec<_> = evaluated_args.iter().collect();
-                Ok(f.call(&ref_args))
+                Ok(f.call(&evaluated_args))
             }
             Variant::Func(f) => {
                 let evaluated_args: Result<Vec<_>> =

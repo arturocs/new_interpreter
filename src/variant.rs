@@ -208,7 +208,7 @@ impl Variant {
     pub fn dict(v: &[(Variant, Variant)]) -> Variant {
         Variant::Dict(Box::new(v.iter().cloned().collect()))
     }
-    pub fn native_fn(f: fn(&[&Variant]) -> Variant) -> Variant {
+    pub fn native_fn(f: fn(&[Variant]) -> Variant) -> Variant {
         Variant::NativeFunc(NativeFunction::new(f))
     }
 
@@ -516,7 +516,7 @@ impl Variant {
         let iter = self.into_iterator()?;
         match (iter, func) {
             (Variant::Iterator(i), Variant::NativeFunc(f)) => {
-                Ok(Variant::iterator(i.map(move |i| f.call(&[&i]))))
+                Ok(Variant::iterator(i.map(move |i| f.call(&[i]))))
             }
             (Variant::Iterator(i), Variant::Func(f)) => {
                 //TODO: Remove unwrap and allow access to global variables
@@ -579,7 +579,7 @@ impl Variant {
         let iter = self.into_iterator()?;
         match (iter, func) {
             (Variant::Iterator(i), Variant::NativeFunc(f)) => {
-                match i.reduce(move |acc, x| f.call(&[&acc, &x])) {
+                match i.reduce(move |acc, x| f.call(&[acc, x])) {
                     Some(j) => Ok(j),
                     None => Ok(Variant::error("Empty iterator")),
                 }
