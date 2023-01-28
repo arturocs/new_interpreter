@@ -1,4 +1,5 @@
-use crate::expression::{Expression, Memory};
+use crate::expression::Expression;
+use crate::memory::Memory;
 use crate::variant::Variant;
 use ahash::AHashMap;
 use anyhow::{anyhow, Result};
@@ -19,14 +20,14 @@ impl Function {
         }
     }
 
-    pub fn call(&self, args: &[Variant], variables: Memory) -> Result<Variant> {
+    pub fn call(&self, args: &[Variant], variables: &mut Memory) -> Result<Variant> {
         let context: AHashMap<_, _> = self
             .args
             .iter()
             .zip(args.iter())
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect();
-        variables.push(context);
+        variables.push_context(context);
 
         let result = self
             .body
@@ -35,7 +36,7 @@ impl Function {
             .last()
             .ok_or_else(|| anyhow!("Function call without body"))
             .and_then(|i| i);
-        variables.pop();
+        variables.pop_context();
         result
     }
 }
