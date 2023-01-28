@@ -18,6 +18,7 @@ use std::{
     cmp::Ordering,
     fmt,
     hash::{Hash, Hasher},
+    rc::Rc,
 };
 
 pub trait VariantIter: Iterator<Item = Variant> + fmt::Debug + DynClone {}
@@ -28,8 +29,9 @@ pub(crate) type Float = f64;
 type Dictionary = IndexMap<Variant, Variant, RandomState>;
 dyn_clone::clone_trait_object!(VariantIter);
 #[derive(Debug, Clone)]
+#[repr(u8)]
 pub enum Variant {
-    Error(String),
+    Error(Rc<str>),
     Int(Int),
     Float(Float),
     Bool(bool),
@@ -44,7 +46,7 @@ pub enum Variant {
 
 impl Default for Variant {
     fn default() -> Self {
-        Variant::Error("Uninitialized value".to_string())
+        Variant::error("Uninitialized value")
     }
 }
 
@@ -197,7 +199,7 @@ impl Variant {
     }
 
     pub fn error(e: impl ToString) -> Variant {
-        Variant::Error(e.to_string())
+        Variant::Error(e.to_string().into())
     }
     pub fn iterator(i: impl VariantIter + 'static) -> Variant {
         Variant::Iterator(Box::new(i))
@@ -725,7 +727,7 @@ mod tests {
     #[test]
     fn tag() {
         let v = [
-            Variant::Error("".to_string()),
+            Variant::error(""),
             Variant::Int(1),
             Variant::Float(2.0),
             Variant::Bool(true),
