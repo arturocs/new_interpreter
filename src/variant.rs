@@ -212,8 +212,8 @@ impl Variant {
         Variant::NativeFunc(NativeFunction::new(f))
     }
 
-    pub fn func(args: Vec<String>, body: Vec<Expression>) -> Variant {
-        Variant::Func(Box::new(Function::new(args, body)))
+    pub fn func(args: Vec<Rc<str>>, body: Vec<Expression>) -> Variant {
+        Variant::Func(Rc::new(Function::new(args, body)))
     }
 
     fn to_string_in_collection(&self) -> String {
