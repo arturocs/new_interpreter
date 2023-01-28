@@ -2,6 +2,11 @@
 #![allow(unstable_name_collisions)]
 #![allow(non_snake_case)]
 
+/* use mimalloc::MiMalloc;
+
+#[global_allocator]
+static GLOBAL: MiMalloc = MiMalloc;
+ */
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 use new_interpreter::expression::Expression;
