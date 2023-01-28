@@ -45,10 +45,10 @@ fn benchmark2(c: &mut Criterion) {
             let a = var
                 .into_iterator()
                 .unwrap()
-                .map(Variant::native_fn(|i| Variant::str(i[0].clone())))
+                .map(Variant::native_fn(|i| Variant::str(&i[0])))
                 .unwrap()
                 .filter(Variant::native_fn(|i| {
-                    Variant::Bool(match i[0] {
+                    Variant::Bool(match &i[0] {
                         Variant::Str(s) => s.parse::<f64>().is_ok(),
                         _ => false,
                     })
@@ -87,8 +87,8 @@ fn benchmark4(c: &mut Criterion) {
     variables[0].insert(
         "filter".to_string(),
         Variant::native_fn(|i| {
-            let iter = i[0];
-            let func = i[1];
+            let iter = &i[0];
+            let func = &i[1];
             iter.clone()
                 .filter(func.clone())
                 .unwrap()
@@ -127,8 +127,8 @@ fn benchmark5(c: &mut Criterion) {
     variables[0].insert(
         "filter".to_string(),
         Variant::native_fn(|i| {
-            let iter = i[0];
-            let func = i[1];
+            let iter = &i[0];
+            let func = &i[1];
             iter.clone()
                 .filter(func.clone())
                 .unwrap()
