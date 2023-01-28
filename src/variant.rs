@@ -41,7 +41,7 @@ pub enum Variant {
     Dict(Box<Dictionary>),
     Iterator(Box<dyn VariantIter>),
     NativeFunc(NativeFunction),
-    Func(Box<Function>),
+    Func(Rc<Function>),
 }
 
 impl Default for Variant {
