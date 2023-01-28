@@ -13,7 +13,6 @@ use bstr::{BString, ByteVec};
 use dyn_clone::DynClone;
 use indexmap::IndexMap;
 use itertools::Itertools;
-//use regex::Regex;
 use std::{
     cmp::Ordering,
     fmt,
@@ -60,11 +59,9 @@ impl Ord for Variant {
             (&Variant::Float(a), Variant::Float(b)) => a.total_cmp(b),
             (&Variant::Bool(a), Variant::Bool(b)) => a.cmp(b),
             (&Variant::Byte(a), Variant::Byte(b)) => a.cmp(b),
-            // (Variant::Bytes(a), Variant::Bytes(b)) => a.cmp(b),
             (Variant::Str(a), Variant::Str(b)) => a.cmp(b),
             (Variant::Dict(a), Variant::Dict(b)) => a.iter().cmp(b.iter()),
             (Variant::Vec(a), Variant::Vec(b)) => a.cmp(b),
-            // (Variant::Regex(a), Variant::Regex(b)) => a.as_str().cmp(b.as_str()),
             (Variant::Iterator(a), Variant::Iterator(b)) => a.clone().cmp(b.clone()),
             (Variant::NativeFunc(a), Variant::NativeFunc(b)) => {
                 (a as *const _ as usize).cmp(&(b as *const _ as usize))
@@ -135,12 +132,7 @@ impl fmt::Display for Variant {
                 write!(fmt, "{{{content}}}")
             }
             Variant::Func(a) => write!(fmt, "Function at {:#X}", a as *const _ as usize),
-            /* Variant::Bytes(v) => {
-                let s: String = v.iter().map(|b| format!("\\{:#01x}", b)).collect();
-                write!(fmt, "{s}")
-            } */
             Variant::Byte(b) => write!(fmt, "\\{:#01x}", b),
-            //Variant::Regex(r) => write!(fmt, "{}", r.as_str()),
             Variant::Iterator(i) => write!(fmt, "{i:?}"),
             Variant::NativeFunc(f) => {
                 write!(fmt, "Native function at {:?}", f as *const _)
@@ -163,9 +155,7 @@ impl Hash for Variant {
             Variant::Vec(a) => a.hash(state),
             Variant::Dict(a) => a.iter().for_each(|i| i.hash(state)),
             Variant::Func(f) => f.hash(state),
-            //Variant::Bytes(v) => v.hash(state),
             Variant::Byte(b) => b.hash(state),
-            //Variant::Regex(r) => r.as_str().hash(state),
             Variant::Iterator(a) => a.clone().for_each(|i| i.hash(state)),
             Variant::NativeFunc(f) => (&f as *const _ as usize).hash(state),
         };
@@ -494,7 +484,6 @@ impl Variant {
     pub fn into_iterator(self) -> Result<Variant> {
         match self {
             Variant::Str(s) => {
-                //let g: Vec<_> = s.graphemes(true).map(Variant::str).collect();
                 let i = s.to_vec().into_iter();
                 Ok(Variant::iterator(i.map(Variant::Byte)))
             }
@@ -505,7 +494,6 @@ impl Variant {
                     .collect::<Vec<_>>()
                     .into_iter(),
             )),
-            //Variant::Bytes(b) => Ok(Variant::iterator(b.into_iter().map(Variant::Byte))),
             Variant::Iterator(i) => Ok(Variant::Iterator(i)),
 
             a => Err(anyhow!("Can't convert {a:?} to iterator")),
@@ -621,11 +609,9 @@ impl Variant {
 
     fn len(&self) -> Result<usize> {
         let l = match self {
-            //Variant::Bytes(b) => b.len(),
             Variant::Vec(v) => v.len(),
             Variant::Str(s) => s.len(),
             Variant::Dict(d) => d.len(),
-            //Variant::Regex(r) => r.as_str().len(),
             _ => return Err(anyhow!("{self:?} doesn't have a lenght attribute")),
         };
         Ok(l)
@@ -635,10 +621,9 @@ impl Variant {
 #[cfg(test)]
 mod tests {
     use bstr::ByteSlice;
-    use regex::Regex;
     use std::{
         collections::hash_map::DefaultHasher,
-        hash::{Hash, Hasher},
+        hash::{Hash, Hasher}
     };
 
     use crate::variant::{Dictionary, Variant};
@@ -732,11 +717,9 @@ mod tests {
             Variant::Float(2.0),
             Variant::Bool(true),
             Variant::Byte(0),
-            //Variant::Bytes(vec![]),
             Variant::Vec(vec![]),
             Variant::str("string"),
             Variant::Dict(Box::new(Dictionary::default())),
-            //Variant::Regex(Regex::new("a").unwrap()),
         ]
         .map(|i| i.get_tag());
         assert_eq!([0, 1, 2, 3, 4, 5, 6, 7], v);
