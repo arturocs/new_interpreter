@@ -3,16 +3,20 @@ use crate::variant::Variant;
 use ahash::AHashMap;
 use anyhow::{anyhow, Result};
 use std::fmt;
+use std::rc::Rc;
 
 #[derive(Debug, Hash, PartialEq, Eq, Clone, PartialOrd, Ord)]
 pub struct Function {
-    pub args: Vec<String>,
-    pub body: Vec<Expression>,
+    pub args: Box<[Rc<str>]>,
+    pub body: Box<[Expression]>,
 }
 
 impl Function {
-    pub fn new(args: Vec<String>, body: Vec<Expression>) -> Self {
-        Function { args, body }
+    pub fn new(args: Vec<Rc<str>>, body: Vec<Expression>) -> Self {
+        Function {
+            args: args.into(),
+            body: body.into(),
+        }
     }
 
     pub fn call(&self, args: &[Variant], variables: Memory) -> Result<Variant> {
