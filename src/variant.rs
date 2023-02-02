@@ -184,7 +184,19 @@ fn apply_op_between_vecs(
 
 impl Variant {
     fn get_tag(&self) -> u8 {
-        unsafe { *(self as *const _ as *const u8) }
+        match self {
+            Variant::Error(_) => 0,
+            Variant::Int(_) => 1,
+            Variant::Float(_) => 2,
+            Variant::Bool(_) => 3,
+            Variant::Byte(_) => 4,
+            Variant::Vec(_) => 5,
+            Variant::Str(_) => 6,
+            Variant::Dict(_) => 7,
+            Variant::Iterator(_) => 8,
+            Variant::NativeFunc(_) => 9,
+            Variant::Func(_) => 10,
+        }
     }
 
     pub fn vec(v: Vec<Variant>) -> Variant {
