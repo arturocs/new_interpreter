@@ -1,21 +1,27 @@
-use new_interpreter::expression::Expression;
-use new_interpreter::variant::Variant;
+
+use anyhow::anyhow;
+use anyhow::Result;
+use new_interpreter::memory::Memory;
+use new_interpreter::parser::expr_parser;
+use std::env;
+use std::fs;
+use mimalloc_rust::GlobalMiMalloc;
 
 
-//lalrpop_mod!(pub parser); // syntesized by LALRPOP
+#[global_allocator]
+static GLOBAL_MIMALLOC: GlobalMiMalloc = GlobalMiMalloc;
 
-fn main() {
-    /*     let mut memory = vec![[("_a".to_string(), Variant::int(1))].into_iter().collect()];
-    dbg!(&memory);
-    let ast = parser::ExpressionParser::new()
-        .parse(r#"22.1 + +44 * -66 + "ee" + 20 % _a "#)
-        .unwrap();
-    dbg!(&ast);
-    dbg!(ast.evaluate(&mut memory).unwrap());
 
-    let ast2 = parser::ExpressionParser::new()
-        .parse("{1; 2; {3}}")
-        .unwrap();
-    dbg!(&ast2);
-    dbg!(ast2.evaluate(&mut memory).unwrap()); */
+fn main() -> Result<()> {
+    let args: Vec<_> = env::args().collect();
+    if args.len() == 2 {
+        let code = fs::read_to_string(&args[1])?;
+        let ast = expr_parser::program(&code)?;
+        let mut memory = Memory::with_builtins();
+        ast.evaluate(&mut memory)?;
+        //dbg!(memory);
+        Ok(())
+    } else {
+        Err(anyhow!("No path to program received"))
+    }
 }
