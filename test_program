@@ -1,0 +1,32 @@
+d = {
+    a:1,
+    "b":[1,2,3,4],
+    "c": |b| {
+        a=0
+        for i in b {
+            a = f"{a} - {i}"
+        }
+        print(a)
+    }
+}
+
+a = 0;
+b = [1,2,3,4,5]
+for i in b {
+    a = f"{a} + {i}"
+}
+print(a)
+
+print("aaa",d)
+
+d.c(d.b)
+print(max(1,2,3,4))
+
+m = {0:0}
+m.a=1
+m.b=5
+m.c=2
+m.d=5
+m.t=9
+m[1]=[]
+print(m)
