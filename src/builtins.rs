@@ -31,9 +31,8 @@ pub fn sum(args: &[Variant]) -> Variant {
     let sum = |v: &[Variant]| {
         v.iter()
             .cloned()
-            .reduce(|acc, i| acc.add(&i).unwrap_or_else(|e| Variant::error(e)))
+            .reduce(|acc, i| acc.add(&i).unwrap_or_else(Variant::error))
             .unwrap()
-            .clone()
     };
     generate_vec_builtins("sum", sum, args)
 }
@@ -42,9 +41,8 @@ pub fn prod(args: &[Variant]) -> Variant {
     let prod = |v: &[Variant]| {
         v.iter()
             .cloned()
-            .reduce(|acc, i| acc.mul(&i).unwrap_or_else(|e| Variant::error(e)))
+            .reduce(|acc, i| acc.mul(&i).unwrap_or_else(Variant::error))
             .unwrap()
-            .clone()
     };
     generate_vec_builtins("prod", prod, args)
 }
@@ -68,7 +66,7 @@ pub fn sort_by(args: &[Variant], function: Variant, memory: &mut Memory) -> Vari
             Variant::NativeFunc(f) => v.sort_unstable_by_key(|i| f.call(slice::from_ref(i))),
             Variant::Func(f) => v.sort_unstable_by_key(|i| {
                 f.call(slice::from_ref(i), memory)
-                    .unwrap_or_else(|e| Variant::error(e))
+                    .unwrap_or_else(Variant::error)
             }),
             _ => {
                 return Variant::error(format!(
