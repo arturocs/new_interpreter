@@ -37,7 +37,7 @@ pub enum Variant {
     Bool(bool),
     Byte(u8),
     Vec(Rc<RefCell<Vec<Variant>>>),
-    Str(BString),
+    Str(Rc<BString>),
     Dict(Rc<RefCell<Dictionary>>),
     Iterator(Box<dyn VariantIter>),
     NativeFunc(NativeFunction),
@@ -110,7 +110,7 @@ impl fmt::Display for Variant {
             Variant::Bool(b) => write!(fmt, "{b}"),
             Variant::Float(f) => write!(fmt, "{f}"),
             Variant::Int(i) => write!(fmt, "{i}"),
-            Variant::Str(s) => write!(fmt, "{s}"),
+            Variant::Str(s) => write!(fmt, "{}", s.as_bstr()),
             Variant::Error(e) => write!(fmt, "Error: {e}"),
             Variant::Vec(v) => {
                 let content: String = v
@@ -215,7 +215,7 @@ impl Variant {
     fn to_string_in_collection(&self) -> String {
         match self {
             Variant::Error(_) => format!("\"{self}\"",),
-            Variant::Str(s) => format!("\"{s}\""),
+            Variant::Str(s) => format!("\"{}\"", s.as_bstr()),
             _ => self.to_string(),
         }
     }
@@ -250,14 +250,14 @@ impl Variant {
                 apply_op_between_vecs(&a.borrow(), &b.borrow(), Self::add)?
             }
             (Variant::Str(a), b) => {
-                let mut c = a.clone();
+                let mut c = (**a).as_bstr().to_owned();
                 c.push_str(b.to_string().trim_matches('"'));
-                Variant::Str(c)
+                Variant::Str(Rc::from(c))
             }
             (a, Variant::Str(b)) => {
                 let mut c: BString = a.to_string().trim_matches('"').to_string().into();
-                c.push_str(b);
-                Variant::Str(c)
+                c.push_str(b.as_bstr());
+                Variant::str(c)
             }
             _ => return Err(anyhow!("Cannot add {self:?} and {other:?}")),
         };
@@ -334,7 +334,7 @@ impl Variant {
             }
             (Variant::Str(a), &Variant::Int(b)) => {
                 if b >= 0 {
-                    Variant::Str(a.repeat(b as usize).into())
+                    Variant::str(a.repeat(b as usize).as_bstr())
                 } else {
                     return Err(anyhow!("Cannot multiply a string by a negative value"));
                 }
