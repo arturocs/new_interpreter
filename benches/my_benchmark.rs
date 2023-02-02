@@ -13,6 +13,28 @@ use new_interpreter::variant::Variant;
 static GLOBAL_MIMALLOC: GlobalMiMalloc = GlobalMiMalloc;
 
 
+fn benchmark0(c: &mut Criterion) {
+    let mut variables = Memory::new();
+    c.bench_function("fstring", |b| {
+        let ast = Expression::Fstring(vec![
+            Expression::Div(Box::new((
+                Expression::value(Variant::Int(0)),
+                Expression::value(Variant::Int(1)),
+            ))),
+            Expression::value(Variant::str(" test B ")),
+            Expression::And(Box::new((
+                Expression::value(Variant::Bool(true)),
+                Expression::value(Variant::Bool(false)),
+            ))),
+            Expression::value(Variant::str(" test C")),
+        ]);
+        b.iter(|| {
+            let val = ast.evaluate(&mut variables).unwrap();
+            black_box(val)
+        });
+    });
+}
+
 fn benchmark1(c: &mut Criterion) {
     let mut variables = Memory::new();
     c.bench_function("fstring 1000 times", |b| {
@@ -178,5 +200,5 @@ fn benchmark5(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, benchmark1, benchmark2, benchmark3, benchmark4, benchmark5);
+criterion_group!(benches, benchmark0, benchmark1, benchmark2, benchmark3, benchmark4, benchmark5);
 criterion_main!(benches);
