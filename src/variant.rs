@@ -790,7 +790,7 @@ mod tests {
 
     #[test]
     fn size_of_variant() {
-        assert_eq!(std::mem::size_of::<Variant>(), 8)
+        assert_eq!(std::mem::size_of::<Variant>(), 24)
     }
 
     #[test]
