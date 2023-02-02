@@ -37,7 +37,7 @@ fn benchmark1(c: &mut Criterion) {
 fn benchmark2(c: &mut Criterion) {
     c.bench_function("filter map reduce", |b| {
         b.iter(|| {
-            let var = Variant::Vec(vec![
+            let var = Variant::vec(vec![
                 Variant::Int(1),
                 Variant::Float(2.0),
                 Variant::Bool(true),
@@ -83,7 +83,7 @@ fn benchmark3(c: &mut Criterion) {
 fn benchmark4(c: &mut Criterion) {
     let mut variables = Memory::new();
     variables
-        .set("v", Variant::Vec((0..100).map(Variant::Int).collect()))
+        .set("v", Variant::vec((0..100).map(Variant::Int).collect()))
         .unwrap();
     variables
         .set(
@@ -126,7 +126,7 @@ fn benchmark4(c: &mut Criterion) {
 fn benchmark5(c: &mut Criterion) {
     let mut variables = Memory::new();
     variables
-        .set("v", Variant::Vec((0..100).map(Variant::Int).collect()))
+        .set("v", Variant::vec((0..100).map(Variant::Int).collect()))
         .unwrap();
     variables
         .set(

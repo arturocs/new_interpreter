@@ -9,7 +9,7 @@ fn generate_vec_builtins(
         0 => Variant::error(format!("No arguments received on function {name}")),
         1 => {
             if let Variant::Vec(v) = &args[0] {
-                function(v)
+                function(&v.borrow())
             } else {
                 Variant::error(format!("Cannot calculate {name} of {}", &args[0]))
             }
@@ -55,7 +55,7 @@ pub fn sort(args: &[Variant]) -> Variant {
         |v| {
             let mut v = v.to_owned();
             v.sort_unstable();
-            Variant::Vec(v)
+            Variant::vec(v)
         },
         args,
     )
@@ -77,7 +77,7 @@ pub fn sort_by(args: &[Variant], function: Variant, memory: &mut Memory) -> Vari
             }
         }
 
-        Variant::Vec(v)
+        Variant::vec(v)
     };
     generate_vec_builtins("sort", sort_by, args)
 }
