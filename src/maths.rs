@@ -1,5 +1,6 @@
 use crate::variant::{Float, Variant};
 use anyhow::{anyhow, Result};
+use std::f64;
 
 macro_rules! impl_unary_math_functions {
     ($($func:ident),+) => {
@@ -23,8 +24,8 @@ macro_rules! impl_unary_math_functions {
 impl_unary_math_functions!(abs, acos, asin, atan, ceil, cos, exp, floor, ln, round, sin, sqrt, tan);
 
 impl Variant {
-    pub const PI: Variant = Variant::Float(3.14159265358979323846264338327950288);
-    pub const E: Variant = Variant::Float(2.71828182845904523536028747135266250);
+    pub const PI: Variant = Variant::Float(f64::consts::PI);
+    pub const E: Variant = Variant::Float(f64::consts::E);
 
     pub fn log(self, base: Variant) -> Result<Self> {
         let result = match (self, base) {
@@ -51,7 +52,6 @@ impl Variant {
         };
         Ok(result)
     }
-
 }
 
 #[cfg(test)]
