@@ -32,6 +32,7 @@ pub enum Expression {
     Not(Box<Expression>),
 
     Block(Vec<Expression>),
+    Program(Vec<Expression>),
 
     // First expression -> condition, second -> if body, third -> else body
     Conditional(Box<(Expression, Expression, Option<Expression>)>),
@@ -112,14 +113,16 @@ impl Expression {
             a => Err(anyhow::anyhow!("{a:?} is not a function")),
         }
     }
-
-    fn evaluate_block(variables: &mut Memory, statements: &[Expression]) -> Result<Variant> {
-        variables.push_empty_context();
-        let result = statements
+    fn evaluate_program(variables: &mut Memory, statements: &[Expression]) -> Result<Variant> {
+        statements
             .iter()
             .map(|e| e.evaluate(variables))
             .last()
-            .ok_or_else(|| anyhow!("No statements in scope"))?;
+            .ok_or_else(|| anyhow!("No statements in scope"))?
+    }
+    fn evaluate_block(variables: &mut Memory, statements: &[Expression]) -> Result<Variant> {
+        variables.push_empty_context();
+        let result = Self::evaluate_program(variables, statements);
         variables.pop_context();
         result
     }
@@ -258,6 +261,7 @@ impl Expression {
             Expression::Neg(i) => Self::apply_unary_exp(variables, i, Variant::neg),
             Expression::Not(i) => Self::apply_unary_exp(variables, i, Variant::not),
             Expression::Block(i) => Self::evaluate_block(variables, i),
+            Expression::Program(i) => Self::evaluate_program(variables, i),
             Expression::Conditional(i) => Self::evaluate_conditional(variables, i),
             Expression::Index(i) => Self::evaluate_index(variables, i),
             Expression::IndexAssign(i) => Self::evaluate_index_assign(variables, i),
