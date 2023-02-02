@@ -104,3 +104,17 @@ pub fn input(args: &[Variant]) -> Variant {
         Variant::str(buffer)
     }
 }
+
+pub fn push(args: &[Variant]) -> Variant {
+    if args.len() < 2 {
+        return Variant::error("push function needs at least two arguments");
+    }
+    let Variant::Vec(v) = &args[0] else {
+        return Variant::error("First argument of push function needs to be a vec")
+    };
+    let mut v2 = v.borrow_mut();
+    for i in &args[1..] {
+        v2.push(i.clone());
+    }
+    args[0].clone()
+}
