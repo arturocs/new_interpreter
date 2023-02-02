@@ -19,6 +19,7 @@ impl Memory {
             ("sort".into(), Variant::native_fn(builtins::sort)),
             //("sort_by".into(), Variant::native_fn(builtins::sort_by))
             ("print".into(), Variant::native_fn(builtins::print)),
+            ("input".into(), Variant::native_fn(builtins::input)),
         ]);
         Memory(vec![context])
     }

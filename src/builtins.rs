@@ -1,5 +1,6 @@
 use crate::{memory::Memory, variant::Variant};
 use itertools::Itertools;
+use std::io;
 use std::slice;
 fn generate_vec_builtins(
     name: &str,
@@ -89,4 +90,17 @@ pub fn print(args: &[Variant]) -> Variant {
         .collect();
     println!("{s}");
     Variant::error("print function does not return a value")
+}
+
+pub fn input(args: &[Variant]) -> Variant {
+    if !args.is_empty() {
+        return Variant::error("input function cannot receive arguments");
+    }
+    let mut buffer = String::new();
+    let result = io::stdin().read_line(&mut buffer);
+    if let Err(e) = result {
+        Variant::error(e)
+    } else {
+        Variant::str(buffer)
+    }
 }
