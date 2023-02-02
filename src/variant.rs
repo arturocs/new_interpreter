@@ -19,11 +19,12 @@ use std::{
 
 pub trait VariantIter: Iterator<Item = Variant> + fmt::Debug + DynClone {}
 impl<T> VariantIter for T where T: Iterator<Item = Variant> + fmt::Debug + DynClone {}
+dyn_clone::clone_trait_object!(VariantIter);
 
 pub(crate) type Int = i64;
 pub(crate) type Float = f64;
 type Dictionary = IndexMap<Variant, Variant, RandomState>;
-dyn_clone::clone_trait_object!(VariantIter);
+
 #[derive(Debug, Clone)]
 #[repr(u8)]
 pub enum Variant {
@@ -309,7 +310,7 @@ impl Variant {
         Ok(result)
     }
 
-    fn div_exact(&self, other: &Variant) -> Result<Variant> {
+    pub fn div_exact(&self, other: &Variant) -> Result<Variant> {
         if other.is_zero() {
             return Err(anyhow!("Cannot divide by zero"));
         }
