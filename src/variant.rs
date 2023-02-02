@@ -1,7 +1,3 @@
-#![allow(dead_code)]
-#![allow(unstable_name_collisions)]
-#![allow(non_snake_case)]
-
 use crate::{
     expression::Expression,
     function::{Function, NativeFunction},
