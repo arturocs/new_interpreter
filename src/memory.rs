@@ -18,6 +18,7 @@ impl Memory {
             ("max".into(), Variant::native_fn(builtins::max)),
             ("sort".into(), Variant::native_fn(builtins::sort)),
             //("sort_by".into(), Variant::native_fn(builtins::sort_by))
+            ("print".into(), Variant::native_fn(builtins::print)),
         ]);
         Memory(vec![context])
     }

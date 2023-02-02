@@ -1,4 +1,5 @@
 use crate::{memory::Memory, variant::Variant};
+use itertools::Itertools;
 use std::slice;
 fn generate_vec_builtins(
     name: &str,
@@ -78,4 +79,14 @@ pub fn sort_by(args: &[Variant], function: Variant, memory: &mut Memory) -> Vari
         Variant::vec(v)
     };
     generate_vec_builtins("sort", sort_by, args)
+}
+
+pub fn print(args: &[Variant]) -> Variant {
+    let s: String = args
+        .iter()
+        .map(|i| i.to_string())
+        .intersperse(" ".into())
+        .collect();
+    println!("{s}");
+    Variant::error("print function does not return a value")
 }
