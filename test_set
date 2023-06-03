@@ -1,0 +1,26 @@
+Set = {
+    new:|| {
+        data:{},
+        insert:|self,element| self.data[element]=0,
+        contains:|self,element| contains(self.data,element),
+        as_list:|self| {
+            list = []
+            for i in self.data {
+                list.push(i[0])
+            }
+            list
+        },
+        to_string:|self| self.as_list().join(", ")
+        
+    },
+    from_iter: |iter| {
+        s = Set.new()
+        for i in iter {
+            s.insert(i)
+        }
+        s
+    }
+}
+
+s = Set.from_iter([4,5,3,1,2,12,4,5,5])
+print(s.to_string())

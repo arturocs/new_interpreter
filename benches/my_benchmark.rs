@@ -12,7 +12,6 @@ use new_interpreter::variant::Variant;
 #[global_allocator]
 static GLOBAL_MIMALLOC: GlobalMiMalloc = GlobalMiMalloc;
 
-
 fn benchmark0(c: &mut Criterion) {
     let mut variables = Memory::new();
     c.bench_function("fstring", |b| {
@@ -73,16 +72,25 @@ fn benchmark2(c: &mut Criterion) {
             let a = var
                 .into_iterator()
                 .unwrap()
-                .map(Variant::native_fn(|i| Variant::str(&i[0])))
+                .map(
+                    Variant::native_fn(|i, _| Variant::str(&i[0])),
+                    Memory::new_static(),
+                )
                 .unwrap()
-                .filter(Variant::native_fn(|i| {
-                    Variant::Bool(match &i[0] {
-                        Variant::Str(s) => s.to_str_lossy().parse::<f64>().is_ok(),
-                        _ => false,
-                    })
-                }))
+                .filter(
+                    Variant::native_fn(|i, _| {
+                        Variant::Bool(match &i[0] {
+                            Variant::Str(s) => s.to_str_lossy().parse::<f64>().is_ok(),
+                            _ => false,
+                        })
+                    }),
+                    Memory::new_static(),
+                )
                 .unwrap()
-                .reduce(Variant::native_fn(|i| i[0].add(&i[1]).unwrap()))
+                .reduce(
+                    Variant::native_fn(|i, _| i[0].add(&i[1]).unwrap()),
+                    Memory::new_static(),
+                )
                 .unwrap();
             black_box(a)
         });
@@ -114,11 +122,11 @@ fn benchmark4(c: &mut Criterion) {
     variables
         .set(
             "filter",
-            Variant::native_fn(|i| {
+            Variant::native_fn(|i, _| {
                 let iter = &i[0];
                 let func = &i[1];
                 iter.clone()
-                    .filter(func.clone())
+                    .filter(func.clone(), Memory::new_static())
                     .unwrap()
                     .into_vec()
                     .unwrap()
@@ -129,7 +137,7 @@ fn benchmark4(c: &mut Criterion) {
     variables
         .set(
             "is_even",
-            Variant::native_fn(|i| {
+            Variant::native_fn(|i, _| {
                 Variant::Bool(i[0].rem(&Variant::Int(2)).unwrap() == Variant::Int(0))
             }),
         )
@@ -157,11 +165,11 @@ fn benchmark5(c: &mut Criterion) {
     variables
         .set(
             "filter",
-            Variant::native_fn(|i| {
+            Variant::native_fn(|i, _| {
                 let iter = &i[0];
                 let func = &i[1];
                 iter.clone()
-                    .filter(func.clone())
+                    .filter(func.clone(), Memory::new_static())
                     .unwrap()
                     .into_vec()
                     .unwrap()
@@ -172,7 +180,7 @@ fn benchmark5(c: &mut Criterion) {
     variables
         .set(
             "is_even",
-            Variant::func(
+            Variant::anonymous_func(
                 vec!["i".into()],
                 vec![Expression::Eq(Box::new((
                     Expression::Rem(Box::new((

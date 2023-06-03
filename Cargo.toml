@@ -15,6 +15,7 @@ ahash = "0.8.3"
 bstr = "1.1.0"
 peg = "0.8.1"
 mimalloc-rust = "0.2.0"
+derive_more = "0.99.17"
 
 [dev-dependencies]
 criterion = "0.4.0"

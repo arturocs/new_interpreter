@@ -26,13 +26,13 @@ peg::parser!(pub grammar expr_parser() for str {
 
     rule true_() -> Expression = "true" {Expression::Value(Variant::Bool(true))}
 
-    rule false_() -> Expression = "false" {Expression::Value(Variant::Bool(true))}
+    rule false_() -> Expression = "false" {Expression::Value(Variant::Bool(false))}
 
     rule string() -> Expression
-        = s:$("\"" (!"\"" [_])* "\"") { Expression::value(Variant::str(&s[1..s.len()-1])) }
+        = s:$("\"" (!"\"" [_])* "\"") { Expression::Value(Variant::str(&s[1..s.len()-1])) }
 
     rule identifier() -> Expression
-        = i:$([ 'a'..='z' | 'A'..='Z']['a'..='z' | 'A'..='Z' | '0'..='9' ]*) {
+        = i:$( ([ 'a'..='z' | 'A'..='Z' | '_' ]['a'..='z' | 'A'..='Z' | '0'..='9' | '_' ]*) ) {
             Expression::Identifier(i.to_string())
         }
 
@@ -40,7 +40,13 @@ peg::parser!(pub grammar expr_parser() for str {
         = "[" _ v:(expression() ** value_separator()) _ "]" {Expression::Vec(v)}
 
     rule member() -> (Expression, Expression)
-        = k:expression() _ ":" _ v:expression() { (k, v) }
+        = k:expression() _ ":" _ v:expression() {
+            if let Expression::Identifier(i) = k {
+                (Expression::Value(Variant::str(i)), v)
+            } else{
+                (k, v)
+            }
+        }
 
     rule dict() -> Expression = "{" __ o:(member() ** value_separator()) __ "}"  {Expression::Dictionary(o)}
 
@@ -54,7 +60,7 @@ peg::parser!(pub grammar expr_parser() for str {
         }
 
     rule block() -> Expression
-        =  "{" __ v:(expression() ** (expr_separator()*)) __ "}" {
+        =  "{" __ v:(expression() ++ (expr_separator()*)) __ "}" {
             Expression::Block(v)
         }
 
@@ -78,7 +84,7 @@ peg::parser!(pub grammar expr_parser() for str {
             Expression::Conditional(Box::new((c,b1,Some(b2))))
         }
 
-    rule function_declaration() -> Expression
+    rule anonymous_function() -> Expression
         = "|" _ a:(identifier() ** value_separator()) _ "|" _ b:(expression()/block()) {
             let args: Vec<_> = a
             .into_iter()
@@ -90,12 +96,24 @@ peg::parser!(pub grammar expr_parser() for str {
                 }
             })
             .collect();
-            let body = if let Expression::Block(bl) = b {
-                bl
-            }else{
-                vec![b]
-            };
-            Expression::Value(Variant::func(args, body))
+            let body = if let Expression::Block(bl) = b { bl } else { vec![b] };
+            Expression::Value(Variant::anonymous_func(args, body))
+        }
+
+    rule function_declaration() -> Expression
+        = "fn" _ i:$identifier() "(" _ a:(identifier() ** value_separator()) _ ")" _ b:block() {
+            let args: Vec<_> = a
+            .into_iter()
+            .map(|i| {
+                if let Expression::Identifier(id) = i {
+                    id.into()
+                } else {
+                    unreachable!()
+                }
+            })
+            .collect();
+            let body = if let Expression::Block(bl) = b { bl } else { vec![b] };
+            Expression::FunctionDeclaration { name:i.into(), function: Variant::func(i,args, body) }
         }
 
     pub rule expression() -> Expression = precedence!{
@@ -139,37 +157,38 @@ peg::parser!(pub grammar expr_parser() for str {
         ("!"/"not") e:@ { Expression::Not(Box::new(e)) }
         --
         e:@ "["  _ i:expression() _ "]" { Expression::Index(Box::new((e,i))) }
-        e:@ "." i:$identifier()  { Expression::Index(Box::new((e,Expression::Value(Variant::str(i))))) }
+        e:@ "." i:$identifier()  { Expression::Dot(Box::new((e,Expression::Value(Variant::str(i))))) }
         f:@ "(" _ l:(expression() ** value_separator()) _ ")" {
             Expression::FunctionCall { function: Box::new(f), arguments: l }
         }
         --
         b:block(){b}
-        --
+       // --
         w:while_(){w}
         f:for_(){f}
         i:if_else(){i}
         i:if_(){i}
+        f:anonymous_function(){f}
         f:function_declaration(){f}
-        --
-        
-        
+
+       // --
         v:vec() { v }
         s:fstring(){s}
-        i:$identifier() { Expression::Identifier(i.into()) }
 
+       // --
         "(" v:expression() ")" { v }
-        d:dict(){d}
-        b:true_()  {b}
-        b:false_()  {b}
+        d:dict() {d}
+        b:true_() {b}
+        b:false_() {b}
+        i:$identifier() { Expression::Identifier(i.into()) }
         s:string() {s}
         n:number() {n}
 
     }
-    pub rule program() -> Expression
+    pub rule expr_sequence() -> Expression
         = expr_separator()* e:(expression()**(expr_separator()+)) expr_separator()*
         {
-            Expression::Program(e)
+            Expression::ExprSequence(e)
         }
 });
 
@@ -210,7 +229,8 @@ mod tests {
             .set("a", Variant::vec(vec![Variant::Int(1)]))
             .unwrap();
         ast.evaluate(&mut memory).unwrap();
-        let a_value = memory.get("a").unwrap().index(&Variant::Int(0)).unwrap();
+        let b = memory.get("a").unwrap();
+        let a_value = b.index(&Variant::Int(0)).unwrap();
         assert_eq!(Variant::Int(2), a_value.clone());
     }
     #[test]
@@ -227,20 +247,30 @@ mod tests {
     #[test]
     fn test_dict() {
         let code = r#"a = { 
-            "b" : 1,
+            b : 1,
             "c" : 2
         }
         a.b
         "#;
-        let ast = expr_parser::program(code).unwrap();
+        let ast = expr_parser::expr_sequence(code).unwrap();
         let mut memory = Memory::new();
         let result = ast.evaluate(&mut memory).unwrap();
         assert_eq!(Variant::Int(1), result);
     }
 
     #[test]
+    fn test_empty_dict() {
+        let code = "a = {}";
+        let ast = expr_parser::expr_sequence(code).unwrap();
+        let mut memory = Memory::new();
+        ast.evaluate(&mut memory).unwrap();
+        let a_value = memory.get("a").unwrap().clone();
+        assert_eq!(Variant::dict(&[]), a_value);
+    }
+    #[test]
     fn test_index_by_dot() {
         let ast = expr_parser::expression("a.b").unwrap();
+        dbg!(&ast);
         let mut memory = Memory::new();
         memory
             .set("a", Variant::dict(&[(Variant::str("b"), Variant::Int(1))]))
@@ -274,7 +304,8 @@ mod tests {
             .set("a", Variant::dict(&[(Variant::str("b"), Variant::Int(1))]))
             .unwrap();
         ast.evaluate(&mut memory).unwrap();
-        let a_value = memory.get("a").unwrap().index(&Variant::str("b")).unwrap();
+        let b = memory.get("a").unwrap();
+        let a_value = b.index(&Variant::str("b")).unwrap();
         assert_eq!(Variant::Int(2), a_value.clone());
     }
 
@@ -284,7 +315,8 @@ mod tests {
         let mut memory = Memory::new();
         memory.set("a", Variant::dict(&[])).unwrap();
         ast.evaluate(&mut memory).unwrap();
-        let a_value = memory.get("a").unwrap().index(&Variant::str("b")).unwrap();
+        let b = memory.get("a").unwrap();
+        let a_value = b.index(&Variant::str("b")).unwrap();
         assert_eq!(Variant::Int(2), a_value.clone());
     }
 
@@ -317,16 +349,16 @@ mod tests {
         let code = r"a = 1
         push(a,1)
         ";
-        let ast = expr_parser::program(code).unwrap();
+        let ast = expr_parser::expr_sequence(code).unwrap();
         let mut memory = Memory::with_builtins();
-        ast.evaluate(&mut memory).unwrap();
+        let r = ast.evaluate(&mut memory);
         let a_value = memory.get("a").unwrap().clone();
-
+        assert!(r.is_err());
         assert_eq!(Variant::Int(1), a_value);
     }
     #[test]
     fn test_logical_expr_and_variables() {
-        let ast = expr_parser::program("a = 1; b = a == 1").unwrap();
+        let ast = expr_parser::expr_sequence("a = 1; b = a == 1").unwrap();
         let mut memory = Memory::with_builtins();
         ast.evaluate(&mut memory).unwrap();
         let a_value = memory.get("b").unwrap().clone();
@@ -334,7 +366,7 @@ mod tests {
     }
     #[test]
     fn test_block_of_code() {
-        let ast = expr_parser::program(
+        let ast = expr_parser::expr_sequence(
             "{
             a = 1
             a = a + 1
@@ -356,7 +388,7 @@ mod tests {
         }
         ";
 
-        let ast = expr_parser::program(code).unwrap();
+        let ast = expr_parser::expr_sequence(code).unwrap();
         let mut memory = Memory::with_builtins();
         ast.evaluate(&mut memory).unwrap();
         let a_value = memory.get("a").unwrap().clone();
@@ -370,7 +402,7 @@ mod tests {
         }
         ";
 
-        let ast = expr_parser::program(code).unwrap();
+        let ast = expr_parser::expr_sequence(code).unwrap();
         let mut memory = Memory::with_builtins();
         ast.evaluate(&mut memory).unwrap();
         let a_value = memory.get("a").unwrap().clone();
@@ -388,7 +420,7 @@ mod tests {
             }
         }";
 
-        let ast = expr_parser::program(code).unwrap();
+        let ast = expr_parser::expr_sequence(code).unwrap();
         let mut memory = Memory::with_builtins();
         ast.evaluate(&mut memory).unwrap();
         let a_value = memory.get("a").unwrap().clone();
@@ -402,7 +434,7 @@ mod tests {
             a = a + i
         }";
 
-        let ast = expr_parser::program(code).unwrap();
+        let ast = expr_parser::expr_sequence(code).unwrap();
         let mut memory = Memory::with_builtins();
         ast.evaluate(&mut memory).unwrap();
         let a_value = memory.get("a").unwrap().clone();
@@ -414,7 +446,7 @@ mod tests {
         let code = r"fun = |a,b| max(a,b)
         fun(1,2)";
 
-        let ast = expr_parser::program(code).unwrap();
+        let ast = expr_parser::expr_sequence(code).unwrap();
         let mut memory = Memory::with_builtins();
         let result = ast.evaluate(&mut memory).unwrap();
         assert_eq!(Variant::Int(2), result);
@@ -426,7 +458,7 @@ mod tests {
         }
         fun(1,2)";
 
-        let ast = expr_parser::program(code).unwrap();
+        let ast = expr_parser::expr_sequence(code).unwrap();
         let mut memory = Memory::with_builtins();
         let result = ast.evaluate(&mut memory).unwrap();
         assert_eq!(Variant::Int(2), result);
@@ -436,9 +468,20 @@ mod tests {
     fn function_declaration_and_usage_3() {
         let code = r"(|a,b| max(a,b))(1,2)";
 
-        let ast = expr_parser::program(code).unwrap();
+        let ast = expr_parser::expr_sequence(code).unwrap();
         let mut memory = Memory::with_builtins();
         let result = ast.evaluate(&mut memory).unwrap();
         assert_eq!(Variant::Int(2), result);
+    }
+
+    #[test]
+    fn test_boolean() {
+        let code = r"a = true";
+        let ast = expr_parser::expr_sequence(code).unwrap();
+        dbg!(&ast);
+        let mut memory = Memory::new();
+        ast.evaluate(&mut memory).unwrap();
+        let a_value = memory.get("a").unwrap().clone();
+        assert_eq!(Variant::Bool(true), a_value);
     }
 }

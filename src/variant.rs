@@ -1,11 +1,12 @@
 use crate::{
     expression::Expression,
     function::{Function, NativeFunction},
-    memory::Memory,
+    memory::Memory, iterator::VariantIterator,
 };
 use ahash::RandomState;
 use anyhow::{anyhow, Result};
 use bstr::{BString, ByteSlice, ByteVec};
+use derive_more::IsVariant;
 use dyn_clone::DynClone;
 use indexmap::IndexMap;
 use itertools::Itertools;
@@ -15,6 +16,7 @@ use std::{
     fmt,
     hash::{Hash, Hasher},
     rc::Rc,
+    slice,
 };
 
 pub trait VariantIter: Iterator<Item = Variant> + fmt::Debug + DynClone {}
@@ -23,9 +25,9 @@ dyn_clone::clone_trait_object!(VariantIter);
 
 pub(crate) type Int = i64;
 pub(crate) type Float = f64;
-type Dictionary = IndexMap<Variant, Variant, RandomState>;
+pub(crate) type Dictionary = IndexMap<Variant, Variant, RandomState>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, IsVariant)]
 #[repr(u8)]
 pub enum Variant {
     Error(Rc<str>),
@@ -36,9 +38,10 @@ pub enum Variant {
     Vec(Rc<RefCell<Vec<Variant>>>),
     Str(Rc<BString>),
     Dict(Rc<RefCell<Dictionary>>),
-    Iterator(Box<dyn VariantIter>),
-    NativeFunc(NativeFunction),
+    Iterator(VariantIterator),
+    NativeFunc(Rc<NativeFunction>),
     Func(Rc<Function>),
+    Unit,
 }
 
 impl Default for Variant {
@@ -61,9 +64,7 @@ impl Ord for Variant {
             (Variant::Dict(a), Variant::Dict(b)) => a.borrow().iter().cmp(b.borrow().iter()),
             (Variant::Vec(a), Variant::Vec(b)) => a.cmp(b),
             (Variant::Iterator(a), Variant::Iterator(b)) => a.clone().cmp(b.clone()),
-            (Variant::NativeFunc(a), Variant::NativeFunc(b)) => {
-                (a as *const _ as usize).cmp(&(b as *const _ as usize))
-            }
+            (Variant::NativeFunc(a), Variant::NativeFunc(b)) => (a.name).cmp(&b.name),
             (Variant::Func(a), Variant::Func(b)) => a.cmp(b),
             (a, b) => a.get_tag().cmp(&b.get_tag()),
         }
@@ -90,10 +91,9 @@ impl PartialEq for Variant {
             (Variant::Dict(a), Variant::Dict(b)) => a == b,
             (Variant::Vec(a), Variant::Vec(b)) => a == b,
             (Variant::Iterator(a), Variant::Iterator(b)) => a.clone().eq(b.clone()),
-            (Variant::NativeFunc(a), Variant::NativeFunc(b)) => {
-                (a as *const _ as usize).eq(&(b as *const _ as usize))
-            }
-            (Variant::Func(a), Variant::Func(b)) => a == b,
+            (Variant::NativeFunc(a), Variant::NativeFunc(b)) => Rc::ptr_eq(a, b),
+            (Variant::Func(a), Variant::Func(b)) => Rc::ptr_eq(a, b),
+            (Variant::Unit, Variant::Unit) => true,
             _ => false,
         }
     }
@@ -110,33 +110,30 @@ impl fmt::Display for Variant {
             Variant::Str(s) => write!(fmt, "{}", s.as_bstr()),
             Variant::Error(e) => write!(fmt, "Error: {e}"),
             Variant::Vec(v) => {
-                let content: String = v
+                let content = v
                     .borrow()
                     .iter()
                     .map(Variant::to_string_in_collection)
-                    .intersperse(", ".to_string())
-                    .collect();
+                    .join(", ");
                 write!(fmt, "[{content}]")
             }
             Variant::Dict(d) => {
-                let content: String = d
+                let content = d
                     .borrow()
                     .iter()
                     .map(|(v1, v2)| {
                         let s1 = v1.to_string_in_collection();
                         let s2 = v2.to_string_in_collection();
-                        format!("{s1} : {s2}")
+                        format!("    {s1} : {s2}")
                     })
-                    .intersperse(", ".to_string())
-                    .collect();
-                write!(fmt, "{{{content}}}")
+                    .join(", \n");
+                write!(fmt, "{{\n{content}\n}}")
             }
-            Variant::Func(a) => write!(fmt, "Function at {:#X}", a as *const _ as usize),
+            Variant::Func(a) => write!(fmt, "{a}"),
             Variant::Byte(b) => write!(fmt, "\\{:#01x}", b),
-            Variant::Iterator(i) => write!(fmt, "{i:?}"),
-            Variant::NativeFunc(f) => {
-                write!(fmt, "Native function at {:?}", f as *const _)
-            }
+            Variant::Iterator(i) => write!(fmt, "Iterator({i:?})"),
+            Variant::NativeFunc(f) => write!(fmt, "{f}"),
+            Variant::Unit => write!(fmt, "Unit"),
         }
     }
 }
@@ -157,7 +154,8 @@ impl Hash for Variant {
             Variant::Func(f) => f.hash(state),
             Variant::Byte(b) => b.hash(state),
             Variant::Iterator(a) => a.clone().for_each(|i| i.hash(state)),
-            Variant::NativeFunc(f) => (&f as *const _ as usize).hash(state),
+            Variant::NativeFunc(f) => Rc::as_ptr(f).hash(state),
+            Variant::Unit => 0_u8.hash(state),
         };
     }
 }
@@ -180,7 +178,7 @@ fn apply_op_between_vecs(
 }
 
 impl Variant {
-    fn get_tag(&self) -> u8 {
+    pub fn get_tag(&self) -> u8 {
         match self {
             Variant::Error(_) => 0,
             Variant::Int(_) => 1,
@@ -193,6 +191,7 @@ impl Variant {
             Variant::Iterator(_) => 8,
             Variant::NativeFunc(_) => 9,
             Variant::Func(_) => 10,
+            Variant::Unit => 11,
         }
     }
 
@@ -208,17 +207,28 @@ impl Variant {
         Variant::Error(e.to_string().into())
     }
     pub fn iterator(i: impl VariantIter + 'static) -> Variant {
-        Variant::Iterator(Box::new(i))
+        Variant::Iterator(VariantIterator::new(i))
     }
     pub fn dict(v: &[(Variant, Variant)]) -> Variant {
         Variant::Dict(Rc::new(RefCell::new(v.iter().cloned().collect())))
     }
-    pub fn native_fn(f: fn(&[Variant]) -> Variant) -> Variant {
-        Variant::NativeFunc(NativeFunction::new(f))
+    pub fn native_fn(f: impl Fn(&[Variant], & mut Memory) -> Variant + 'static) -> Variant {
+        Variant::NativeFunc(Rc::new(NativeFunction::anonymous(f)))
     }
 
-    pub fn func(args: Vec<Rc<str>>, body: Vec<Expression>) -> Variant {
-        Variant::Func(Rc::new(Function::new(args, body)))
+    pub fn method(
+        name: &str,
+        f: impl Fn(&[Variant], & mut Memory) -> Variant + 'static,
+        method_of: Vec<u8>,
+    ) -> Variant {
+        Variant::NativeFunc(Rc::new(NativeFunction::method(name, f, method_of)))
+    }
+
+    pub fn anonymous_func(args: Vec<Rc<str>>, body: Vec<Expression>) -> Variant {
+        Variant::Func(Rc::new(Function::anonymous(args, body)))
+    }
+    pub fn func(name: &str, args: Vec<Rc<str>>, body: Vec<Expression>) -> Variant {
+        Variant::Func(Rc::new(Function::new(name, args, body)))
     }
 
     fn to_string_in_collection(&self) -> String {
@@ -348,7 +358,7 @@ impl Variant {
                     return Err(anyhow!("Cannot multiply a string by a negative value"));
                 }
             }
-            _ => return Err(anyhow!("Cannot mul {self:?} and {other:?}")),
+            _ => return Err(anyhow!("Cannot mul {self} and {other}")),
         };
         Ok(result)
     }
@@ -490,13 +500,13 @@ impl Variant {
                     .map(|(a, b)| Variant::vec(vec![a.clone(), b.clone()]))
                     .collect(),
             )),
-            Variant::Iterator(r) => Ok(Variant::vec(r.clone().collect())),
+            Variant::Iterator(r) => Ok(Variant::vec(r.collect())),
             Variant::Vec(v) => Ok(Variant::Vec(v)),
             a => Err(anyhow!("Can't convert {a:?} to Vec")),
         }
     }
 
-    fn into_pair(self) -> Result<(Variant, Variant)> {
+    fn into_pair(&self) -> Result<(Variant, Variant)> {
         if self.len()? == 2 {
             if let Variant::Vec(v) = self {
                 let first = v.borrow().get(0).unwrap().clone();
@@ -524,7 +534,7 @@ impl Variant {
                 Ok(Variant::Dict(Rc::new(RefCell::new(r?))))
             }
             Variant::Iterator(i) => {
-                let r: Result<Dictionary> = i.map(|i| i.into_pair()).collect();
+                let r: Result<Dictionary> = i.map(|j| j.into_pair()).collect();
                 Ok(Variant::Dict(Rc::new(RefCell::new(r?))))
             }
             Variant::Dict(d) => Ok(Variant::Dict(d)),
@@ -552,46 +562,58 @@ impl Variant {
         }
     }
 
-    pub fn map(self, func: Variant) -> Result<Variant> {
+    pub fn map(self, func: Variant, memory: &'static mut Memory) -> Result<Variant> {
         let iter = self.into_iterator()?;
-        match (iter, func) {
+        //let m = Rc::new(RefCell::new(memory));
+        // let a = RefCell::new(1);
+        // let b = a.borrow_mut();
+        let result = match (iter, func) {
             (Variant::Iterator(i), Variant::NativeFunc(f)) => {
-                Ok(Variant::iterator(i.map(move |i| f.call(&[i]))))
+                Variant::Iterator(VariantIterator::new(i.scan(memory,move |m,i| Some(f.call(&[i], *m)))))
             }
-            (Variant::Iterator(i), Variant::Func(f)) => {
-                //TODO: Remove unwrap and allow access to global variables
-                Ok(Variant::iterator(
-                    i.map(move |i| f.call(&[i], &mut Memory::new()).unwrap()),
+            /* (Variant::Iterator(i), Variant::Func(f)) => Variant::iterator(i.map(move |i| {
+                f.call(&[i], &mut m.borrow_mut())
+                    .unwrap_or_else(Variant::error)
+            })) */,
+            (i, Variant::NativeFunc(_) | Variant::Func(_)) => {
+                return Err(anyhow!("Can't map {i:?} because it is not an iterator"))
+            }
+            (Variant::Iterator(i), f) => {
+                return Err(anyhow!("Can't map {i:?} because {f:?} is not a function",))
+            }
+            (i, f) => {
+                return Err(anyhow!(
+                    "Can't map {i:?} because its not an iterator and {f:?} is not a function",
                 ))
             }
-            (i, Variant::NativeFunc(_)) => {
-                Err(anyhow!("Can't map {i:?} because it is not an iterator"))
-            }
-            (i, Variant::Func(_)) => Err(anyhow!("Can't map {i:?} because it is not an iterator")),
-            (Variant::Iterator(i), f) => {
-                Err(anyhow!("Can't map {i:?} because {f:?} is not a function",))
-            }
-            _ => todo!(),
-        }
+        };
+        Ok(result)
     }
 
-    pub fn filter(self, func: Variant) -> Result<Variant> {
+    pub fn filter(self, func: Variant, memory: &'static mut Memory) -> Result<Variant> {
         let iter = self.into_iterator()?;
+        let m = Rc::new(RefCell::new(memory));
+
         match (iter, func) {
             (Variant::Iterator(i), Variant::NativeFunc(f)) => {
-                let a = i.filter(move |j| match f.call(std::slice::from_ref(&j)) {
-                    Variant::Bool(b) => b,
-                    a => {
-                        eprintln!("Warning: {a:?} it's not a boolean, interpreting it as false",);
-                        false
-                    }
-                });
+                let a = i.filter(
+                    move |j| match f.call(slice::from_ref(j), &mut m.borrow_mut()) {
+                        Variant::Bool(b) => b,
+                        a => {
+                            eprintln!(
+                                "Warning: {a:?} it's not a boolean, interpreting it as false",
+                            );
+                            false
+                        }
+                    },
+                );
                 Ok(Variant::iterator(a))
             }
             (Variant::Iterator(i), Variant::Func(f)) => {
-                //TODO: Remove unwrap and allow access to global variables
                 let a = i.filter(move |j| {
-                    match (f.call(std::slice::from_ref(j), &mut Memory::new())).unwrap() {
+                    match (f.call(slice::from_ref(j), &mut m.borrow_mut()))
+                        .unwrap_or_else(Variant::error)
+                    {
                         Variant::Bool(b) => b,
                         a => {
                             eprintln!(
@@ -604,10 +626,9 @@ impl Variant {
                 Ok(Variant::iterator(a))
             }
 
-            (i, Variant::NativeFunc(_)) => {
+            (i, Variant::NativeFunc(_) | Variant::Func(_)) => {
                 Err(anyhow!("Can't map {i:?} because it is not an iterator"))
             }
-            (i, Variant::Func(_)) => Err(anyhow!("Can't map {i:?} because it is not an iterator")),
             (Variant::Iterator(i), f) => {
                 Err(anyhow!("Can't map {i:?} because {f:?} is not a function",))
             }
@@ -615,26 +636,29 @@ impl Variant {
         }
     }
 
-    pub fn reduce(self, func: Variant) -> Result<Variant> {
+    pub fn reduce(self, func: Variant, memory: &'static mut Memory) -> Result<Variant> {
         let iter = self.into_iterator()?;
+        let m = Rc::new(RefCell::new(memory));
         match (iter, func) {
             (Variant::Iterator(i), Variant::NativeFunc(f)) => {
-                match i.reduce(move |acc, x| f.call(&[acc, x])) {
+                match i.reduce(move |acc, x| f.call(&[acc, x], &mut m.borrow_mut())) {
                     Some(j) => Ok(j),
                     None => Ok(Variant::error("Empty iterator")),
                 }
             }
             //TODO: Remove unwrap and allow access to global variables
             (Variant::Iterator(i), Variant::Func(f)) => {
-                match i.reduce(move |acc, x| f.call(&[acc, x], &mut Memory::new()).unwrap()) {
+                match i.reduce(move |acc, x| {
+                    f.call(&[acc, x], &mut m.borrow_mut())
+                        .unwrap_or_else(Variant::error)
+                }) {
                     Some(j) => Ok(j),
                     None => Ok(Variant::error("Empty iterator")),
                 }
             }
-            (i, Variant::NativeFunc(_)) => {
+            (i, Variant::NativeFunc(_) | Variant::Func(_)) => {
                 Err(anyhow!("Can't map {i:?} because it is not an iterator"))
             }
-            (i, Variant::Func(_)) => Err(anyhow!("Can't map {i:?} because it is not an iterator")),
             (Variant::Iterator(i), f) => {
                 Err(anyhow!("Can't map {i:?} because {f:?} is not a function",))
             }
@@ -664,9 +688,20 @@ impl Variant {
             Variant::Vec(v) => v.borrow().len(),
             Variant::Str(s) => s.len(),
             Variant::Dict(d) => d.borrow().len(),
+            Variant::Iterator(i) => i.clone().count(),
             _ => return Err(anyhow!("{self:?} doesn't have a lenght attribute")),
         };
         Ok(l)
+    }
+
+    fn call(&self,args:&[Variant],memory:&mut Memory) -> Result<Variant> {
+        match self {
+
+            Variant::NativeFunc(f )=> Ok(f.call(args, memory)),
+            Variant::Func(f) => f.call(args, memory),
+            _=> Err(anyhow!("{self} it is not callable"))
+
+        }
     }
 }
 
@@ -678,7 +713,7 @@ mod tests {
         hash::{Hash, Hasher},
     };
 
-    use crate::variant::Variant;
+    use crate::{memory::Memory, variant::Variant};
     #[test]
     fn string_addition() {
         let a = Variant::str("hello");
@@ -823,9 +858,10 @@ mod tests {
         let a = var
             .into_iterator()
             .unwrap()
-            .map(Variant::native_fn(|i| {
-                i[0].add(&Variant::str("a")).unwrap()
-            }))
+            .map(
+                Variant::native_fn(|i, _| i[0].add(&Variant::str("a")).unwrap()),
+                Memory::new_static(),
+            )
             .unwrap()
             .into_vec()
             .unwrap();
@@ -851,12 +887,15 @@ mod tests {
         let a = var
             .into_iterator()
             .unwrap()
-            .filter(Variant::native_fn(|i| {
-                Variant::Bool(match i[0] {
-                    Variant::Int(_) => true,
-                    _ => false,
-                })
-            }))
+            .filter(
+                Variant::native_fn(|i, _| {
+                    Variant::Bool(match i[0] {
+                        Variant::Int(_) => true,
+                        _ => false,
+                    })
+                }),
+                Memory::new_static(),
+            )
             .unwrap()
             .into_vec()
             .unwrap();
@@ -875,7 +914,10 @@ mod tests {
         let a = var
             .into_iterator()
             .unwrap()
-            .reduce(Variant::native_fn(|i| i[0].add(&i[1]).unwrap()))
+            .reduce(
+                Variant::native_fn(|i, _| i[0].add(&i[1]).unwrap()),
+                Memory::new_static(),
+            )
             .unwrap();
         assert_eq!(a, Variant::str("hello12true"));
     }
@@ -892,18 +934,25 @@ mod tests {
         let a = var
             .into_iterator()
             .unwrap()
-            .map(Variant::native_fn(|i| Variant::str(i[0].clone())))
+            .map(
+                Variant::native_fn(|i, _| Variant::str(i[0].clone())),
+                Memory::new_static(),
+            )
             .unwrap()
-            .filter(Variant::native_fn(|i| {
-                Variant::Bool(match &i[0] {
-                    Variant::Str(s) => s.to_str_lossy().parse::<f64>().is_ok(),
-                    _ => false,
-                })
-            }))
+            .filter(
+                Variant::native_fn(|i, _| {
+                    Variant::Bool(match &i[0] {
+                        Variant::Str(s) => s.to_str_lossy().parse::<f64>().is_ok(),
+                        _ => false,
+                    })
+                }),
+                Memory::new_static(),
+            )
             .unwrap()
-            .reduce(Variant::native_fn(|i| {
-                i[0].add(&i[1]).unwrap_or_else(Variant::error)
-            }))
+            .reduce(
+                Variant::native_fn(|i, _| i[0].add(&i[1]).unwrap_or_else(Variant::error)),
+                Memory::new_static(),
+            )
             .unwrap();
         assert_eq!(a, Variant::str("12"));
     }

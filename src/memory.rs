@@ -1,7 +1,7 @@
 use crate::{builtins, variant::Variant};
 use ahash::AHashMap;
 use anyhow::{anyhow, Context, Ok, Result};
-use std::rc::Rc;
+use std::{rc::Rc, vec};
 #[derive(Debug, Clone)]
 pub struct Memory(Vec<AHashMap<Rc<str>, Variant>>);
 
@@ -10,18 +10,41 @@ impl Memory {
         Memory(vec![AHashMap::new()])
     }
 
+    pub fn new_static() -> &'static mut Self {
+        Box::leak(Box::new(Self::new()))
+    }
+
+    pub fn static_with_builtins() -> &'static mut Self {
+        Box::leak(Box::new(Self::with_builtins()))
+    }
+
     pub fn with_builtins() -> Self {
-        let context = AHashMap::from([
-            ("sum".into(), Variant::native_fn(builtins::sum)),
-            ("prod".into(), Variant::native_fn(builtins::prod)),
-            ("min".into(), Variant::native_fn(builtins::min)),
-            ("max".into(), Variant::native_fn(builtins::max)),
-            ("sort".into(), Variant::native_fn(builtins::sort)),
-            //("sort_by".into(), Variant::native_fn(builtins::sort_by))
-            ("print".into(), Variant::native_fn(builtins::print)),
-            ("input".into(), Variant::native_fn(builtins::input)),
-            ("push".into(), Variant::native_fn(builtins::push)),
-        ]);
+        let sum: fn(&[Variant], &mut Memory) -> Variant = builtins::sum;
+        let context = vec![
+            ("sum", sum, None),
+            ("prod", builtins::prod, None),
+            ("min", builtins::min, None),
+            ("max", builtins::max, None),
+            ("sort", builtins::sort, Some(vec![5])),
+            ("sort_by", builtins::sort_by, Some(vec![5])),
+            ("print", builtins::print, None),
+            ("input", builtins::input, None),
+            ("push", builtins::push, Some(vec![5])),
+            ("range", builtins::range, None),
+            ("contains", builtins::contains, Some(vec![5, 6])),
+            ("join", builtins::join, Some(vec![5, 8])),
+            ("map", builtins::map, Some(vec![5, 8])),
+        ]
+        .into_iter()
+        .map(|(name, f, method_of)| {
+            if let Some(v) = method_of {
+                (name.into(), Variant::method(name, f, v))
+            } else {
+                (name.into(), Variant::native_fn(f))
+            }
+        })
+        .collect();
+
         Memory(vec![context])
     }
 
@@ -49,6 +72,9 @@ impl Memory {
     }
 
     pub fn set(&mut self, identifier: &str, value: Variant) -> Result<()> {
+        if value.is_error() {
+            return Err(anyhow!("{value}"));
+        }
         match self.0.iter_mut().rev().find_map(|x| x.get_mut(identifier)) {
             Some(v) => *v = value,
             None => {

@@ -1,0 +1,46 @@
+a=[]
+a.push(1)
+print(a)
+
+a = {}
+b = |i| i.e = "blaa"
+b(a)
+
+print(a)
+
+a=[1,2,3]
+a.sort_by(|a| -a)
+print(a)
+
+fib = |n| {
+    if n<= 1 {
+        n
+    } else {
+        fib(n-1) + fib(n-2)
+    }
+}
+
+fn fib(n) {
+    if n<= 1 {
+        n
+    } else {
+        fib(n-1) + fib(n-2)
+    }
+}
+
+
+print(fib(5))
+
+
+
+qq = true
+print(qq)
+
+obj = {
+    data:[],
+    add:|self,i| self.data.push(i)
+}
+obj.add(1)
+obj.add(f"holaaa {1+1}")
+print(obj)
+

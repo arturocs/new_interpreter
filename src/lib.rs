@@ -6,3 +6,5 @@ pub mod maths;
 pub mod memory;
 pub mod parser;
 pub mod variant;
+#[macro_use]
+pub mod iterator;
