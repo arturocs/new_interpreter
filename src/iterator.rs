@@ -3,7 +3,7 @@ use crate::{
     variant::{Dictionary, Variant},
 };
 use anyhow::{anyhow, Result};
-use bstr::BString;
+
 use std::{cell::RefCell, fmt, rc::Rc};
 pub trait VariantIter: Iterator<Item = Variant> + fmt::Debug {}
 impl<T> VariantIter for T where T: Iterator<Item = Variant> + fmt::Debug {}
@@ -105,50 +105,53 @@ enum Adapter {
     Map(Variant),
     Filter(Variant),
     Flatten,
-    Enumerate(usize),
+    Enumerate,
     StepBy(usize),
     Take(usize),
     Skip(usize),
 }
 struct VariantIterator3 {
     adapters: Vec<Adapter>,
-    base: BaseIterator,
+    base: Box<dyn VariantIter>,
 }
 
-fn apply_adapters(item: Variant, adapters: &[Adapter]) -> Option<Variant> {
-    
-    for i in adapters {
-        match i {
-            Adapter::Map(v) => todo!(),
-            Adapter::Filter(_) => todo!(),
-            Adapter::Flatten => todo!(),
-            Adapter::Enumerate(_) => todo!(),
-            Adapter::StepBy(_) => todo!(),
-            Adapter::Take(_) => todo!(),
-            Adapter::Skip(_) => todo!(),
-        }
+fn call_helper(func: &Variant, args: &[Variant], memory: &RefCell<&mut Memory>) -> Variant {
+    func.call(args, &mut *memory.borrow_mut())
+        .unwrap_or_else(|e| Variant::error(e))
+}
+
+impl VariantIterator3 {
+    fn map(mut self, func: Variant) -> Self {
+        self.adapters.push(Adapter::Map(func));
+        self
     }
-    todo!()
-}
 
-impl Iterator for VariantIterator3 {
-    // We can refer to this type using Self::Item
-    type Item = Variant;
-
-    fn next(&mut self) -> Option<Variant> {
-        match self.base {
-            BaseIterator::Vec(_) => todo!(),
-            BaseIterator::Dict(_) => todo!(),
-            BaseIterator::Range(_) => todo!(),
-            BaseIterator::Str(_) => todo!(),
+    fn to_vec(self, memory: &mut Memory) -> Variant {
+        let mut base = self.base;
+        let mem = RefCell::new(memory);
+        for a in self.adapters.iter() {
+            base = match a {
+                Adapter::Map(f) => Box::new(base.map(|i| call_helper(f, &[i], &mem))),
+                Adapter::Filter(f) => todo!(),
+                Adapter::Flatten => Box::new(base.flatten()),
+                Adapter::Enumerate => Box::new(
+                    base.enumerate()
+                        .map(|(i, it)| Variant::vec(vec![Variant::Int(i as i64), it])),
+                ),
+                Adapter::StepBy(step) => Box::new(base.step_by(*step)),
+                Adapter::Take(t) => Box::new(base.take(*t)),
+                Adapter::Skip(s) => Box::new(base.skip(*s)),
+            }
         }
+
+        Variant::vec(base.collect())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
+    use bstr::BString;
     #[test]
     fn size_of_expression() {
         assert_eq!(std::mem::size_of::<VariantIterator2>(), 72)

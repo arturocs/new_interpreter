@@ -694,7 +694,7 @@ impl Variant {
         Ok(l)
     }
 
-    fn call(&self,args:&[Variant],memory:&mut Memory) -> Result<Variant> {
+    pub fn call(&self,args:&[Variant],memory:&mut Memory) -> Result<Variant> {
         match self {
 
             Variant::NativeFunc(f )=> Ok(f.call(args, memory)),
@@ -703,8 +703,21 @@ impl Variant {
 
         }
     }
+    
 }
 
+
+impl Iterator for Variant {
+    type Item = Variant;
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Variant::Iterator(i) = self{
+            i.next()
+        } else{
+            eprintln!("Warning: {self} is not an iterator, so it does not yield any value.");
+            None
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
     use bstr::ByteSlice;
