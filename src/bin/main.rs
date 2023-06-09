@@ -1,6 +1,6 @@
 use anyhow::anyhow;
-use anyhow::bail;
 use anyhow::Result;
+use anyhow::bail;
 use itertools::Itertools;
 use mimalloc_rust::GlobalMiMalloc;
 use new_interpreter::memory::Memory;

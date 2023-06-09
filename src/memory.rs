@@ -1,6 +1,6 @@
 use crate::{builtins, variant::Variant};
 use ahash::AHashMap;
-use anyhow::{anyhow, Context, Ok, Result};
+use anyhow::{anyhow, bail, Context, Ok, Result};
 use std::{rc::Rc, vec};
 #[derive(Debug, Clone)]
 pub struct Memory(Vec<AHashMap<Rc<str>, Variant>>);
@@ -73,7 +73,7 @@ impl Memory {
 
     pub fn set(&mut self, identifier: &str, value: Variant) -> Result<()> {
         if value.is_error() {
-            return Err(anyhow!("{value}"));
+            bail!("{value}");
         }
         match self.0.iter_mut().rev().find_map(|x| x.get_mut(identifier)) {
             Some(v) => *v = value,
