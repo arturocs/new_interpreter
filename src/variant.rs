@@ -4,7 +4,7 @@ use crate::{
     memory::Memory, iterator::VariantIterator,
 };
 use ahash::RandomState;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use bstr::{BString, ByteSlice, ByteVec};
 use derive_more::IsVariant;
 use dyn_clone::DynClone;
@@ -242,7 +242,7 @@ impl Variant {
     pub fn is_true(&self) -> Result<bool> {
         match self {
             Variant::Bool(b) => Ok(*b),
-            a => Err(anyhow!("{a:?} is not a boolean")),
+            a => bail!("{a:?} is not a boolean"),
         }
     }
 
@@ -278,7 +278,7 @@ impl Variant {
                 c.push_str(b.as_bstr());
                 Variant::str(c)
             }
-            _ => return Err(anyhow!("Cannot add {self:?} and {other:?}")),
+            _ => bail!("Cannot add {self:?} and {other:?}"),
         };
         Ok(result)
     }
@@ -298,14 +298,14 @@ impl Variant {
                 apply_op_between_vecs(&a.borrow(), &b.borrow(), Self::sub)?
             }
 
-            _ => return Err(anyhow!("Cannot sub {self:?} and {other:?}")),
+            _ => bail!("Cannot sub {self:?} and {other:?}"),
         };
         Ok(result)
     }
 
     pub fn div(&self, other: &Variant) -> Result<Variant> {
         if other.is_zero() {
-            return Err(anyhow!("Cannot divide by zero"));
+            return bail!("Cannot divide by zero");
         }
         let result = match (self, other) {
             (Variant::Int(a), Variant::Int(b)) => Variant::Float(*a as Float / *b as Float),
@@ -315,14 +315,14 @@ impl Variant {
             (Variant::Vec(a), Variant::Vec(b)) => {
                 apply_op_between_vecs(&a.borrow(), &b.borrow(), Self::div)?
             }
-            _ => return Err(anyhow!("Cannot div {self:?} and {other:?}")),
+            _ => bail!("Cannot div {self:?} and {other:?}"),
         };
         Ok(result)
     }
 
     pub fn div_exact(&self, other: &Variant) -> Result<Variant> {
         if other.is_zero() {
-            return Err(anyhow!("Cannot divide by zero"));
+            bail!("Cannot divide by zero")
         }
         let result = match (self, other) {
             (Variant::Int(a), Variant::Int(b)) => Variant::Int(a / b),
@@ -332,7 +332,7 @@ impl Variant {
             (Variant::Vec(a), Variant::Vec(b)) => {
                 apply_op_between_vecs(&a.borrow(), &b.borrow(), Self::div_exact)?
             }
-            _ => return Err(anyhow!("Cannot div_exact {self:?} and {other:?}")),
+            _ => bail!("Cannot div_exact {self:?} and {other:?}"),
         };
         Ok(result)
     }
@@ -355,17 +355,17 @@ impl Variant {
                 if b >= 0 {
                     Variant::str(a.repeat(b as usize).as_bstr())
                 } else {
-                    return Err(anyhow!("Cannot multiply a string by a negative value"));
+                    bail!("Cannot multiply a string by a negative value");
                 }
             }
-            _ => return Err(anyhow!("Cannot mul {self} and {other}")),
+            _ => bail!("Cannot mul {self} and {other}"),
         };
         Ok(result)
     }
 
     pub fn rem(&self, other: &Variant) -> Result<Variant> {
         if other.is_zero() {
-            return Err(anyhow!("Cannot divide by zero"));
+            bail!("Cannot divide by zero");
         }
         let result = match (self, other) {
             (Variant::Int(a), Variant::Int(b)) => Variant::Float(*a as Float % *b as Float),
@@ -375,7 +375,7 @@ impl Variant {
             (Variant::Vec(a), Variant::Vec(b)) => {
                 apply_op_between_vecs(&a.borrow(), &b.borrow(), Self::rem)?
             }
-            _ => return Err(anyhow!("Cannot rem {self:?} and {other:?}")),
+            _ => bail!("Cannot rem {self:?} and {other:?}"),
         };
         Ok(result)
     }
@@ -383,7 +383,7 @@ impl Variant {
     pub fn not(&self) -> Result<Variant> {
         match self {
             Variant::Bool(b) => Ok(Variant::Bool(!b)),
-            _ => Err(anyhow!("Cannot apply NOT to {self:?}")),
+            _ => bail!("Cannot apply NOT to {self:?}"),
         }
     }
 
@@ -393,7 +393,7 @@ impl Variant {
                 apply_op_between_vecs(&a.borrow(), &b.borrow(), Self::and)
             }
             (&Variant::Bool(a), &Variant::Bool(b)) => Ok(Variant::Bool(a && b)),
-            _ => Err(anyhow!("Cannot apply AND to {self:?} and {other:?}")),
+            _ => bail!("Cannot apply AND to {self:?} and {other:?}"),
         }
     }
 
@@ -403,7 +403,7 @@ impl Variant {
                 apply_op_between_vecs(&a.borrow(), &b.borrow(), Self::or)
             }
             (&Variant::Bool(a), &Variant::Bool(b)) => Ok(Variant::Bool(a || b)),
-            (a, b) => Err(anyhow!("Cannot apply OR to {a:?} and {b:?}")),
+            (a, b) => bail!("Cannot apply OR to {a:?} and {b:?}"),
         }
     }
 
@@ -411,7 +411,7 @@ impl Variant {
         match self {
             Variant::Int(i) => Ok(Variant::Int(-i)),
             Variant::Float(i) => Ok(Variant::Float(-i)),
-            _ => Err(anyhow!("Cannot negate {self:?}")),
+            _ => bail!("Cannot negate {self:?}"),
         }
     }
 
@@ -424,19 +424,17 @@ impl Variant {
                         .map(|_| ())
                         .ok_or_else(|| anyhow!("Index {i} out of bounds"))
                 } else {
-                    Err(anyhow!(
-                        "Cannot index a vector with {i} because it is negative number"
-                    ))
+                    bail!("Cannot index a vector with {i} because it is negative number")
                 }
             }
 
             (Variant::Vec(a), &Variant::Float(f)) => match f {
-                _ if f < 0.0 => Err(anyhow!(
-                    "Cannot index a vector with {f} because it is negative number"
-                )),
-                _ if f.fract() != 0.0 => Err(anyhow!(
-                    "Cannot index a vector with {f} because it is an FP number"
-                )),
+                _ if f < 0.0 => {
+                    bail!("Cannot index a vector with {f} because it is negative number")
+                }
+                _ if f.fract() != 0.0 => {
+                    bail!("Cannot index a vector with {f} because it is an FP number")
+                }
                 _ => a
                     .borrow()
                     .get(f as usize)
@@ -455,7 +453,7 @@ impl Variant {
                 }
             }
 
-            (a, _) => Err(anyhow!("Cannot index {a:?}")),
+            (a, _) => bail!("Cannot index {a:?}"),
         }
     }
 
@@ -500,9 +498,9 @@ impl Variant {
                     .map(|(a, b)| Variant::vec(vec![a.clone(), b.clone()]))
                     .collect(),
             )),
-            Variant::Iterator(r) => Ok(Variant::vec(r.collect())),
+            Variant::Iterator(r) => Ok(Variant::vec(r.collect::<Result<_>>()?)),
             Variant::Vec(v) => Ok(Variant::Vec(v)),
-            a => Err(anyhow!("Can't convert {a:?} to Vec")),
+            a => bail!("Can't convert {a:?} to Vec"),
         }
     }
 
@@ -513,16 +511,13 @@ impl Variant {
                 let second = v.borrow().get(1).unwrap().clone();
                 Ok((first, second))
             } else {
-                Err(anyhow!(
-                    "Can't convert {:?} to pair because it's not a Vec",
-                    self
-                ))
+                bail!("Can't convert {:?} to pair because it's not a Vec", self)
             }
         } else {
-            Err(anyhow!(
+            bail!(
                 "Can't convert {:?} to pair because it doesnt have two elements",
                 self
-            ))
+            )
         }
     }
 
@@ -534,11 +529,11 @@ impl Variant {
                 Ok(Variant::Dict(Rc::new(RefCell::new(r?))))
             }
             Variant::Iterator(i) => {
-                let r: Result<Dictionary> = i.map(|j| j.into_pair()).collect();
+                let r: Result<Dictionary> = i.map(|j| j?.into_pair()).collect();
                 Ok(Variant::Dict(Rc::new(RefCell::new(r?))))
             }
             Variant::Dict(d) => Ok(Variant::Dict(d)),
-            a => Err(anyhow!("Can't convert {a:?} to dict")),
+            a => bail!("Can't convert {a:?} to dict"),
         }
     }
 
@@ -558,7 +553,7 @@ impl Variant {
             )),
             Variant::Iterator(i) => Ok(Variant::Iterator(i)),
 
-            a => Err(anyhow!("Can't convert {a:?} to iterator")),
+            a => bail!("Can't convert {a:?} to iterator"),
         }
     }
 
@@ -672,14 +667,14 @@ impl Variant {
                 v.borrow_mut().push(element);
                 Ok(())
             }
-            _ => Err(anyhow!("Can't push {element:?} to {self:?}")),
+            _ => bail!("Can't push {element:?} to {self:?}"),
         }
     }
 
     pub fn insert(&mut self, key: Variant, value: Variant) -> Result<Option<Variant>> {
         match self {
             Variant::Dict(d) => Ok(d.borrow_mut().insert(key, value)),
-            _ => Err(anyhow!("Can't push ({key:?},{value:?}) in {self:?}")),
+            _ => bail!("Can't push ({key:?},{value:?}) in {self:?}"),
         }
     }
 

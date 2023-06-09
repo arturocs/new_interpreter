@@ -1,4 +1,5 @@
 use anyhow::anyhow;
+use anyhow::bail;
 use anyhow::Result;
 use itertools::Itertools;
 use mimalloc_rust::GlobalMiMalloc;
@@ -24,6 +25,6 @@ fn main() -> Result<()> {
         //dbg!(memory);
         Ok(())
     } else {
-        Err(anyhow!("No path to program received"))
+        bail!("No path to program received")
     }
 }

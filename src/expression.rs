@@ -1,5 +1,5 @@
 use crate::{memory::Memory, variant::Variant};
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use bstr::ByteSlice;
 use itertools::Itertools;
 use std::fmt;
@@ -209,7 +209,7 @@ impl Expression {
                     arguments.iter().map(|e| e.evaluate(variables)).collect();
                 f.call(&evaluated_args?, variables)
             }
-            a => Err(anyhow::anyhow!("{a:?} is not a function")),
+            a => bail!("{a:?} is not a function"),
         }
     }
     fn evaluate_expr_sequence(
@@ -221,8 +221,7 @@ impl Expression {
         if let Some(error) = results.iter().find(|i| i.is_error()) {
             let error = error.to_string();
             let message = error.trim_start_matches("Error: ");
-
-            Err(anyhow!("{message}"))
+            bail!("{message}")
         } else {
             results.last().context("No statements in scope").cloned()
         }
@@ -268,7 +267,7 @@ impl Expression {
         indexable_and_index: &(Expression, Expression),
     ) -> Result<Variant> {
         let Expression::Value(index) = &indexable_and_index.1 else {
-            return Err(anyhow!("dot operator can only be used with identifiers"))
+            bail!("dot operator can only be used with identifiers")
         };
 
         let indexable = indexable_and_index.0.evaluate(variables)?;
@@ -294,7 +293,7 @@ impl Expression {
             }
         } else {
             let Variant::Str(id) = index else {
-                return Err(anyhow!("dot operator can only be used with identifiers"))
+              bail!("dot operator can only be used with identifiers")
             };
 
             let Ok( Variant::NativeFunc(f)) =  variables.get(&id.to_str_lossy()).map(|i|i.clone()) else {
@@ -356,10 +355,7 @@ impl Expression {
     ) -> Result<Variant> {
         let iterable = iterable.evaluate(variables)?.into_iterator()?;
         let mut iterable = iterable;
-        let iterator = match &mut iterable {
-            Variant::Iterator(i) => i,
-            _ => return Err(anyhow!("For loop expects an iterator")),
-        };
+        let Variant::Iterator(iterator) = &mut iterable else { bail!("For loop expects an iterator") };
         variables.push_empty_context();
         let mut last = Variant::Unit;
 

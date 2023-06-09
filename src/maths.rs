@@ -1,5 +1,5 @@
 use crate::variant::{Float, Variant};
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use std::f64;
 
 macro_rules! impl_unary_math_functions {
@@ -9,7 +9,7 @@ macro_rules! impl_unary_math_functions {
                 match self {
                     Variant::Float(i) => Ok(Variant::Float(function(i))),
                     Variant::Int(i) => Ok(Variant::Float(function(i as Float))),
-                    _ => Err(anyhow!("Cannot calculate {name} of {self:?}"))
+                    _ => bail!("Cannot calculate {name} of {self:?}")
                 }
             }
             $(
@@ -34,9 +34,7 @@ impl Variant {
             (Variant::Int(a), Variant::Float(b)) => Variant::Float((a as Float).log(b)),
             (Variant::Float(a), Variant::Int(b)) => Variant::Float(a.log(b as Float)),
             (value, base) => {
-                return Err(anyhow!(
-                    "Cannot calculate log of {value:?} with base {base:?}"
-                ))
+                bail!("Cannot calculate log of {value:?} with base {base:?}")
             }
         };
         Ok(result)
@@ -48,7 +46,7 @@ impl Variant {
             (Variant::Float(a), Variant::Float(b)) => Variant::Float(a.powf(*b)),
             (Variant::Int(a), Variant::Float(b)) => Variant::Float((*a as Float).powf(*b)),
             (Variant::Float(a), Variant::Int(b)) => Variant::Float(a.powf(*b as Float)),
-            _ => return Err(anyhow!("Cannot elevate {self:?} to {other:?}")),
+            _ => bail!("Cannot elevate {self:?} to {other:?}"),
         };
         Ok(result)
     }
