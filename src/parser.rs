@@ -484,4 +484,17 @@ mod tests {
         let a_value = memory.get("a").unwrap().clone();
         assert_eq!(Variant::Bool(true), a_value);
     }
+
+    #[test]
+    fn test_iterators() {
+        let code = r"r  = range(0,10)
+        a=r.map(|i|i*2).to_vec()
+        ";
+        let ast = expr_parser::expr_sequence(code).unwrap();
+        dbg!(&ast);
+        let mut memory = Memory::with_builtins();
+        ast.evaluate(&mut memory).unwrap();
+        let a_value = memory.get("a").unwrap().clone();
+        assert_eq!(Variant::vec((0..10).map(|i|Variant::Int(i*2)).collect()), a_value);
+    }
 }

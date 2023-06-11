@@ -1,5 +1,5 @@
 use crate::{memory::Memory, variant::Variant};
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{bail, Context, Result};
 use bstr::ByteSlice;
 use itertools::Itertools;
 use std::fmt;
@@ -269,28 +269,27 @@ impl Expression {
         let Expression::Value(index) = &indexable_and_index.1 else {
             bail!("dot operator can only be used with identifiers")
         };
-
+       // dbg!("calling evaluate dot");
         let indexable = indexable_and_index.0.evaluate(variables)?;
 
         if indexable.is_dict() {
-            if let Variant::Func(f) = &*indexable.index(index)? {
-                if f.is_method() {
-                    let mut body = Vec::with_capacity(f.body.len() + 1);
-                    body.push(Expression::Declaration {
-                        name: "self".into(),
-                        value: Box::new(Expression::Value(indexable.clone())),
-                    });
-
-                    body.extend_from_slice(f.body.as_ref());
-                    let new_function = Variant::func("", f.arg_names.to_vec(), body);
-
-                    Ok(new_function)
-                } else {
-                    Self::evaluate_index(variables, indexable_and_index)
-                }
-            } else {
-                Self::evaluate_index(variables, indexable_and_index)
+            let Variant::Func(f) = &*indexable.index(index)? else { 
+                return Self::evaluate_index(variables, indexable_and_index) 
+            };
+            if !f.is_method() {
+                return Self::evaluate_index(variables, indexable_and_index);
             }
+
+            let mut body = Vec::with_capacity(f.body.len() + 1);
+            body.push(Expression::Declaration {
+                name: "self".into(),
+                value: Box::new(Expression::Value(indexable.clone())),
+            });
+
+            body.extend_from_slice(f.body.as_ref());
+            let new_function = Variant::func("", f.arg_names.to_vec(), body);
+
+            Ok(new_function)
         } else {
             let Variant::Str(id) = index else {
               bail!("dot operator can only be used with identifiers")
@@ -309,6 +308,7 @@ impl Expression {
                 let mut args = Vec::with_capacity(a.len() + 1);
                 args.push(indexable.clone());
                 args.extend(a.iter().cloned());
+                //dbg!(&args,&f);
                 f.call(&args, memory)
             });
             Ok(new_function)
@@ -359,7 +359,7 @@ impl Expression {
         variables.push_empty_context();
         let mut last = Variant::Unit;
 
-        for i in iterator {
+        for i in iterator.borrow_mut().clone().to_vec(variables) {
             variables.set(i_name, i)?;
 
             last = body.evaluate(variables)?;
@@ -410,11 +410,17 @@ impl Expression {
             Expression::Add(i) => Self::apply_binary_exp(variables, i, Variant::add),
             Expression::Sub(i) => Self::apply_binary_exp(variables, i, Variant::sub),
             Expression::Eq(i) => Self::apply_logical_exp(variables, i, <Variant as PartialEq>::eq),
-            Expression::NotEq(i) => Self::apply_logical_exp(variables, i, <Variant as PartialEq>::ne),
+            Expression::NotEq(i) => {
+                Self::apply_logical_exp(variables, i, <Variant as PartialEq>::ne)
+            }
             Expression::Gt(i) => Self::apply_logical_exp(variables, i, <Variant as PartialOrd>::gt),
             Expression::Lt(i) => Self::apply_logical_exp(variables, i, <Variant as PartialOrd>::lt),
-            Expression::Gtoe(i) => Self::apply_logical_exp(variables, i, <Variant as PartialOrd>::ge),
-            Expression::Ltoe(i) => Self::apply_logical_exp(variables, i, <Variant as PartialOrd>::le),
+            Expression::Gtoe(i) => {
+                Self::apply_logical_exp(variables, i, <Variant as PartialOrd>::ge)
+            }
+            Expression::Ltoe(i) => {
+                Self::apply_logical_exp(variables, i, <Variant as PartialOrd>::le)
+            }
             Expression::And(i) => Self::apply_binary_exp(variables, i, Variant::and),
             Expression::Or(i) => Self::apply_binary_exp(variables, i, Variant::or),
             Expression::Neg(i) => Self::apply_unary_exp(variables, i, Variant::neg),
@@ -438,7 +444,7 @@ impl Expression {
             Expression::Vec(i) => Self::evaluate_vector(variables, i),
             Expression::FunctionDeclaration { name, function } => {
                 Self::evaluate_declaration(variables, name, &Expression::Value(function.clone()))
-            } // _ => todo!(),
+            }
         }
     }
 }
@@ -450,7 +456,7 @@ mod tests {
 
     #[test]
     fn size_of_expression() {
-        assert_eq!(std::mem::size_of::<Expression>(), 40)
+        assert_eq!(std::mem::size_of::<Expression>(), 48)
     }
     #[test]
     fn test_mul() {
@@ -779,13 +785,14 @@ mod tests {
         variables
             .set(
                 "filter",
-                Variant::native_fn(|i, _| {
+                Variant::native_fn(|i, m| {
                     let iter = &i[0];
                     let func = &i[1];
+                    dbg!(iter);
                     iter.clone()
-                        .filter(func.clone(), Memory::new_static())
+                        .filter(func.clone())
                         .unwrap()
-                        .into_vec()
+                        .into_vec(m)
                         .unwrap()
                 }),
             )
@@ -865,33 +872,6 @@ mod tests {
         assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Int(2));
     }
 
-    /* #[test]
-       fn test_function_call_by_reference() {
-           let mut variables = Memory::new();
-           variables.set(
-               "set_arg_to_1".to_string(),
-               Variant::func(
-                   vec!["i".to_string()],
-                   vec![Expression::Declaration {
-                       name: "i".to_string(),
-                       value: Box::new(Expression::Value(Variant::Int(1))),
-                   }],
-               ),
-           );
-           variables.set("j".to_string(), Variant::Int(0));
-           dbg!(&variables);
-           let expr = Expression::FunctionCall {
-               function: Box::new(Expression::Identifier("set_arg_to_1".to_string())),
-               arguments: vec![Expression::Identifier("j".to_string())],
-           };
-           assert_eq!(
-               expr.evaluate(&mut variables).unwrap(),
-               Variant::error("Statement does not return a value")
-           );
-           dbg!(&variables);
-           assert_eq!(variables.last().unwrap()["j"].clone(), Variant::Int(1));
-       }
-    */
     #[test]
     fn test_scope() {
         let mut variables = Memory::new();

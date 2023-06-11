@@ -1,5 +1,5 @@
 use crate::variant::{Float, Variant};
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use std::f64;
 
 macro_rules! impl_unary_math_functions {

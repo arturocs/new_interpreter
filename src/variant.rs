@@ -1,12 +1,13 @@
 use crate::{
     expression::Expression,
     function::{Function, NativeFunction},
-    memory::Memory, iterator::VariantIterator,
+    iterator::VariantIterator,
+    memory::Memory,
 };
 use ahash::RandomState;
 use anyhow::{anyhow, bail, Result};
 use bstr::{BString, ByteSlice, ByteVec};
-use derive_more::IsVariant;
+use derive_more::{IsVariant, Unwrap};
 use dyn_clone::DynClone;
 use indexmap::IndexMap;
 use itertools::Itertools;
@@ -16,7 +17,6 @@ use std::{
     fmt,
     hash::{Hash, Hasher},
     rc::Rc,
-    slice,
 };
 
 pub trait VariantIter: Iterator<Item = Variant> + fmt::Debug + DynClone {}
@@ -27,7 +27,7 @@ pub(crate) type Int = i64;
 pub(crate) type Float = f64;
 pub(crate) type Dictionary = IndexMap<Variant, Variant, RandomState>;
 
-#[derive(Debug, Clone, IsVariant)]
+#[derive(Debug, Clone, IsVariant, Unwrap)]
 #[repr(u8)]
 pub enum Variant {
     Error(Rc<str>),
@@ -38,7 +38,7 @@ pub enum Variant {
     Vec(Rc<RefCell<Vec<Variant>>>),
     Str(Rc<BString>),
     Dict(Rc<RefCell<Dictionary>>),
-    Iterator(VariantIterator),
+    Iterator(Rc<RefCell<VariantIterator>>),
     NativeFunc(Rc<NativeFunction>),
     Func(Rc<Function>),
     Unit,
@@ -63,7 +63,7 @@ impl Ord for Variant {
             (Variant::Str(a), Variant::Str(b)) => a.cmp(b),
             (Variant::Dict(a), Variant::Dict(b)) => a.borrow().iter().cmp(b.borrow().iter()),
             (Variant::Vec(a), Variant::Vec(b)) => a.cmp(b),
-            (Variant::Iterator(a), Variant::Iterator(b)) => a.clone().cmp(b.clone()),
+            (Variant::Iterator(a), Variant::Iterator(b)) => Rc::as_ptr(a).cmp(&Rc::as_ptr(b)),
             (Variant::NativeFunc(a), Variant::NativeFunc(b)) => (a.name).cmp(&b.name),
             (Variant::Func(a), Variant::Func(b)) => a.cmp(b),
             (a, b) => a.get_tag().cmp(&b.get_tag()),
@@ -90,7 +90,7 @@ impl PartialEq for Variant {
             (Variant::Str(a), Variant::Str(b)) => a == b,
             (Variant::Dict(a), Variant::Dict(b)) => a == b,
             (Variant::Vec(a), Variant::Vec(b)) => a == b,
-            (Variant::Iterator(a), Variant::Iterator(b)) => a.clone().eq(b.clone()),
+            (Variant::Iterator(a), Variant::Iterator(b)) => Rc::ptr_eq(a, b),
             (Variant::NativeFunc(a), Variant::NativeFunc(b)) => Rc::ptr_eq(a, b),
             (Variant::Func(a), Variant::Func(b)) => Rc::ptr_eq(a, b),
             (Variant::Unit, Variant::Unit) => true,
@@ -153,7 +153,7 @@ impl Hash for Variant {
             Variant::Dict(a) => a.borrow().iter().for_each(|i| i.hash(state)),
             Variant::Func(f) => f.hash(state),
             Variant::Byte(b) => b.hash(state),
-            Variant::Iterator(a) => a.clone().for_each(|i| i.hash(state)),
+            Variant::Iterator(a) => Rc::as_ptr(a).hash(state),
             Variant::NativeFunc(f) => Rc::as_ptr(f).hash(state),
             Variant::Unit => 0_u8.hash(state),
         };
@@ -207,18 +207,18 @@ impl Variant {
         Variant::Error(e.to_string().into())
     }
     pub fn iterator(i: impl VariantIter + 'static) -> Variant {
-        Variant::Iterator(VariantIterator::new(i))
+        Variant::Iterator(Rc::new(RefCell::new(VariantIterator::new(i))))
     }
     pub fn dict(v: &[(Variant, Variant)]) -> Variant {
         Variant::Dict(Rc::new(RefCell::new(v.iter().cloned().collect())))
     }
-    pub fn native_fn(f: impl Fn(&[Variant], & mut Memory) -> Variant + 'static) -> Variant {
+    pub fn native_fn(f: impl Fn(&[Variant], &mut Memory) -> Variant + 'static) -> Variant {
         Variant::NativeFunc(Rc::new(NativeFunction::anonymous(f)))
     }
 
     pub fn method(
         name: &str,
-        f: impl Fn(&[Variant], & mut Memory) -> Variant + 'static,
+        f: impl Fn(&[Variant], &mut Memory) -> Variant + 'static,
         method_of: Vec<u8>,
     ) -> Variant {
         Variant::NativeFunc(Rc::new(NativeFunction::method(name, f, method_of)))
@@ -242,7 +242,7 @@ impl Variant {
     pub fn is_true(&self) -> Result<bool> {
         match self {
             Variant::Bool(b) => Ok(*b),
-            a => bail!("{a:?} is not a boolean"),
+            a => Err(anyhow!("{a:?} is not a boolean")),
         }
     }
 
@@ -278,7 +278,7 @@ impl Variant {
                 c.push_str(b.as_bstr());
                 Variant::str(c)
             }
-            _ => bail!("Cannot add {self:?} and {other:?}"),
+            _ => return Err(anyhow!("Cannot add {self:?} and {other:?}")),
         };
         Ok(result)
     }
@@ -298,14 +298,14 @@ impl Variant {
                 apply_op_between_vecs(&a.borrow(), &b.borrow(), Self::sub)?
             }
 
-            _ => bail!("Cannot sub {self:?} and {other:?}"),
+            _ => return Err(anyhow!("Cannot sub {self:?} and {other:?}")),
         };
         Ok(result)
     }
 
     pub fn div(&self, other: &Variant) -> Result<Variant> {
         if other.is_zero() {
-            return bail!("Cannot divide by zero");
+            return Err(anyhow!("Cannot divide by zero"));
         }
         let result = match (self, other) {
             (Variant::Int(a), Variant::Int(b)) => Variant::Float(*a as Float / *b as Float),
@@ -315,14 +315,14 @@ impl Variant {
             (Variant::Vec(a), Variant::Vec(b)) => {
                 apply_op_between_vecs(&a.borrow(), &b.borrow(), Self::div)?
             }
-            _ => bail!("Cannot div {self:?} and {other:?}"),
+            _ => return Err(anyhow!("Cannot div {self:?} and {other:?}")),
         };
         Ok(result)
     }
 
     pub fn div_exact(&self, other: &Variant) -> Result<Variant> {
         if other.is_zero() {
-            bail!("Cannot divide by zero")
+            return Err(anyhow!("Cannot divide by zero"));
         }
         let result = match (self, other) {
             (Variant::Int(a), Variant::Int(b)) => Variant::Int(a / b),
@@ -332,7 +332,7 @@ impl Variant {
             (Variant::Vec(a), Variant::Vec(b)) => {
                 apply_op_between_vecs(&a.borrow(), &b.borrow(), Self::div_exact)?
             }
-            _ => bail!("Cannot div_exact {self:?} and {other:?}"),
+            _ => return Err(anyhow!("Cannot div_exact {self:?} and {other:?}")),
         };
         Ok(result)
     }
@@ -355,17 +355,17 @@ impl Variant {
                 if b >= 0 {
                     Variant::str(a.repeat(b as usize).as_bstr())
                 } else {
-                    bail!("Cannot multiply a string by a negative value");
+                    return Err(anyhow!("Cannot multiply a string by a negative value"));
                 }
             }
-            _ => bail!("Cannot mul {self} and {other}"),
+            _ => return Err(anyhow!("Cannot mul {self} and {other}")),
         };
         Ok(result)
     }
 
     pub fn rem(&self, other: &Variant) -> Result<Variant> {
         if other.is_zero() {
-            bail!("Cannot divide by zero");
+            return Err(anyhow!("Cannot divide by zero"));
         }
         let result = match (self, other) {
             (Variant::Int(a), Variant::Int(b)) => Variant::Float(*a as Float % *b as Float),
@@ -375,7 +375,7 @@ impl Variant {
             (Variant::Vec(a), Variant::Vec(b)) => {
                 apply_op_between_vecs(&a.borrow(), &b.borrow(), Self::rem)?
             }
-            _ => bail!("Cannot rem {self:?} and {other:?}"),
+            _ => return Err(anyhow!("Cannot rem {self:?} and {other:?}")),
         };
         Ok(result)
     }
@@ -383,7 +383,7 @@ impl Variant {
     pub fn not(&self) -> Result<Variant> {
         match self {
             Variant::Bool(b) => Ok(Variant::Bool(!b)),
-            _ => bail!("Cannot apply NOT to {self:?}"),
+            _ => Err(anyhow!("Cannot apply NOT to {self:?}")),
         }
     }
 
@@ -393,7 +393,7 @@ impl Variant {
                 apply_op_between_vecs(&a.borrow(), &b.borrow(), Self::and)
             }
             (&Variant::Bool(a), &Variant::Bool(b)) => Ok(Variant::Bool(a && b)),
-            _ => bail!("Cannot apply AND to {self:?} and {other:?}"),
+            _ => Err(anyhow!("Cannot apply AND to {self:?} and {other:?}")),
         }
     }
 
@@ -403,7 +403,7 @@ impl Variant {
                 apply_op_between_vecs(&a.borrow(), &b.borrow(), Self::or)
             }
             (&Variant::Bool(a), &Variant::Bool(b)) => Ok(Variant::Bool(a || b)),
-            (a, b) => bail!("Cannot apply OR to {a:?} and {b:?}"),
+            (a, b) => Err(anyhow!("Cannot apply OR to {a:?} and {b:?}")),
         }
     }
 
@@ -411,7 +411,7 @@ impl Variant {
         match self {
             Variant::Int(i) => Ok(Variant::Int(-i)),
             Variant::Float(i) => Ok(Variant::Float(-i)),
-            _ => bail!("Cannot negate {self:?}"),
+            _ => Err(anyhow!("Cannot negate {self:?}")),
         }
     }
 
@@ -424,17 +424,19 @@ impl Variant {
                         .map(|_| ())
                         .ok_or_else(|| anyhow!("Index {i} out of bounds"))
                 } else {
-                    bail!("Cannot index a vector with {i} because it is negative number")
+                    Err(anyhow!(
+                        "Cannot index a vector with {i} because it is negative number"
+                    ))
                 }
             }
 
             (Variant::Vec(a), &Variant::Float(f)) => match f {
-                _ if f < 0.0 => {
-                    bail!("Cannot index a vector with {f} because it is negative number")
-                }
-                _ if f.fract() != 0.0 => {
-                    bail!("Cannot index a vector with {f} because it is an FP number")
-                }
+                _ if f < 0.0 => Err(anyhow!(
+                    "Cannot index a vector with {f} because it is negative number"
+                )),
+                _ if f.fract() != 0.0 => Err(anyhow!(
+                    "Cannot index a vector with {f} because it is an FP number"
+                )),
                 _ => a
                     .borrow()
                     .get(f as usize)
@@ -453,7 +455,7 @@ impl Variant {
                 }
             }
 
-            (a, _) => bail!("Cannot index {a:?}"),
+            (a, _) => Err(anyhow!("Cannot index {a:?}")),
         }
     }
 
@@ -490,7 +492,7 @@ impl Variant {
         Ok(reference)
     }
 
-    pub fn into_vec(self) -> Result<Variant> {
+    pub fn into_vec(self, memory: &mut Memory) -> Result<Variant> {
         match self {
             Variant::Dict(d) => Ok(Variant::vec(
                 d.borrow()
@@ -498,42 +500,41 @@ impl Variant {
                     .map(|(a, b)| Variant::vec(vec![a.clone(), b.clone()]))
                     .collect(),
             )),
-            Variant::Iterator(r) => Ok(Variant::vec(r.collect::<Result<_>>()?)),
+            Variant::Iterator(r) => Ok(r.borrow_mut().clone().to_variant_vec(memory)),
             Variant::Vec(v) => Ok(Variant::Vec(v)),
-            a => bail!("Can't convert {a:?} to Vec"),
+            a => Err(anyhow!("Can't convert {a:?} to Vec")),
         }
     }
 
-    fn into_pair(&self) -> Result<(Variant, Variant)> {
-        if self.len()? == 2 {
-            if let Variant::Vec(v) = self {
-                let first = v.borrow().get(0).unwrap().clone();
-                let second = v.borrow().get(1).unwrap().clone();
-                Ok((first, second))
-            } else {
-                bail!("Can't convert {:?} to pair because it's not a Vec", self)
-            }
+    pub fn into_pair(&self, memory: &mut Memory) -> Result<(Variant, Variant)> {
+        if self.len(memory)? != 2 {
+            bail!("Can't convert {self:?} to pair because it doesnt have two elements",)
+        }
+        if let Variant::Vec(v) = self {
+            let first = v.borrow().get(0).unwrap().clone();
+            let second = v.borrow().get(1).unwrap().clone();
+            Ok((first, second))
         } else {
-            bail!(
-                "Can't convert {:?} to pair because it doesnt have two elements",
-                self
-            )
+            bail!("Can't convert {self:?} to pair because it's not a Vec")
         }
     }
 
-    pub fn into_dict(self) -> Result<Variant> {
+    pub fn into_dict(self, memory: &mut Memory) -> Result<Variant> {
         match self {
             Variant::Vec(v) => {
-                let r: Result<Dictionary> =
-                    v.borrow().iter().map(|i| i.clone().into_pair()).collect();
+                let r: Result<Dictionary> = v
+                    .borrow()
+                    .iter()
+                    .map(|i| i.clone().into_pair(memory))
+                    .collect();
                 Ok(Variant::Dict(Rc::new(RefCell::new(r?))))
             }
             Variant::Iterator(i) => {
-                let r: Result<Dictionary> = i.map(|j| j?.into_pair()).collect();
+                let r = i.borrow_mut().clone().to_dict(memory);
                 Ok(Variant::Dict(Rc::new(RefCell::new(r?))))
             }
             Variant::Dict(d) => Ok(Variant::Dict(d)),
-            a => bail!("Can't convert {a:?} to dict"),
+            a => Err(anyhow!("Can't convert {a:?} to dict")),
         }
     }
 
@@ -557,108 +558,25 @@ impl Variant {
         }
     }
 
-    pub fn map(self, func: Variant, memory: &'static mut Memory) -> Result<Variant> {
+    pub fn map(self, func: Variant) -> Result<Variant> {
         let iter = self.into_iterator()?;
-        //let m = Rc::new(RefCell::new(memory));
-        // let a = RefCell::new(1);
-        // let b = a.borrow_mut();
-        let result = match (iter, func) {
-            (Variant::Iterator(i), Variant::NativeFunc(f)) => {
-                Variant::Iterator(VariantIterator::new(i.scan(memory,move |m,i| Some(f.call(&[i], *m)))))
-            }
-            /* (Variant::Iterator(i), Variant::Func(f)) => Variant::iterator(i.map(move |i| {
-                f.call(&[i], &mut m.borrow_mut())
-                    .unwrap_or_else(Variant::error)
-            })) */,
-            (i, Variant::NativeFunc(_) | Variant::Func(_)) => {
-                return Err(anyhow!("Can't map {i:?} because it is not an iterator"))
-            }
-            (Variant::Iterator(i), f) => {
-                return Err(anyhow!("Can't map {i:?} because {f:?} is not a function",))
-            }
-            (i, f) => {
-                return Err(anyhow!(
-                    "Can't map {i:?} because its not an iterator and {f:?} is not a function",
-                ))
-            }
-        };
-        Ok(result)
+        let i = iter.unwrap_iterator();
+        i.borrow_mut().map(func);
+        Ok(Variant::Iterator(i))
     }
 
-    pub fn filter(self, func: Variant, memory: &'static mut Memory) -> Result<Variant> {
+    pub fn filter(self, func: Variant) -> Result<Variant> {
         let iter = self.into_iterator()?;
-        let m = Rc::new(RefCell::new(memory));
-
-        match (iter, func) {
-            (Variant::Iterator(i), Variant::NativeFunc(f)) => {
-                let a = i.filter(
-                    move |j| match f.call(slice::from_ref(j), &mut m.borrow_mut()) {
-                        Variant::Bool(b) => b,
-                        a => {
-                            eprintln!(
-                                "Warning: {a:?} it's not a boolean, interpreting it as false",
-                            );
-                            false
-                        }
-                    },
-                );
-                Ok(Variant::iterator(a))
-            }
-            (Variant::Iterator(i), Variant::Func(f)) => {
-                let a = i.filter(move |j| {
-                    match (f.call(slice::from_ref(j), &mut m.borrow_mut()))
-                        .unwrap_or_else(Variant::error)
-                    {
-                        Variant::Bool(b) => b,
-                        a => {
-                            eprintln!(
-                                "Warning: {a:?} it's not a boolean, interpreting it as false",
-                            );
-                            false
-                        }
-                    }
-                });
-                Ok(Variant::iterator(a))
-            }
-
-            (i, Variant::NativeFunc(_) | Variant::Func(_)) => {
-                Err(anyhow!("Can't map {i:?} because it is not an iterator"))
-            }
-            (Variant::Iterator(i), f) => {
-                Err(anyhow!("Can't map {i:?} because {f:?} is not a function",))
-            }
-            _ => todo!(),
-        }
+        let i = iter.unwrap_iterator();
+        i.borrow_mut().filter(func);
+        Ok(Variant::Iterator(i))
     }
 
-    pub fn reduce(self, func: Variant, memory: &'static mut Memory) -> Result<Variant> {
+    pub fn reduce(self, func: Variant, memory: &mut Memory) -> Result<Variant> {
         let iter = self.into_iterator()?;
-        let m = Rc::new(RefCell::new(memory));
-        match (iter, func) {
-            (Variant::Iterator(i), Variant::NativeFunc(f)) => {
-                match i.reduce(move |acc, x| f.call(&[acc, x], &mut m.borrow_mut())) {
-                    Some(j) => Ok(j),
-                    None => Ok(Variant::error("Empty iterator")),
-                }
-            }
-            //TODO: Remove unwrap and allow access to global variables
-            (Variant::Iterator(i), Variant::Func(f)) => {
-                match i.reduce(move |acc, x| {
-                    f.call(&[acc, x], &mut m.borrow_mut())
-                        .unwrap_or_else(Variant::error)
-                }) {
-                    Some(j) => Ok(j),
-                    None => Ok(Variant::error("Empty iterator")),
-                }
-            }
-            (i, Variant::NativeFunc(_) | Variant::Func(_)) => {
-                Err(anyhow!("Can't map {i:?} because it is not an iterator"))
-            }
-            (Variant::Iterator(i), f) => {
-                Err(anyhow!("Can't map {i:?} because {f:?} is not a function",))
-            }
-            _ => todo!(),
-        }
+        let iter = iter.unwrap_iterator();
+        let ref_iter = iter.borrow_mut();
+        ref_iter.clone().reduce(&func, memory)
     }
 
     pub fn push(&mut self, element: Variant) -> Result<()> {
@@ -667,52 +585,37 @@ impl Variant {
                 v.borrow_mut().push(element);
                 Ok(())
             }
-            _ => bail!("Can't push {element:?} to {self:?}"),
+            _ => Err(anyhow!("Can't push {element:?} to {self:?}")),
         }
     }
 
     pub fn insert(&mut self, key: Variant, value: Variant) -> Result<Option<Variant>> {
         match self {
             Variant::Dict(d) => Ok(d.borrow_mut().insert(key, value)),
-            _ => bail!("Can't push ({key:?},{value:?}) in {self:?}"),
+            _ => Err(anyhow!("Can't push ({key:?},{value:?}) in {self:?}")),
         }
     }
 
-    fn len(&self) -> Result<usize> {
+    pub fn len(&self, memory: &mut Memory) -> Result<usize> {
         let l = match self {
             Variant::Vec(v) => v.borrow().len(),
             Variant::Str(s) => s.len(),
             Variant::Dict(d) => d.borrow().len(),
-            Variant::Iterator(i) => i.clone().count(),
+            Variant::Iterator(i) => i.borrow_mut().clone().to_vec(memory).len(),
             _ => return Err(anyhow!("{self:?} doesn't have a lenght attribute")),
         };
         Ok(l)
     }
 
-    pub fn call(&self,args:&[Variant],memory:&mut Memory) -> Result<Variant> {
+    pub fn call(&self, args: &[Variant], memory: &mut Memory) -> Result<Variant> {
         match self {
-
-            Variant::NativeFunc(f )=> Ok(f.call(args, memory)),
+            Variant::NativeFunc(f) => Ok(f.call(args, memory)),
             Variant::Func(f) => f.call(args, memory),
-            _=> Err(anyhow!("{self} it is not callable"))
-
-        }
-    }
-    
-}
-
-
-impl Iterator for Variant {
-    type Item = Variant;
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Variant::Iterator(i) = self{
-            i.next()
-        } else{
-            eprintln!("Warning: {self} is not an iterator, so it does not yield any value.");
-            None
+            _ => Err(anyhow!("{self} it is not callable")),
         }
     }
 }
+
 #[cfg(test)]
 mod tests {
     use bstr::ByteSlice;
@@ -822,13 +725,21 @@ mod tests {
 
     #[test]
     fn to_dict_to_vec() {
+        let memory = &mut Memory::new();
         let v1 = Variant::vec(vec![
             Variant::vec(vec![Variant::default(), Variant::Int(0)]),
             Variant::vec(vec![Variant::Int(1), Variant::Int(1)]),
             Variant::vec(vec![Variant::Float(2.0), Variant::Int(2)]),
             Variant::vec(vec![Variant::str("s"), Variant::Int(3)]),
         ]);
-        assert_eq!(v1, v1.clone().into_dict().unwrap().into_vec().unwrap())
+        assert_eq!(
+            v1,
+            v1.clone()
+                .into_dict(memory)
+                .unwrap()
+                .into_vec(memory)
+                .unwrap()
+        )
     }
 
     #[test]
@@ -856,6 +767,7 @@ mod tests {
 
     #[test]
     fn iterator_map() {
+        let memory = &mut Memory::new();
         let var = Variant::vec(vec![
             Variant::Int(1),
             Variant::Float(2.0),
@@ -866,12 +778,11 @@ mod tests {
         let a = var
             .into_iterator()
             .unwrap()
-            .map(
-                Variant::native_fn(|i, _| i[0].add(&Variant::str("a")).unwrap()),
-                Memory::new_static(),
-            )
+            .map(Variant::native_fn(|i, _| {
+                i[0].add(&Variant::str("a")).unwrap()
+            }))
             .unwrap()
-            .into_vec()
+            .into_vec(memory)
             .unwrap();
         assert_eq!(
             a,
@@ -891,21 +802,18 @@ mod tests {
             Variant::Bool(true),
             Variant::str("hello"),
         ]);
-
+        let memory = &mut Memory::new();
         let a = var
             .into_iterator()
             .unwrap()
-            .filter(
-                Variant::native_fn(|i, _| {
-                    Variant::Bool(match i[0] {
-                        Variant::Int(_) => true,
-                        _ => false,
-                    })
-                }),
-                Memory::new_static(),
-            )
+            .filter(Variant::native_fn(|i, _| {
+                Variant::Bool(match i[0] {
+                    Variant::Int(_) => true,
+                    _ => false,
+                })
+            }))
             .unwrap()
-            .into_vec()
+            .into_vec(memory)
             .unwrap();
         assert_eq!(a, Variant::vec(vec![Variant::Int(1),]));
     }
@@ -924,7 +832,7 @@ mod tests {
             .unwrap()
             .reduce(
                 Variant::native_fn(|i, _| i[0].add(&i[1]).unwrap()),
-                Memory::new_static(),
+                &mut Memory::new(),
             )
             .unwrap();
         assert_eq!(a, Variant::str("hello12true"));
@@ -942,24 +850,18 @@ mod tests {
         let a = var
             .into_iterator()
             .unwrap()
-            .map(
-                Variant::native_fn(|i, _| Variant::str(i[0].clone())),
-                Memory::new_static(),
-            )
+            .map(Variant::native_fn(|i, _| Variant::str(i[0].clone())))
             .unwrap()
-            .filter(
-                Variant::native_fn(|i, _| {
-                    Variant::Bool(match &i[0] {
-                        Variant::Str(s) => s.to_str_lossy().parse::<f64>().is_ok(),
-                        _ => false,
-                    })
-                }),
-                Memory::new_static(),
-            )
+            .filter(Variant::native_fn(|i, _| {
+                Variant::Bool(match &i[0] {
+                    Variant::Str(s) => s.to_str_lossy().parse::<f64>().is_ok(),
+                    _ => false,
+                })
+            }))
             .unwrap()
             .reduce(
                 Variant::native_fn(|i, _| i[0].add(&i[1]).unwrap_or_else(Variant::error)),
-                Memory::new_static(),
+                &mut Memory::new(),
             )
             .unwrap();
         assert_eq!(a, Variant::str("12"));

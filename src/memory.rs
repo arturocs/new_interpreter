@@ -10,10 +10,6 @@ impl Memory {
         Memory(vec![AHashMap::new()])
     }
 
-    pub fn new_static() -> &'static mut Self {
-        Box::leak(Box::new(Self::new()))
-    }
-
     pub fn static_with_builtins() -> &'static mut Self {
         Box::leak(Box::new(Self::with_builtins()))
     }
@@ -34,6 +30,8 @@ impl Memory {
             ("contains", builtins::contains, Some(vec![5, 6])),
             ("join", builtins::join, Some(vec![5, 8])),
             ("map", builtins::map, Some(vec![5, 8])),
+            ("filter", builtins::filter, Some(vec![5, 8])),
+            ("to_vec", builtins::to_vec, Some(vec![5, 8])),
         ]
         .into_iter()
         .map(|(name, f, method_of)| {

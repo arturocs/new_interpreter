@@ -74,7 +74,7 @@ fn benchmark2(c: &mut Criterion) {
                 .unwrap()
                 .map(
                     Variant::native_fn(|i, _| Variant::str(&i[0])),
-                    Memory::new_static(),
+                  
                 )
                 .unwrap()
                 .filter(
@@ -84,12 +84,12 @@ fn benchmark2(c: &mut Criterion) {
                             _ => false,
                         })
                     }),
-                    Memory::new_static(),
+                    
                 )
                 .unwrap()
                 .reduce(
                     Variant::native_fn(|i, _| i[0].add(&i[1]).unwrap()),
-                    Memory::new_static(),
+                    &mut Memory::new(),
                 )
                 .unwrap();
             black_box(a)
@@ -122,13 +122,13 @@ fn benchmark4(c: &mut Criterion) {
     variables
         .set(
             "filter",
-            Variant::native_fn(|i, _| {
+            Variant::native_fn(move |i, m| {
                 let iter = &i[0];
                 let func = &i[1];
                 iter.clone()
-                    .filter(func.clone(), Memory::new_static())
+                    .filter(func.clone())
                     .unwrap()
-                    .into_vec()
+                    .into_vec(m)
                     .unwrap()
             }),
         )
@@ -165,13 +165,13 @@ fn benchmark5(c: &mut Criterion) {
     variables
         .set(
             "filter",
-            Variant::native_fn(|i, _| {
+            Variant::native_fn(|i, m| {
                 let iter = &i[0];
                 let func = &i[1];
                 iter.clone()
-                    .filter(func.clone(), Memory::new_static())
+                    .filter(func.clone())
                     .unwrap()
-                    .into_vec()
+                    .into_vec(m)
                     .unwrap()
             }),
         )
