@@ -152,10 +152,9 @@ impl VariantIterator {
     pub fn to_variant_dict(self, memory: &mut Memory) -> Variant {
         let dict = self.to_dict(memory);
         match dict {
-            Ok(d) =>  Variant::Dict(Rc::new(RefCell::new(d))),
+            Ok(d) => Variant::Dict(Rc::new(RefCell::new(d))),
             Err(e) => Variant::error(e),
         }
-       
     }
 
     pub fn reduce(self, func: &Variant, memory: &mut Memory) -> Result<Variant> {
@@ -173,5 +172,4 @@ mod tests {
     fn size_of_iterator() {
         assert_eq!(std::mem::size_of::<VariantIterator>(), 40)
     }
-
 }

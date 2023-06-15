@@ -72,20 +72,14 @@ fn benchmark2(c: &mut Criterion) {
             let a = var
                 .into_iterator()
                 .unwrap()
-                .map(
-                    Variant::native_fn(|i, _| Variant::str(&i[0])),
-                  
-                )
+                .map(Variant::native_fn(|i, _| Variant::str(&i[0])))
                 .unwrap()
-                .filter(
-                    Variant::native_fn(|i, _| {
-                        Variant::Bool(match &i[0] {
-                            Variant::Str(s) => s.to_str_lossy().parse::<f64>().is_ok(),
-                            _ => false,
-                        })
-                    }),
-                    
-                )
+                .filter(Variant::native_fn(|i, _| {
+                    Variant::Bool(match &i[0] {
+                        Variant::Str(s) => s.to_str_lossy().parse::<f64>().is_ok(),
+                        _ => false,
+                    })
+                }))
                 .unwrap()
                 .reduce(
                     Variant::native_fn(|i, _| i[0].add(&i[1]).unwrap()),

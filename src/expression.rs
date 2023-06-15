@@ -269,13 +269,11 @@ impl Expression {
         let Expression::Value(index) = &indexable_and_index.1 else {
             bail!("dot operator can only be used with identifiers")
         };
-       // dbg!("calling evaluate dot");
+        // dbg!("calling evaluate dot");
         let indexable = indexable_and_index.0.evaluate(variables)?;
 
         if indexable.is_dict() {
-            let Variant::Func(f) = &*indexable.index(index)? else { 
-                return Self::evaluate_index(variables, indexable_and_index) 
-            };
+            let Variant::Func(f) = &*indexable.index(index)? else { return Self::evaluate_index(variables, indexable_and_index) };
             if !f.is_method() {
                 return Self::evaluate_index(variables, indexable_and_index);
             }

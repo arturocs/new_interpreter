@@ -162,17 +162,21 @@ pub fn map(args: &[Variant], _memory: &mut Memory) -> Variant {
     if args.len() != 2 {
         return Variant::error("map function needs two arguments");
     }
-    args[0].clone().map(args[1].clone()).unwrap_or_else(Variant::error)
-
+    args[0]
+        .clone()
+        .map(args[1].clone())
+        .unwrap_or_else(Variant::error)
 }
-
 
 pub fn filter(args: &[Variant], _memory: &mut Memory) -> Variant {
     //dbg!("calling filter");
     if args.len() != 2 {
         return Variant::error("filter function needs two arguments");
     }
-    args[0].clone().filter(args[1].clone()).unwrap_or_else(Variant::error)
+    args[0]
+        .clone()
+        .filter(args[1].clone())
+        .unwrap_or_else(Variant::error)
 }
 
 pub fn to_vec(args: &[Variant], memory: &mut Memory) -> Variant {
@@ -181,8 +185,7 @@ pub fn to_vec(args: &[Variant], memory: &mut Memory) -> Variant {
     }
     match args[0].clone().into_iterator() {
         Ok(Variant::Iterator(i)) => i.borrow_mut().clone().to_variant_vec(memory),
-        Ok(e)=> Variant::error(format!("{e} is not iterable")),
-        Err(e) => Variant::error(e)
+        Ok(e) => Variant::error(format!("{e} is not iterable")),
+        Err(e) => Variant::error(e),
     }
-    
 }
