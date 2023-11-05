@@ -1,9 +1,9 @@
 # New Interpreter
 
-This project is a rewrite of my previous project Toy Interpreter. The goal of both projects is to create a dynamic programming language that is a mix between Rust, Javascript and Python. While toy interpreter was implemented from scratch and without references as a challenge, new interpreter uses libraries for the parser and lexer as well as other components. This decision was made in order to speed up development and performance, since the goal of new interpreter is not so much learning as getting a usable language.
+This project is a rewrite of my previous project [Toy Interpreter](https://github.com/arturocs/Toy-interpreter). The goal of both projects is to create a dynamic programming language that is a mix between Rust, Javascript and Python. While toy interpreter was implemented from scratch and without references as a challenge, new interpreter uses libraries for the parser and lexer as well as other components. This decision was made in order to speed up development and performance, since the goal of new interpreter is not so much learning as getting a usable language.
 
 
-* The general syntax has been extracted from Rust: if, while, for, functions (fn, ||{})
+* The general syntax has been extracted from Rust: if, while, for, functions (fn) and closures (||{})
 * From Javascript I have extracted the syntax of objects and arrays.
 * From Python I have extracted the name of some functions (print, range), the syntax of f-strings and the possibility to use the operators and, or and not.
 
