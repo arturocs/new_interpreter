@@ -454,7 +454,7 @@ mod tests {
 
     #[test]
     fn size_of_expression() {
-        assert_eq!(std::mem::size_of::<Expression>(), 48)
+        assert_eq!(std::mem::size_of::<Expression>(), 40)
     }
     #[test]
     fn test_mul() {
