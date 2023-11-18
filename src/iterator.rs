@@ -36,19 +36,23 @@ fn call_helper(func: &Variant, args: &[Variant], memory: &RefCell<&mut Memory>) 
 
 macro_rules! implement_adapters {
     ($func:ident,$type:ty) => {
-        paste! {impl VariantIterator {
-            pub fn[<$func:snake>](&mut self, value: $type) {
-                self.adapters.push(Adapter::$func(value));
+        paste! {
+            impl VariantIterator {
+                pub fn[<$func:snake>](&mut self, value: $type) {
+                    self.adapters.push(Adapter::$func(value));
+                }
             }
-        }}
+        }
     };
 
     ($func:ident) => {
-        paste! {impl VariantIterator {
-            pub fn[<$func:snake>](&mut self) {
-                self.adapters.push(Adapter::$func);
+        paste! {
+            impl VariantIterator {
+                pub fn[<$func:snake>](&mut self) {
+                    self.adapters.push(Adapter::$func);
+                }
             }
-        }}
+        }
     };
 }
 
