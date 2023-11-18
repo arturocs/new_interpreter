@@ -30,8 +30,8 @@ pub struct VariantIterator {
 }
 
 fn call_helper(func: &Variant, args: &[Variant], memory: &RefCell<&mut Memory>) -> Variant {
-    func.call(args, &mut *memory.borrow_mut())
-        .unwrap_or_else(|e| Variant::error(e))
+    func.call(args, &mut memory.borrow_mut())
+        .unwrap_or_else(Variant::error)
 }
 
 macro_rules! implement_adapters {
@@ -93,7 +93,7 @@ impl VariantIterator {
                         Variant::Iterator(j) => j
                             .borrow_mut()
                             .clone()
-                            .to_vec(&mut *mem.borrow_mut())
+                            .to_vec(&mut mem.borrow_mut())
                             .into_iter(),
                         e => vec![Variant::error(format!(
                             "Flatten error: {e:?} is not an iterator"
@@ -115,7 +115,7 @@ impl VariantIterator {
                         Variant::Iterator(j) => j
                             .borrow_mut()
                             .clone()
-                            .to_vec(&mut *mem.borrow_mut())
+                            .to_vec(&mut mem.borrow_mut())
                             .into_iter(),
                         e => vec![Variant::error(format!(
                             "FlatMap error: {e:?} is not an iterator"
