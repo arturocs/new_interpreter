@@ -4,13 +4,16 @@
 
 use bstr::ByteSlice;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use mimalloc_rust::GlobalMiMalloc;
+use mimalloc::MiMalloc;
 use new_interpreter::expression::Expression;
 use new_interpreter::memory::Memory;
 use new_interpreter::variant::Variant;
 
 #[global_allocator]
-static GLOBAL_MIMALLOC: GlobalMiMalloc = GlobalMiMalloc;
+static GLOBAL: MiMalloc = MiMalloc;
+
+//#[global_allocator]
+//static GLOBAL_MIMALLOC: GlobalMiMalloc = GlobalMiMalloc;
 
 fn benchmark0(c: &mut Criterion) {
     let mut variables = Memory::new();

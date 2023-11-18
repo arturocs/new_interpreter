@@ -1,15 +1,14 @@
-use anyhow::anyhow;
-use anyhow::Result;
 use anyhow::bail;
+use anyhow::Result;
 use itertools::Itertools;
-use mimalloc_rust::GlobalMiMalloc;
+use mimalloc::MiMalloc;
 use new_interpreter::memory::Memory;
 use new_interpreter::parser::expr_parser;
 use std::env;
 use std::fs;
 
 #[global_allocator]
-static GLOBAL_MIMALLOC: GlobalMiMalloc = GlobalMiMalloc;
+static GLOBAL: MiMalloc = MiMalloc;
 
 fn main() -> Result<()> {
     let args: Vec<_> = env::args().collect();
