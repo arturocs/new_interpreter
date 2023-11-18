@@ -135,10 +135,10 @@ impl NativeFunction {
 
     pub fn call(&self, args: &[Variant], memory: &mut Memory) -> Variant {
         let Some(types) = &self.method_of else {
-            return (self.function)(args, memory)
+            return (self.function)(args, memory);
         };
         let Some(v) = args.get(0) else {
-            return Variant::error(format!("Cannot call {self} without arguments"))
+            return Variant::error(format!("Cannot call {self} without arguments"));
         };
         types
             .contains(&v.get_tag())

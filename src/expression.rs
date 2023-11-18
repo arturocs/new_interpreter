@@ -273,7 +273,9 @@ impl Expression {
         let indexable = indexable_and_index.0.evaluate(variables)?;
 
         if indexable.is_dict() {
-            let Variant::Func(f) = &*indexable.index(index)? else { return Self::evaluate_index(variables, indexable_and_index) };
+            let Variant::Func(f) = &*indexable.index(index)? else {
+                return Self::evaluate_index(variables, indexable_and_index);
+            };
             if !f.is_method() {
                 return Self::evaluate_index(variables, indexable_and_index);
             }
@@ -290,10 +292,11 @@ impl Expression {
             Ok(new_function)
         } else {
             let Variant::Str(id) = index else {
-              bail!("dot operator can only be used with identifiers")
+                bail!("dot operator can only be used with identifiers")
             };
 
-            let Ok( Variant::NativeFunc(f)) =  variables.get(&id.to_str_lossy()).map(|i|i.clone()) else {
+            let Ok(Variant::NativeFunc(f)) = variables.get(&id.to_str_lossy()).map(|i| i.clone())
+            else {
                 return Self::evaluate_index(variables, indexable_and_index);
             };
 
@@ -353,7 +356,9 @@ impl Expression {
     ) -> Result<Variant> {
         let iterable = iterable.evaluate(variables)?.into_iterator()?;
         let mut iterable = iterable;
-        let Variant::Iterator(iterator) = &mut iterable else { bail!("For loop expects an iterator") };
+        let Variant::Iterator(iterator) = &mut iterable else {
+            bail!("For loop expects an iterator")
+        };
         variables.push_empty_context();
         let mut last = Variant::Unit;
 

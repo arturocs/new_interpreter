@@ -107,7 +107,7 @@ pub fn push(args: &[Variant], _memory: &mut Memory) -> Variant {
         return Variant::error("push function needs at least two arguments");
     }
     let Variant::Vec(v) = &args[0] else {
-        return Variant::error("First argument of push function needs to be a vec")
+        return Variant::error("First argument of push function needs to be a vec");
     };
     v.borrow_mut().extend_from_slice(&args[1..]);
     Variant::Unit
@@ -117,9 +117,15 @@ pub fn range(args: &[Variant], _memory: &mut Memory) -> Variant {
     match args.len() {
         2 | 3 => {
             let error = Variant::error("range function arguments must be of int type");
-            let Variant::Int(start) = &args[0] else { return error; };
-            let Variant::Int(end) = &args[1] else { return error; };
-            let Variant::Int(step) = &args.get(2).unwrap_or(&Variant::Int(1)) else { return error; };
+            let Variant::Int(start) = &args[0] else {
+                return error;
+            };
+            let Variant::Int(end) = &args[1] else {
+                return error;
+            };
+            let Variant::Int(step) = &args.get(2).unwrap_or(&Variant::Int(1)) else {
+                return error;
+            };
             Variant::iterator((*start..*end).step_by((*step) as usize).map(Variant::Int))
         }
 
@@ -145,7 +151,7 @@ pub fn join(args: &[Variant], memory: &mut Memory) -> Variant {
         return Variant::error("join function needs two arguments");
     }
     let Variant::Str(separator) = &args[1] else {
-        return Variant::error("Second argument of join must be a string"); 
+        return Variant::error("Second argument of join must be a string");
     };
     let separator = &separator.to_str_lossy();
 
