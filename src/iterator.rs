@@ -1,5 +1,6 @@
 use crate::{
     memory::Memory,
+    shared::Shared,
     variant::{Dictionary, Variant},
 };
 use anyhow::{Context, Result};
@@ -156,7 +157,7 @@ impl VariantIterator {
     pub fn to_variant_dict(self, memory: &mut Memory) -> Variant {
         let dict = self.to_dict(memory);
         match dict {
-            Ok(d) => Variant::Dict(Rc::new(RefCell::new(d))),
+            Ok(d) => Variant::Dict(Shared::new(d)),
             Err(e) => Variant::error(e),
         }
     }

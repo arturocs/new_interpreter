@@ -3,6 +3,7 @@ use crate::{
     function::{Function, NativeFunction},
     iterator::VariantIterator,
     memory::Memory,
+    shared::Shared,
 };
 use ahash::RandomState;
 use anyhow::{anyhow, bail, Result};
@@ -35,10 +36,10 @@ pub enum Variant {
     Float(Float),
     Bool(bool),
     Byte(u8),
-    Vec(Rc<RefCell<Vec<Variant>>>),
+    Vec(Shared<Vec<Variant>>),
     Str(Rc<BString>),
-    Dict(Rc<RefCell<Dictionary>>),
-    Iterator(Rc<RefCell<VariantIterator>>),
+    Dict(Shared<Dictionary>),
+    Iterator(Shared<VariantIterator>),
     NativeFunc(Rc<NativeFunction>),
     Func(Rc<Function>),
     Unit,
@@ -63,7 +64,7 @@ impl Ord for Variant {
             (Variant::Str(a), Variant::Str(b)) => a.cmp(b),
             (Variant::Dict(a), Variant::Dict(b)) => a.borrow().iter().cmp(b.borrow().iter()),
             (Variant::Vec(a), Variant::Vec(b)) => a.cmp(b),
-            (Variant::Iterator(a), Variant::Iterator(b)) => Rc::as_ptr(a).cmp(&Rc::as_ptr(b)),
+            (Variant::Iterator(a), Variant::Iterator(b)) => a.as_ptr().cmp(&b.as_ptr()),
             (Variant::NativeFunc(a), Variant::NativeFunc(b)) => (a.name).cmp(&b.name),
             (Variant::Func(a), Variant::Func(b)) => a.cmp(b),
             (a, b) => a.get_tag().cmp(&b.get_tag()),
@@ -90,7 +91,7 @@ impl PartialEq for Variant {
             (Variant::Str(a), Variant::Str(b)) => a == b,
             (Variant::Dict(a), Variant::Dict(b)) => a == b,
             (Variant::Vec(a), Variant::Vec(b)) => a == b,
-            (Variant::Iterator(a), Variant::Iterator(b)) => Rc::ptr_eq(a, b),
+            (Variant::Iterator(a), Variant::Iterator(b)) => a.as_ptr() == b.as_ptr(),
             (Variant::NativeFunc(a), Variant::NativeFunc(b)) => Rc::ptr_eq(a, b),
             (Variant::Func(a), Variant::Func(b)) => Rc::ptr_eq(a, b),
             (Variant::Unit, Variant::Unit) => true,
@@ -196,7 +197,7 @@ impl Variant {
     }
 
     pub fn vec(v: Vec<Variant>) -> Variant {
-        Variant::Vec(Rc::new(RefCell::new(v)))
+        Variant::Vec(Shared::new(v))
     }
 
     pub fn str(s: impl ToString) -> Variant {
@@ -207,10 +208,10 @@ impl Variant {
         Variant::Error(e.to_string().into())
     }
     pub fn iterator(i: impl VariantIter + 'static) -> Variant {
-        Variant::Iterator(Rc::new(RefCell::new(VariantIterator::new(i))))
+        Variant::Iterator(Shared::new(VariantIterator::new(i)))
     }
     pub fn dict(v: &[(Variant, Variant)]) -> Variant {
-        Variant::Dict(Rc::new(RefCell::new(v.iter().cloned().collect())))
+        Variant::Dict(Shared::new(v.iter().cloned().collect()))
     }
     pub fn native_fn(f: impl Fn(&[Variant], &mut Memory) -> Variant + 'static) -> Variant {
         Variant::NativeFunc(Rc::new(NativeFunction::anonymous(f)))
@@ -527,11 +528,11 @@ impl Variant {
                     .iter()
                     .map(|i| i.clone().into_pair(memory))
                     .collect();
-                Ok(Variant::Dict(Rc::new(RefCell::new(r?))))
+                Ok(Variant::Dict(Shared::new(r?)))
             }
             Variant::Iterator(i) => {
                 let r = i.borrow_mut().clone().to_dict(memory);
-                Ok(Variant::Dict(Rc::new(RefCell::new(r?))))
+                Ok(Variant::Dict(Shared::new(r?)))
             }
             Variant::Dict(d) => Ok(Variant::Dict(d)),
             a => Err(anyhow!("Can't convert {a:?} to dict")),
@@ -544,7 +545,9 @@ impl Variant {
                 let i = s.to_vec().into_iter();
                 Ok(Variant::iterator(i.map(Variant::Byte)))
             }
-            Variant::Vec(v) => Ok(Variant::iterator((*v).clone().into_inner().into_iter())),
+            Variant::Vec(v) => Ok(Variant::iterator(
+                v.unwrap_or_clone().into_inner().into_iter(),
+            )),
             Variant::Dict(d) => Ok(Variant::iterator(
                 d.borrow()
                     .iter()
