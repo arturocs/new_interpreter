@@ -69,6 +69,14 @@ impl Memory {
             .ok_or_else(|| anyhow!("Variable '{identifier}' not declared"))
     }
 
+    pub fn get_mut(&mut self, identifier: &str) -> Result<&mut Variant> {
+        self.0
+            .iter_mut()
+            .rev()
+            .find_map(|x| x.get_mut(identifier))
+            .ok_or_else(|| anyhow!("Variable '{identifier}' not declared"))
+    }
+
     pub fn set(&mut self, identifier: &str, value: Variant) -> Result<()> {
         if value.is_error() {
             bail!("{value}");
