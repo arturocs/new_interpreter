@@ -1,4 +1,4 @@
-use crate::{builtins, variant::Variant};
+use crate::{builtins, variant::{Variant, Type}};
 use ahash::AHashMap;
 use anyhow::{anyhow, bail, Context, Ok, Result};
 use std::{rc::Rc, vec};
@@ -21,17 +21,17 @@ impl Memory {
             ("prod", builtins::prod, None),
             ("min", builtins::min, None),
             ("max", builtins::max, None),
-            ("sort", builtins::sort, Some(vec![5])),
-            ("sort_by", builtins::sort_by, Some(vec![5])),
+            ("sort", builtins::sort, Some(vec![Type::Vec])),
+            ("sort_by", builtins::sort_by, Some(vec![Type::Vec])),
             ("print", builtins::print, None),
             ("input", builtins::input, None),
-            ("push", builtins::push, Some(vec![5])),
+            ("push", builtins::push, Some(vec![Type::Vec])),
             ("range", builtins::range, None),
-            ("contains", builtins::contains, Some(vec![5, 6])),
-            ("join", builtins::join, Some(vec![5, 8])),
-            ("map", builtins::map, Some(vec![5, 8])),
-            ("filter", builtins::filter, Some(vec![5, 8])),
-            ("to_vec", builtins::to_vec, Some(vec![5, 8])),
+            ("contains", builtins::contains, Some(vec![Type::Vec, Type::Dict])),
+            ("join", builtins::join, Some(vec![Type::Vec, Type::Iterator])),
+            ("map", builtins::map, Some(vec![Type::Vec, Type::Iterator])),
+            ("filter", builtins::filter, Some(vec![Type::Vec, Type::Iterator])),
+            ("to_vec", builtins::to_vec, Some(vec![Type::Vec, Type::Iterator])),
         ]
         .into_iter()
         .map(|(name, f, method_of)| {

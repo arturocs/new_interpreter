@@ -1,6 +1,6 @@
 use crate::expression::Expression;
 use crate::memory::Memory;
-use crate::variant::Variant;
+use crate::variant::{Variant, Type};
 use ahash::AHashMap;
 use anyhow::{anyhow, Result};
 use itertools::Itertools;
@@ -71,7 +71,7 @@ impl Function {
 
 pub struct NativeFunction {
     pub name: Option<Box<str>>,
-    method_of: Option<Box<[u8]>>,
+    method_of: Option<Box<[Type]>>,
     function: Box<dyn Fn(&[Variant], &mut Memory) -> Variant>,
 }
 impl fmt::Debug for NativeFunction {
@@ -120,7 +120,7 @@ impl NativeFunction {
     pub fn method(
         name: &str,
         f: impl Fn(&[Variant], &mut Memory) -> Variant + 'static,
-        method_of: Vec<u8>,
+        method_of: Vec<Type>,
     ) -> Self {
         NativeFunction {
             name: Some(name.into()),
@@ -141,7 +141,7 @@ impl NativeFunction {
             return Variant::error(format!("Cannot call {self} without arguments"));
         };
         types
-            .contains(&v.get_tag())
+            .contains(&v.get_type())
             .then(|| (self.function)(args, memory))
             .unwrap_or_else(|| Variant::error(format!("Cannot call {self} on variant {v:?}")))
     }

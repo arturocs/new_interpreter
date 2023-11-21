@@ -50,6 +50,26 @@ pub enum Variant {
         vec: Shared<Vec<Variant>>,
         range: Rc<Range<usize>>
     },
+    Type(Type),
+    Unit,
+}
+#[derive(Debug,Clone,Copy,PartialEq, Eq, PartialOrd, Ord)]
+#[repr(u8)]
+pub enum Type {
+    Int,
+    Float,
+    Bool,
+    Byte,
+    Vec,
+    Str,
+    Dict,
+    Iterator,
+    NativeFunc,
+    Func,
+    StrSlice ,
+    VecSlice,
+    Type,
+    Error,
     Unit,
 }
 
@@ -75,7 +95,8 @@ impl Ord for Variant {
             (Variant::Iterator(a), Variant::Iterator(b)) => a.as_ptr().cmp(&b.as_ptr()),
             (Variant::NativeFunc(a), Variant::NativeFunc(b)) => (a.name).cmp(&b.name),
             (Variant::Func(a), Variant::Func(b)) => a.cmp(b),
-            (a, b) => a.get_tag().cmp(&b.get_tag()),
+
+            (a, b) => a.get_type().cmp(&b.get_type()),
         }
     }
 }
@@ -195,23 +216,25 @@ fn apply_op_between_vecs(
 }
 
 impl Variant {
-    pub fn get_tag(&self) -> u8 {
+    pub fn get_type(&self) -> Type {
         match self {
-            Variant::Error(_) => 0,
-            Variant::Int(_) => 1,
-            Variant::Float(_) => 2,
-            Variant::Bool(_) => 3,
-            Variant::Byte(_) => 4,
-            Variant::Vec(_) => 5,
-            Variant::Str(_) => 6,
-            Variant::Dict(_) => 7,
-            Variant::Iterator(_) => 8,
-            Variant::NativeFunc(_) => 9,
-            Variant::Func(_) => 10,
-            Variant::Unit => 11,
+            Variant::Int(_) => Type::Int,
+            Variant::Float(_) => Type::Float,
+            Variant::Bool(_) => Type::Bool,
+            Variant::Byte(_) => Type::Byte,
+            Variant::Vec(_) => Type::Vec,
+            Variant::Str(_) => Type::Str,
+            Variant::Dict(_) => Type::Dict,
+            Variant::Iterator(_) => Type::Iterator,
+            Variant::NativeFunc(_) => Type::NativeFunc,
+            Variant::Func(_) => Type::Func,
+            Variant::StrSlice { str, range } => Type::StrSlice,
+            Variant::VecSlice { vec, range } => Type::VecSlice,
+            Variant::Type(_) => Type::Type,
+            Variant::Error(_) => Type::Error,
+            Variant::Unit => Type::Unit,
         }
     }
-
     pub fn vec(v: Vec<Variant>) -> Variant {
         Variant::Vec(Shared::new(v))
     }
@@ -236,7 +259,7 @@ impl Variant {
     pub fn method(
         name: &str,
         f: impl Fn(&[Variant], &mut Memory) -> Variant + 'static,
-        method_of: Vec<u8>,
+        method_of: Vec<Type>,
     ) -> Variant {
         Variant::NativeFunc(Rc::new(NativeFunction::method(name, f, method_of)))
     }
@@ -649,7 +672,7 @@ mod tests {
         hash::{Hash, Hasher},
     };
 
-    use crate::{memory::Memory, variant::Variant};
+    use crate::{memory::Memory, variant::{Variant, Type}};
     #[test]
     fn string_addition() {
         let a = Variant::str("hello");
@@ -744,8 +767,9 @@ mod tests {
             Variant::str("string"),
             Variant::dict(&[]),
         ]
-        .map(|i| i.get_tag());
-        assert_eq!([0, 1, 2, 3, 4, 5, 6, 7], v);
+        .map(|i| i.get_type() );
+        assert_eq!([Type::Error, Type::Int, Type::Float, Type::Bool, 
+            Type::Byte, Type::Vec, Type::Str, Type::Dict], v);
     }
 
     #[test]
