@@ -17,7 +17,6 @@ peg = "0.8.2"
 mimalloc = "0.1.39" 
 derive_more = "0.99.17"
 paste = "1.0.12"
-qcell = "0.5.4"
 
 [dev-dependencies]
 criterion = "0.5.1"
