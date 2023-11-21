@@ -1,0 +1,4 @@
+a = 13
+if if a == 13 { 10 } else { 0 } > 5 {
+    print("This will be printed!")
+}
