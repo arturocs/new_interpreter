@@ -8,16 +8,16 @@ use crate::{
 use ahash::RandomState;
 use anyhow::{anyhow, bail, Result};
 use bstr::{BString, ByteSlice, ByteVec};
-use derive_more::{IsVariant, Unwrap};
+use derive_more::IsVariant;
 use dyn_clone::DynClone;
 use indexmap::IndexMap;
 use itertools::Itertools;
 use std::{
-    cell::{Ref, RefCell, RefMut},
+    cell::{Ref, RefMut},
     cmp::Ordering,
     fmt,
     hash::{Hash, Hasher},
-    rc::Rc,
+    rc::Rc, ops::Range,
 };
 
 pub trait VariantIter: Iterator<Item = Variant> + fmt::Debug + DynClone {}
@@ -28,9 +28,9 @@ pub(crate) type Int = i64;
 pub(crate) type Float = f64;
 pub(crate) type Dictionary = IndexMap<Variant, Variant, RandomState>;
 
-#[derive(Debug, Clone, IsVariant, Unwrap)]
+#[derive(Debug, Clone, IsVariant)]
 #[repr(u8)]
-pub enum Variant {
+pub enum Variant { 
     Error(Rc<str>),
     Int(Int),
     Float(Float),
@@ -42,6 +42,14 @@ pub enum Variant {
     Iterator(Shared<VariantIterator>),
     NativeFunc(Rc<NativeFunction>),
     Func(Rc<Function>),
+    StrSlice {
+        str: Rc<BString>,
+        range: Rc<Range<usize>>
+    },
+    VecSlice {
+        vec: Shared<Vec<Variant>>,
+        range: Rc<Range<usize>>
+    },
     Unit,
 }
 
@@ -135,6 +143,10 @@ impl fmt::Display for Variant {
             Variant::Iterator(i) => write!(fmt, "Iterator({i:?})"),
             Variant::NativeFunc(f) => write!(fmt, "{f}"),
             Variant::Unit => write!(fmt, "Unit"),
+            _=> todo!()
+          //  Variant::VecSlice { vec, range } => todo!(),
+          //  Variant::StrSlice { str, range } => todo!(),
+ 
         }
     }
 }
@@ -154,9 +166,13 @@ impl Hash for Variant {
             Variant::Dict(a) => a.borrow().iter().for_each(|i| i.hash(state)),
             Variant::Func(f) => f.hash(state),
             Variant::Byte(b) => b.hash(state),
-            Variant::Iterator(a) => Rc::as_ptr(a).hash(state),
+            Variant::Iterator(a) => a.as_ptr().hash(state),
             Variant::NativeFunc(f) => Rc::as_ptr(f).hash(state),
             Variant::Unit => 0_u8.hash(state),
+            //Variant::VecSlice { vec, range } => todo!(),
+            //Variant::StrSlice { str, range } => todo!(),
+            _=>todo!()
+
         };
     }
 }
@@ -563,21 +579,27 @@ impl Variant {
 
     pub fn map(self, func: Variant) -> Result<Variant> {
         let iter = self.into_iterator()?;
-        let i = iter.unwrap_iterator();
+        let Variant::Iterator(i) = iter else {
+            unreachable!()
+        };
         i.borrow_mut().map(func);
         Ok(Variant::Iterator(i))
     }
 
     pub fn filter(self, func: Variant) -> Result<Variant> {
         let iter = self.into_iterator()?;
-        let i = iter.unwrap_iterator();
+        let Variant::Iterator(i) = iter else {
+            unreachable!()
+        };
         i.borrow_mut().filter(func);
         Ok(Variant::Iterator(i))
     }
 
     pub fn reduce(self, func: Variant, memory: &mut Memory) -> Result<Variant> {
         let iter = self.into_iterator()?;
-        let iter = iter.unwrap_iterator();
+        let Variant::Iterator(iter) = iter else {
+            unreachable!()
+        };
         let ref_iter = iter.borrow_mut();
         ref_iter.clone().reduce(&func, memory)
     }
