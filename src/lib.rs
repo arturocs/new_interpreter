@@ -5,7 +5,7 @@ pub mod function;
 pub mod maths;
 pub mod memory;
 pub mod parser;
-pub mod variant;
 pub mod shared;
+pub mod variant;
 #[macro_use]
 pub mod iterator;
