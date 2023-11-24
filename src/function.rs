@@ -1,6 +1,6 @@
 use crate::expression::Expression;
 use crate::memory::Memory;
-use crate::variant::{Type, Variant};
+use crate::variant::{Variant, Type};
 use ahash::AHashMap;
 use anyhow::{anyhow, Result};
 use itertools::Itertools;

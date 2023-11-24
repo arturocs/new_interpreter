@@ -2,7 +2,6 @@ use crate::{memory::Memory, variant::Variant};
 use bstr::ByteSlice;
 use itertools::Itertools;
 use std::io;
-use std::rc::Rc;
 use std::slice;
 
 fn generate_vec_builtins(
@@ -194,34 +193,5 @@ pub fn to_vec(args: &[Variant], memory: &mut Memory) -> Variant {
         Ok(Variant::Iterator(i)) => i.borrow_mut().clone().to_variant_vec(memory),
         Ok(e) => Variant::error(format!("{e} is not iterable")),
         Err(e) => Variant::error(e),
-    }
-}
-
-macro_rules! as_number {
-    ($variant:expr) => {
-        match $variant {
-            Variant::Int(i) => *i as usize,
-            Variant::Float(f) => {
-                if f.fract() == 0.0 {
-                    *f as usize
-                } else {
-                    return Variant::error("Can't slice with a fractional number");
-                }
-            }
-            _ => return Variant::error("slice function can only be used with numbers"),
-        }
-    };
-}
-
-pub fn slice(args: &[Variant], _memory: &mut Memory) -> Variant {
-    if args.len() != 3 {
-        return Variant::error("slice function needs two arguments");
-    }
-    let start = as_number!(&args[1]);
-    let end = as_number!(&args[2]);
-    match &args[0] {
-        Variant::Vec(v) => Variant::vec_slice(v.clone(), start, end),
-        Variant::Str(s) => Variant::str_slice(s.clone(), start, end),
-        _ => Variant::error("Only strings and vecs can be sliced"),
     }
 }

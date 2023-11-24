@@ -1,7 +1,4 @@
-use crate::{
-    builtins,
-    variant::{Type, Variant},
-};
+use crate::{builtins, variant::{Variant, Type}};
 use ahash::AHashMap;
 use anyhow::{anyhow, bail, Context, Ok, Result};
 use std::{rc::Rc, vec};
@@ -19,7 +16,7 @@ impl Memory {
 
     pub fn with_builtins() -> Self {
         let sum: fn(&[Variant], &mut Memory) -> Variant = builtins::sum;
-        let context = [
+        let context = vec![
             ("sum", sum, None),
             ("prod", builtins::prod, None),
             ("min", builtins::min, None),
@@ -30,27 +27,11 @@ impl Memory {
             ("input", builtins::input, None),
             ("push", builtins::push, Some(vec![Type::Vec])),
             ("range", builtins::range, None),
-            (
-                "contains",
-                builtins::contains,
-                Some(vec![Type::Vec, Type::Dict]),
-            ),
-            (
-                "join",
-                builtins::join,
-                Some(vec![Type::Vec, Type::Iterator]),
-            ),
+            ("contains", builtins::contains, Some(vec![Type::Vec, Type::Dict])),
+            ("join", builtins::join, Some(vec![Type::Vec, Type::Iterator])),
             ("map", builtins::map, Some(vec![Type::Vec, Type::Iterator])),
-            (
-                "filter",
-                builtins::filter,
-                Some(vec![Type::Vec, Type::Iterator]),
-            ),
-            (
-                "to_vec",
-                builtins::to_vec,
-                Some(vec![Type::Vec, Type::Iterator]),
-            ),
+            ("filter", builtins::filter, Some(vec![Type::Vec, Type::Iterator])),
+            ("to_vec", builtins::to_vec, Some(vec![Type::Vec, Type::Iterator])),
         ]
         .into_iter()
         .map(|(name, f, method_of)| {

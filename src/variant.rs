@@ -8,7 +8,7 @@ use crate::{
 use ahash::RandomState;
 use anyhow::{anyhow, bail, Result};
 use bstr::{BString, ByteSlice, ByteVec};
-use derive_more::{Display, IsVariant};
+use derive_more::IsVariant;
 use dyn_clone::DynClone;
 use indexmap::IndexMap;
 use itertools::Itertools;
@@ -17,8 +17,7 @@ use std::{
     cmp::Ordering,
     fmt,
     hash::{Hash, Hasher},
-    ops::Range,
-    rc::Rc,
+    rc::Rc, ops::Range,
 };
 
 pub trait VariantIter: Iterator<Item = Variant> + fmt::Debug + DynClone {}
@@ -31,7 +30,7 @@ pub(crate) type Dictionary = IndexMap<Variant, Variant, RandomState>;
 
 #[derive(Debug, Clone, IsVariant)]
 #[repr(u8)]
-pub enum Variant {
+pub enum Variant { 
     Error(Rc<str>),
     Int(Int),
     Float(Float),
@@ -45,16 +44,16 @@ pub enum Variant {
     Func(Rc<Function>),
     StrSlice {
         str: Rc<BString>,
-        range: Rc<Range<usize>>,
+        range: Rc<Range<usize>>
     },
     VecSlice {
         vec: Shared<Vec<Variant>>,
-        range: Rc<Range<usize>>,
+        range: Rc<Range<usize>>
     },
     Type(Type),
     Unit,
 }
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Display)]
+#[derive(Debug,Clone,Copy,PartialEq, Eq, PartialOrd, Ord)]
 #[repr(u8)]
 pub enum Type {
     Int,
@@ -67,7 +66,7 @@ pub enum Type {
     Iterator,
     NativeFunc,
     Func,
-    StrSlice,
+    StrSlice ,
     VecSlice,
     Type,
     Error,
@@ -96,27 +95,7 @@ impl Ord for Variant {
             (Variant::Iterator(a), Variant::Iterator(b)) => a.as_ptr().cmp(&b.as_ptr()),
             (Variant::NativeFunc(a), Variant::NativeFunc(b)) => (a.name).cmp(&b.name),
             (Variant::Func(a), Variant::Func(b)) => a.cmp(b),
-            (
-                Variant::StrSlice { str: s1, range: r1 },
-                Variant::StrSlice { str: s2, range: r2 },
-            ) => s1[r1.start..r1.end].cmp(&s2[r2.start..r2.end]),
-            (Variant::Str(a), Variant::StrSlice { str: s2, range: r2 }) => {
-                a[..].cmp(&s2[r2.start..r2.end])
-            }
-            (Variant::StrSlice { str: s1, range: r1 }, Variant::Str(b)) => {
-                s1[r1.start..r1.end].cmp(&b[..])
-            }
-            (
-                Variant::VecSlice { vec: v1, range: r1 },
-                Variant::VecSlice { vec: v2, range: r2 },
-            ) => v1.borrow()[r1.start..r1.end].cmp(&v2.borrow()[r2.start..r2.end]),
-            (Variant::VecSlice { vec: v1, range: r1 }, Variant::Vec(b)) => {
-                v1.borrow()[r1.start..r1.end].cmp(&b.borrow())
-            }
-            (Variant::Vec(a), Variant::VecSlice { vec: v2, range: r2 }) => {
-                a.borrow()[..].cmp(&v2.borrow()[r2.start..r2.end])
-            }
-            (Variant::Type(a), Variant::Type(b)) => a.cmp(&b),
+
             (a, b) => a.get_type().cmp(&b.get_type()),
         }
     }
@@ -144,27 +123,6 @@ impl PartialEq for Variant {
             (Variant::Iterator(a), Variant::Iterator(b)) => a.as_ptr() == b.as_ptr(),
             (Variant::NativeFunc(a), Variant::NativeFunc(b)) => Rc::ptr_eq(a, b),
             (Variant::Func(a), Variant::Func(b)) => Rc::ptr_eq(a, b),
-            (
-                Variant::StrSlice { str: s1, range: r1 },
-                Variant::StrSlice { str: s2, range: r2 },
-            ) => s1[r1.start..r1.end].eq(&s2[r2.start..r2.end]),
-            (Variant::Str(a), Variant::StrSlice { str: s2, range: r2 }) => {
-                a[..].eq(&s2[r2.start..r2.end])
-            }
-            (Variant::StrSlice { str: s1, range: r1 }, Variant::Str(b)) => {
-                s1[r1.start..r1.end].eq(&b[..])
-            }
-            (
-                Variant::VecSlice { vec: v1, range: r1 },
-                Variant::VecSlice { vec: v2, range: r2 },
-            ) => v1.borrow()[r1.start..r1.end].eq(&v2.borrow()[r2.start..r2.end]),
-            (Variant::VecSlice { vec: v1, range: r1 }, Variant::Vec(b)) => {
-                v1.borrow()[r1.start..r1.end].eq(&b.borrow()[..])
-            }
-            (Variant::Vec(a), Variant::VecSlice { vec: v2, range: r2 }) => {
-                a.borrow()[..].eq(&v2.borrow()[r2.start..r2.end])
-            }
-            (Variant::Type(a), Variant::Type(b)) => a.eq(&b),
             (Variant::Unit, Variant::Unit) => true,
             _ => false,
         }
@@ -206,17 +164,10 @@ impl fmt::Display for Variant {
             Variant::Iterator(i) => write!(fmt, "Iterator({i:?})"),
             Variant::NativeFunc(f) => write!(fmt, "{f}"),
             Variant::Unit => write!(fmt, "Unit"),
-            Variant::StrSlice { str, range } => {
-                write!(fmt, "{}", str[range.start..range.end].as_bstr())
-            }
-            Variant::VecSlice { vec, range } => {
-                let content = vec.borrow()[range.start..range.end]
-                    .iter()
-                    .map(Variant::to_string_in_collection)
-                    .join(", ");
-                write!(fmt, "[{content}]")
-            }
-            Variant::Type(t) => write!(fmt, "{t}"),
+            _=> todo!()
+          //  Variant::VecSlice { vec, range } => todo!(),
+          //  Variant::StrSlice { str, range } => todo!(),
+ 
         }
     }
 }
@@ -239,9 +190,10 @@ impl Hash for Variant {
             Variant::Iterator(a) => a.as_ptr().hash(state),
             Variant::NativeFunc(f) => Rc::as_ptr(f).hash(state),
             Variant::Unit => 0_u8.hash(state),
-            Variant::StrSlice { str, range } => str[range.start..range.end].hash(state),
-            Variant::VecSlice { vec, range } => vec.borrow()[range.start..range.end].hash(state),
-            Variant::Type(t) => t.hash(state),
+            //Variant::VecSlice { vec, range } => todo!(),
+            //Variant::StrSlice { str, range } => todo!(),
+            _=>todo!()
+
         };
     }
 }
@@ -276,8 +228,8 @@ impl Variant {
             Variant::Iterator(_) => Type::Iterator,
             Variant::NativeFunc(_) => Type::NativeFunc,
             Variant::Func(_) => Type::Func,
-            Variant::StrSlice { str: _, range: _ } => Type::StrSlice,
-            Variant::VecSlice { vec: _, range: _ } => Type::VecSlice,
+            Variant::StrSlice { str, range } => Type::StrSlice,
+            Variant::VecSlice { vec, range } => Type::VecSlice,
             Variant::Type(_) => Type::Type,
             Variant::Error(_) => Type::Error,
             Variant::Unit => Type::Unit,
@@ -319,22 +271,6 @@ impl Variant {
         Variant::Func(Rc::new(Function::new(name, args, body)))
     }
 
-    pub fn vec_slice(
-        vec: Shared<Vec<Variant>>,
-        start: impl Into<usize>,
-        end: impl Into<usize>,
-    ) -> Variant {
-        Variant::VecSlice {
-            vec,
-            range: Rc::new(start.into()..end.into()),
-        }
-    }
-    pub fn str_slice(str: Rc<BString>, start: impl Into<usize>, end: impl Into<usize>) -> Variant {
-        Variant::StrSlice {
-            str,
-            range: Rc::new(start.into()..end.into()),
-        }
-    }
     fn to_string_in_collection(&self) -> String {
         match self {
             Variant::Error(_) => format!("\"{self}\"",),
@@ -372,38 +308,6 @@ impl Variant {
             (Variant::Vec(a), Variant::Vec(b)) => {
                 apply_op_between_vecs(&a.borrow(), &b.borrow(), Self::add)?
             }
-            (
-                Variant::StrSlice { str: s1, range: r1 },
-                Variant::StrSlice { str: s2, range: r2 },
-            ) => {
-                let mut c = s1[r1.start..r1.end].as_bstr().to_owned();
-                c.push_str(&s2[r2.start..r2.end]);
-                Variant::Str(Rc::from(c))
-            }
-            (Variant::Str(a), Variant::StrSlice { str: s2, range: r2 }) => {
-                let mut c = a.as_bstr().to_owned();
-                c.push_str(&s2[r2.start..r2.end]);
-                Variant::Str(Rc::from(c))
-            }
-            (Variant::StrSlice { str: s1, range: r1 }, Variant::Str(b)) => {
-                let mut c = s1[r1.start..r1.end].as_bstr().to_owned();
-                c.push_str(&b[..]);
-                Variant::Str(Rc::from(c))
-            }
-            (
-                Variant::VecSlice { vec: v1, range: r1 },
-                Variant::VecSlice { vec: v2, range: r2 },
-            ) => apply_op_between_vecs(
-                &v1.borrow()[r1.start..r1.end],
-                &v2.borrow()[r2.start..r2.end],
-                Self::add,
-            )?,
-            (Variant::VecSlice { vec: v1, range: r1 }, Variant::Vec(b)) => {
-                apply_op_between_vecs(&v1.borrow()[r1.start..r1.end], &b.borrow(), Self::add)?
-            }
-            (Variant::Vec(a), Variant::VecSlice { vec: v2, range: r2 }) => {
-                apply_op_between_vecs(&a.borrow(), &v2.borrow()[r2.start..r2.end], Self::add)?
-            }
             (Variant::Str(a), b) => {
                 let mut c = (**a).as_bstr().to_owned();
                 c.push_str(b.to_string().trim_matches('"'));
@@ -433,20 +337,6 @@ impl Variant {
             (Variant::Vec(a), Variant::Vec(b)) => {
                 apply_op_between_vecs(&a.borrow(), &b.borrow(), Self::sub)?
             }
-            (
-                Variant::VecSlice { vec: v1, range: r1 },
-                Variant::VecSlice { vec: v2, range: r2 },
-            ) => apply_op_between_vecs(
-                &v1.borrow()[r1.start..r1.end],
-                &v2.borrow()[r2.start..r2.end],
-                Self::sub,
-            )?,
-            (Variant::VecSlice { vec: v1, range: r1 }, Variant::Vec(b)) => {
-                apply_op_between_vecs(&v1.borrow()[r1.start..r1.end], &b.borrow(), Self::sub)?
-            }
-            (Variant::Vec(a), Variant::VecSlice { vec: v2, range: r2 }) => {
-                apply_op_between_vecs(&a.borrow(), &v2.borrow()[r2.start..r2.end], Self::sub)?
-            }
 
             _ => return Err(anyhow!("Cannot sub {self:?} and {other:?}")),
         };
@@ -465,20 +355,6 @@ impl Variant {
             (Variant::Vec(a), Variant::Vec(b)) => {
                 apply_op_between_vecs(&a.borrow(), &b.borrow(), Self::div)?
             }
-            (
-                Variant::VecSlice { vec: v1, range: r1 },
-                Variant::VecSlice { vec: v2, range: r2 },
-            ) => apply_op_between_vecs(
-                &v1.borrow()[r1.start..r1.end],
-                &v2.borrow()[r2.start..r2.end],
-                Self::div,
-            )?,
-            (Variant::VecSlice { vec: v1, range: r1 }, Variant::Vec(b)) => {
-                apply_op_between_vecs(&v1.borrow()[r1.start..r1.end], &b.borrow(), Self::div)?
-            }
-            (Variant::Vec(a), Variant::VecSlice { vec: v2, range: r2 }) => {
-                apply_op_between_vecs(&a.borrow(), &v2.borrow()[r2.start..r2.end], Self::div)?
-            }
             _ => return Err(anyhow!("Cannot div {self:?} and {other:?}")),
         };
         Ok(result)
@@ -495,20 +371,6 @@ impl Variant {
             (Variant::Float(a), Variant::Int(b)) => Variant::Int(*a as Int / b),
             (Variant::Vec(a), Variant::Vec(b)) => {
                 apply_op_between_vecs(&a.borrow(), &b.borrow(), Self::div_exact)?
-            }
-            (
-                Variant::VecSlice { vec: v1, range: r1 },
-                Variant::VecSlice { vec: v2, range: r2 },
-            ) => apply_op_between_vecs(
-                &v1.borrow()[r1.start..r1.end],
-                &v2.borrow()[r2.start..r2.end],
-                Self::div_exact,
-            )?,
-            (Variant::VecSlice { vec: v1, range: r1 }, Variant::Vec(b)) => {
-                apply_op_between_vecs(&v1.borrow()[r1.start..r1.end], &b.borrow(), Self::div_exact)?
-            }
-            (Variant::Vec(a), Variant::VecSlice { vec: v2, range: r2 }) => {
-                apply_op_between_vecs(&a.borrow(), &v2.borrow()[r2.start..r2.end], Self::div_exact)?
             }
             _ => return Err(anyhow!("Cannot div_exact {self:?} and {other:?}")),
         };
@@ -533,19 +395,9 @@ impl Variant {
                 if b >= 0 {
                     Variant::str(a.repeat(b as usize).as_bstr())
                 } else {
-                    bail!("Cannot multiply a string by a negative value");
+                    return Err(anyhow!("Cannot multiply a string by a negative value"));
                 }
             }
-            (Variant::Str(a), &Variant::Float(f)) => {
-                if f < 0. {
-                    bail!("Cannot multiply a string by a negative value");
-                } else if f.fract() != 0.0 {
-                    bail!("Cannot multiply a string by a fractional value");
-                } else {
-                    Variant::str(a.repeat(f as usize).as_bstr())
-                }
-            }
-
             _ => return Err(anyhow!("Cannot mul {self} and {other}")),
         };
         Ok(result)
@@ -820,10 +672,7 @@ mod tests {
         hash::{Hash, Hasher},
     };
 
-    use crate::{
-        memory::Memory,
-        variant::{Type, Variant},
-    };
+    use crate::{memory::Memory, variant::{Variant, Type}};
     #[test]
     fn string_addition() {
         let a = Variant::str("hello");
@@ -918,20 +767,9 @@ mod tests {
             Variant::str("string"),
             Variant::dict(&[]),
         ]
-        .map(|i| i.get_type());
-        assert_eq!(
-            [
-                Type::Error,
-                Type::Int,
-                Type::Float,
-                Type::Bool,
-                Type::Byte,
-                Type::Vec,
-                Type::Str,
-                Type::Dict
-            ],
-            v
-        );
+        .map(|i| i.get_type() );
+        assert_eq!([Type::Error, Type::Int, Type::Float, Type::Bool, 
+            Type::Byte, Type::Vec, Type::Str, Type::Dict], v);
     }
 
     #[test]

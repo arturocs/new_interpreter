@@ -295,9 +295,7 @@ impl Expression {
                 bail!("dot operator can only be used with identifiers")
             };
 
-            let Ok(Variant::NativeFunc(f)) =
-                variables.get_mut(&id.to_str_lossy()).map(|i| i.clone())
-            else {
+            let Ok( Variant::NativeFunc(f)) =  variables.get_mut(&id.to_str_lossy()).map(|i|i.clone()) else {
                 return Self::evaluate_index(variables, indexable_and_index);
             };
 
@@ -311,10 +309,7 @@ impl Expression {
                 args.push(indexable.clone());
                 args.extend(a.iter().cloned());
                 //dbg!(&args,&f);
-                println!(
-                    "Custom backtrace: {}",
-                    std::backtrace::Backtrace::force_capture()
-                );
+                println!("Custom backtrace: {}", std::backtrace::Backtrace::force_capture());
                 f.call(&args, memory)
             });
             Ok(new_function)
