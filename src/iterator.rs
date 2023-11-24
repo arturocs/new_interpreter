@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 use dyn_clone::DynClone;
 use itertools::Itertools;
 use paste::paste;
-use std::{cell::RefCell, fmt, slice};
+use std::{cell::RefCell, fmt, rc::Rc, slice};
 pub trait VariantIter: Iterator<Item = Variant> + fmt::Debug + DynClone {}
 impl<T> VariantIter for T where T: Iterator<Item = Variant> + fmt::Debug + DynClone {}
 dyn_clone::clone_trait_object!(VariantIter);
