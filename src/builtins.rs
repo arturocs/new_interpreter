@@ -195,3 +195,32 @@ pub fn to_vec(args: &[Variant], memory: &mut Memory) -> Variant {
         Err(e) => Variant::error(e),
     }
 }
+
+macro_rules! as_number {
+    ($variant:expr) => {
+        match $variant {
+            Variant::Int(i) => *i as usize,
+            Variant::Float(f) => {
+                if f.fract() == 0.0 {
+                    *f as usize
+                } else {
+                    return Variant::error("Can't slice with a fractional number");
+                }
+            }
+            _ => return Variant::error("slice function can only be used with numbers"),
+        }
+    };
+}
+
+pub fn slice(args: &[Variant], _memory: &mut Memory) -> Variant {
+    if args.len() != 3 {
+        return Variant::error("slice function needs two arguments");
+    }
+    let start = as_number!(&args[1]);
+    let end = as_number!(&args[2]);
+    match &args[0] {
+        Variant::Vec(v) => Variant::vec(v.borrow()[start..end].to_vec()),
+        Variant::Str(s) => Variant::str(s[start..end].as_bstr()),
+        _ => Variant::error("Only strings and vecs can be sliced"),
+    }
+}

@@ -32,6 +32,7 @@ impl Memory {
             ("map", builtins::map, Some(vec![Type::Vec, Type::Iterator])),
             ("filter", builtins::filter, Some(vec![Type::Vec, Type::Iterator])),
             ("to_vec", builtins::to_vec, Some(vec![Type::Vec, Type::Iterator])),
+            ("slice", builtins::slice, Some(vec![Type::Vec, Type::Str])),
         ]
         .into_iter()
         .map(|(name, f, method_of)| {
