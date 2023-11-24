@@ -13,7 +13,7 @@ use dyn_clone::DynClone;
 use indexmap::IndexMap;
 use itertools::Itertools;
 use std::{
-    cell::{Ref, RefCell, RefMut},
+    cell::{Ref, RefMut},
     cmp::Ordering,
     fmt,
     hash::{Hash, Hasher},
@@ -44,6 +44,7 @@ pub enum Variant {
     Func(Rc<Function>),
     Unit,
 }
+
 #[derive(Debug,Clone,Copy,PartialEq, Eq, PartialOrd, Ord)]
 #[repr(u8)]
 pub enum Type {
@@ -57,9 +58,6 @@ pub enum Type {
     Iterator,
     NativeFunc,
     Func,
-    StrSlice ,
-    VecSlice,
-    Type,
     Error,
     Unit,
 }
@@ -86,7 +84,6 @@ impl Ord for Variant {
             (Variant::Iterator(a), Variant::Iterator(b)) => a.as_ptr().cmp(&b.as_ptr()),
             (Variant::NativeFunc(a), Variant::NativeFunc(b)) => (a.name).cmp(&b.name),
             (Variant::Func(a), Variant::Func(b)) => a.cmp(b),
-
             (a, b) => a.get_type().cmp(&b.get_type()),
         }
     }
@@ -174,7 +171,7 @@ impl Hash for Variant {
             Variant::Dict(a) => a.borrow().iter().for_each(|i| i.hash(state)),
             Variant::Func(f) => f.hash(state),
             Variant::Byte(b) => b.hash(state),
-            Variant::Iterator(a) => Rc::as_ptr(a).hash(state),
+            Variant::Iterator(a) => a.as_ptr().hash(state),
             Variant::NativeFunc(f) => Rc::as_ptr(f).hash(state),
             Variant::Unit => 0_u8.hash(state),
         };
@@ -211,9 +208,6 @@ impl Variant {
             Variant::Iterator(_) => Type::Iterator,
             Variant::NativeFunc(_) => Type::NativeFunc,
             Variant::Func(_) => Type::Func,
-            Variant::StrSlice { str, range } => Type::StrSlice,
-            Variant::VecSlice { vec, range } => Type::VecSlice,
-            Variant::Type(_) => Type::Type,
             Variant::Error(_) => Type::Error,
             Variant::Unit => Type::Unit,
         }
