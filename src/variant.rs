@@ -110,7 +110,7 @@ impl PartialEq for Variant {
             (Variant::Vec(a), Variant::Vec(b)) => a == b,
             (Variant::Iterator(a), Variant::Iterator(b)) => a.as_ptr() == b.as_ptr(),
             (Variant::NativeFunc(a), Variant::NativeFunc(b)) => Rc::ptr_eq(a, b),
-            (Variant::Func(a), Variant::Func(b)) => Rc::ptr_eq(a, b),
+            (Variant::Func(a), Variant::Func(b)) => a == b,
             (Variant::Unit, Variant::Unit) => true,
             _ => false,
         }
