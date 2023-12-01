@@ -1,7 +1,9 @@
+use crate::variant::Type;
 use crate::{memory::Memory, variant::Variant};
 use bstr::ByteSlice;
 use itertools::Itertools;
 use std::io;
+use std::rc::Rc;
 use std::slice;
 
 fn generate_vec_builtins(
@@ -223,4 +225,33 @@ pub fn slice(args: &[Variant], _memory: &mut Memory) -> Variant {
         Variant::Str(s) => Variant::str(s[start..end].as_bstr()),
         _ => Variant::error("Only strings and vecs can be sliced"),
     }
+}
+
+pub fn export_top_level_builtins() -> impl Iterator<Item = (Rc<str>, Variant)> {
+    [
+        ("sum", sum as fn(&[Variant], &mut Memory) -> Variant, vec![]),
+        ("prod", prod, vec![]),
+        ("min", min, vec![]),
+        ("max", max, vec![]),
+        ("sort", sort, vec![Type::Vec]),
+        ("sort_by", sort_by, vec![Type::Vec]),
+        ("print", print, vec![]),
+        ("input", input, vec![]),
+        ("push", push, vec![Type::Vec]),
+        ("range", range, vec![]),
+        ("contains", contains, vec![Type::Vec, Type::Dict]),
+        ("join", join, vec![Type::Vec, Type::Iterator]),
+        ("map", map, vec![Type::Vec, Type::Iterator]),
+        ("filter", filter, vec![Type::Vec, Type::Iterator]),
+        ("to_vec", to_vec, vec![Type::Vec, Type::Iterator]),
+        ("slice", slice, vec![Type::Vec, Type::Str]),
+    ]
+    .into_iter()
+    .map(|(name, f, method_of)| {
+        if method_of.len() > 0 {
+            (name.into(), Variant::method(name, f, method_of))
+        } else {
+            (name.into(), Variant::native_fn(f))
+        }
+    })
 }

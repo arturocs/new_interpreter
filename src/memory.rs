@@ -1,8 +1,4 @@
-use crate::{
-    builtins,
-    maths::export_math_lib,
-    variant::{Type, Variant},
-};
+use crate::{builtins::export_top_level_builtins, maths::export_math_lib, variant::Variant};
 use ahash::AHashMap;
 use anyhow::{anyhow, bail, Context, Ok, Result};
 use std::{rc::Rc, vec};
@@ -19,51 +15,9 @@ impl Memory {
     }
 
     pub fn with_builtins() -> Self {
-        let sum: fn(&[Variant], &mut Memory) -> Variant = builtins::sum;
-        let context = [
-            ("sum", sum, None),
-            ("prod", builtins::prod, None),
-            ("min", builtins::min, None),
-            ("max", builtins::max, None),
-            ("sort", builtins::sort, Some(vec![Type::Vec])),
-            ("sort_by", builtins::sort_by, Some(vec![Type::Vec])),
-            ("print", builtins::print, None),
-            ("input", builtins::input, None),
-            ("push", builtins::push, Some(vec![Type::Vec])),
-            ("range", builtins::range, None),
-            (
-                "contains",
-                builtins::contains,
-                Some(vec![Type::Vec, Type::Dict]),
-            ),
-            (
-                "join",
-                builtins::join,
-                Some(vec![Type::Vec, Type::Iterator]),
-            ),
-            ("map", builtins::map, Some(vec![Type::Vec, Type::Iterator])),
-            (
-                "filter",
-                builtins::filter,
-                Some(vec![Type::Vec, Type::Iterator]),
-            ),
-            (
-                "to_vec",
-                builtins::to_vec,
-                Some(vec![Type::Vec, Type::Iterator]),
-            ),
-            ("slice", builtins::slice, Some(vec![Type::Vec, Type::Str])),
-        ]
-        .into_iter()
-        .map(|(name, f, method_of)| {
-            if let Some(v) = method_of {
-                (name.into(), Variant::method(name, f, v))
-            } else {
-                (name.into(), Variant::native_fn(f))
-            }
-        })
-        .chain(std::iter::once(("Math".into(), export_math_lib())))
-        .collect();
+        let context = export_top_level_builtins()
+            .chain(std::iter::once(("Math".into(), export_math_lib())))
+            .collect();
 
         Memory(vec![context])
     }
