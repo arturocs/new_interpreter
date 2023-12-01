@@ -21,7 +21,6 @@ fn main() -> Result<()> {
         let ast = expr_parser::expr_sequence(&filtered_comments)?;
         let mut memory = Memory::with_builtins();
         ast.evaluate(&mut memory)?;
-        //dbg!(memory);
         Ok(())
     } else {
         bail!("No path to program received")

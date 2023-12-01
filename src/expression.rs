@@ -269,7 +269,6 @@ impl Expression {
         let Expression::Value(index) = &indexable_and_index.1 else {
             bail!("dot operator can only be used with identifiers")
         };
-        // dbg!("calling evaluate dot");
         let indexable = indexable_and_index.0.evaluate(variables)?;
 
         if indexable.is_dict() {
