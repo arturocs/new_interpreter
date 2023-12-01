@@ -7,7 +7,7 @@ use itertools::Itertools;
 use std::fmt;
 use std::rc::Rc;
 
-#[derive(Debug, Hash, PartialEq, Eq, Clone, PartialOrd, Ord)]
+#[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Function {
     pub name: Option<Box<str>>,
     pub arg_names: Box<[Rc<str>]>,
