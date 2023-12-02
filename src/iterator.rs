@@ -17,6 +17,7 @@ pub enum Adapter {
     Filter(Variant),
     Map(Variant),
     FlatMap(Variant),
+    Zip(Variant),
     Flatten,
     Enumerate,
     StepBy(usize),
@@ -62,6 +63,7 @@ macro_rules! implement_adapters {
 implement_adapters!(Map, Variant);
 implement_adapters!(Filter, Variant);
 implement_adapters!(FlatMap, Variant);
+implement_adapters!(Zip, Variant);
 implement_adapters!(Flatten);
 implement_adapters!(Enumerate);
 implement_adapters!(StepBy, usize);
@@ -104,6 +106,13 @@ macro_rules! apply_method_to_iter {
                         .collect_vec()
                         .into_iter(),
                     ),
+                    Adapter::Zip(other) =>{
+                        if let Ok(Variant::Iterator(it)) = other.clone().into_iterator() {
+                            Box::new(base.zip(it.borrow_mut().clone().to_vec(&mut mem.borrow_mut())).map(|(i,j)| Variant::vec(vec![i,j])))
+                        } else {
+                            Box::new(vec![Variant::error(format!("Zip error: {other:?} is not an iterator"))].into_iter())
+                        }
+                    },
                     Adapter::Enumerate => Box::new(
                         base.enumerate()
                             .map(|(i, it)| Variant::vec(vec![Variant::Int(i as i64), it])),
@@ -218,6 +227,7 @@ impl VariantIterator {
             }
         )
     }
+    
 
     pub fn for_each(self, func: &Variant, memory: &mut Memory) -> Variant {
         apply_method_to_iter!(

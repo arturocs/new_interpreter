@@ -169,6 +169,7 @@ macro_rules! generate_iterator_adapters_builtins {
 
 generate_iterator_adapters_builtins!(map, VariantIterator::map);
 generate_iterator_adapters_builtins!(filter, VariantIterator::filter);
+generate_iterator_adapters_builtins!(zip, VariantIterator::zip);
 
 macro_rules! generate_iterator_evaluator_builtins {
     ($name:ident,$method:ident) => {
