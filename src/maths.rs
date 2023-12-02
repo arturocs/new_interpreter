@@ -98,7 +98,7 @@ pub fn export_math_lib() -> Variant {
     let log = Variant::log as fn(&Variant, &Variant) -> Result<Variant>;
     let binary_functions = [("log", log), ("pow", Variant::pow)]
         .map(|(name, f)| (name, Variant::native_fn(wrap_binary_math_function(f))));
-    
+
     let constants = [("PI", Variant::PI), ("E", Variant::E)];
 
     Variant::dict(

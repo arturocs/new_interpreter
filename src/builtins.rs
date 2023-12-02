@@ -10,32 +10,26 @@ fn generate_vec_builtins(
     name: &str,
     function: impl FnOnce(&[Variant]) -> Variant,
     args: &[Variant],
-    memory: &mut Memory
+    memory: &mut Memory,
 ) -> Variant {
     match args.len() {
         0 => Variant::error(format!("No arguments received on function {name}")),
-        1 => {
-            match &args[0] {
-                Variant::Vec(v) => function(&v.borrow()),
-                Variant::Iterator(i) => function(&i.borrow().clone().to_vec(memory)),
-                _ => Variant::error(format!(
-                    "Cannot calculate {name} of {}",
-                    &args[0] 
-                )),
-            }
-          
-        }
+        1 => match &args[0] {
+            Variant::Vec(v) => function(&v.borrow()),
+            Variant::Iterator(i) => function(&i.borrow().clone().to_vec(memory)),
+            _ => Variant::error(format!("Cannot calculate {name} of {}", &args[0])),
+        },
 
         _ => function(args),
     }
 }
 
 pub fn min(args: &[Variant], memory: &mut Memory) -> Variant {
-    generate_vec_builtins("min", |v| v.iter().min().cloned().unwrap(), args,memory)
+    generate_vec_builtins("min", |v| v.iter().min().cloned().unwrap(), args, memory)
 }
 
 pub fn max(args: &[Variant], memory: &mut Memory) -> Variant {
-    generate_vec_builtins("max", |v| v.iter().max().cloned().unwrap(), args,memory)
+    generate_vec_builtins("max", |v| v.iter().max().cloned().unwrap(), args, memory)
 }
 
 pub fn sum(args: &[Variant], memory: &mut Memory) -> Variant {
@@ -45,7 +39,7 @@ pub fn sum(args: &[Variant], memory: &mut Memory) -> Variant {
             .reduce(|acc, i| acc.add(&i).unwrap_or_else(Variant::error))
             .unwrap_or(Variant::Int(0))
     };
-    generate_vec_builtins("sum", sum, args,memory)
+    generate_vec_builtins("sum", sum, args, memory)
 }
 
 pub fn prod(args: &[Variant], memory: &mut Memory) -> Variant {
@@ -55,7 +49,7 @@ pub fn prod(args: &[Variant], memory: &mut Memory) -> Variant {
             .reduce(|acc, i| acc.mul(&i).unwrap_or_else(Variant::error))
             .unwrap_or(Variant::Int(0))
     };
-    generate_vec_builtins("prod", prod, args,memory)
+    generate_vec_builtins("prod", prod, args, memory)
 }
 
 pub fn sort(args: &[Variant], memory: &mut Memory) -> Variant {
@@ -67,7 +61,7 @@ pub fn sort(args: &[Variant], memory: &mut Memory) -> Variant {
             Variant::vec(v)
         },
         args,
-        memory
+        memory,
     )
 }
 
@@ -231,7 +225,11 @@ pub fn reduce(args: &[Variant], memory: &mut Memory) -> Variant {
         return Variant::error("reduce function needs two arguments");
     }
     match args[0].clone().into_iterator() {
-        Ok(Variant::Iterator(i)) => i.borrow_mut().clone().reduce(&args[1], memory).unwrap_or_else(Variant::error),
+        Ok(Variant::Iterator(i)) => i
+            .borrow_mut()
+            .clone()
+            .reduce(&args[1], memory)
+            .unwrap_or_else(Variant::error),
         Ok(e) => Variant::error(format!("{e} is not iterable")),
         Err(e) => Variant::error(e),
     }
@@ -259,13 +257,16 @@ pub fn any(args: &[Variant], memory: &mut Memory) -> Variant {
     }
 }
 
-
 pub fn find(args: &[Variant], memory: &mut Memory) -> Variant {
     if args.len() != 2 {
         return Variant::error("find function needs two arguments");
     }
     match args[0].clone().into_iterator() {
-        Ok(Variant::Iterator(i)) => i.borrow_mut().clone().find(&args[1], memory).unwrap_or_else(Variant::error),
+        Ok(Variant::Iterator(i)) => i
+            .borrow_mut()
+            .clone()
+            .find(&args[1], memory)
+            .unwrap_or_else(Variant::error),
         Ok(e) => Variant::error(format!("{e} is not iterable")),
         Err(e) => Variant::error(e),
     }
@@ -369,7 +370,6 @@ pub fn export_top_level_builtins() -> impl Iterator<Item = (Rc<str>, Variant)> {
         ("slice", slice, vec![Type::Vec, Type::Str]),
         ("read_file", read_file, vec![]),
         ("write_to_file", write_to_file, vec![]),
-
     ]
     .into_iter()
     .map(|(name, f, method_of)| {

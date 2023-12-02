@@ -217,7 +217,7 @@ impl VariantIterator {
         )
     }
 
-    pub fn for_each(self, func: &Variant, memory: &mut Memory)  -> Variant{
+    pub fn for_each(self, func: &Variant, memory: &mut Memory) -> Variant {
         apply_method_to_iter!(
             self,
             memory,

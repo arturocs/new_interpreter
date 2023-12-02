@@ -12,7 +12,6 @@ use new_interpreter::variant::Variant;
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
 
-
 fn benchmark0(c: &mut Criterion) {
     let mut variables = Memory::new();
     c.bench_function("fstring", |b| {

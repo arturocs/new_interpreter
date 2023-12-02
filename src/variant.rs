@@ -45,7 +45,7 @@ pub enum Variant {
     Unit,
 }
 
-#[derive(Debug,Clone,Copy,PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(u8)]
 pub enum Type {
     Int,
@@ -539,11 +539,8 @@ impl Variant {
     pub fn into_dict(self, memory: &mut Memory) -> Result<Variant> {
         match self {
             Variant::Vec(v) => {
-                let r: Result<Dictionary> = v
-                    .borrow()
-                    .iter()
-                    .map(|i| i.clone().into_pair())
-                    .collect();
+                let r: Result<Dictionary> =
+                    v.borrow().iter().map(|i| i.clone().into_pair()).collect();
                 Ok(Variant::Dict(Shared::new(r?)))
             }
             Variant::Iterator(i) => {
@@ -642,7 +639,10 @@ mod tests {
         hash::{Hash, Hasher},
     };
 
-    use crate::{memory::Memory, variant::{Variant, Type}};
+    use crate::{
+        memory::Memory,
+        variant::{Type, Variant},
+    };
     #[test]
     fn string_addition() {
         let a = Variant::str("hello");
@@ -737,9 +737,20 @@ mod tests {
             Variant::str("string"),
             Variant::dict(&[]),
         ]
-        .map(|i| i.get_type() );
-        assert_eq!([Type::Error, Type::Int, Type::Float, Type::Bool, 
-            Type::Byte, Type::Vec, Type::Str, Type::Dict], v);
+        .map(|i| i.get_type());
+        assert_eq!(
+            [
+                Type::Error,
+                Type::Int,
+                Type::Float,
+                Type::Bool,
+                Type::Byte,
+                Type::Vec,
+                Type::Str,
+                Type::Dict
+            ],
+            v
+        );
     }
 
     #[test]

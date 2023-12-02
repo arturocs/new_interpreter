@@ -290,7 +290,6 @@ impl Expression {
 
             Ok(new_function)
         } else {
-
             let Variant::Str(id) = index else {
                 bail!("dot operator can only be used with identifiers")
             };
