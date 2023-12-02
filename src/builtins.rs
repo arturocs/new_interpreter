@@ -330,7 +330,7 @@ pub fn export_top_level_builtins() -> impl Iterator<Item = (Rc<str>, Variant)> {
         ("input", input, vec![]),
         ("push", push, vec![Type::Vec]),
         ("range", range, vec![]),
-        ("contains", contains, vec![Type::Vec, Type::Dict]),
+        ("contains", contains, vec![Type::Vec]),
         ("join", join, vec![Type::Vec, Type::Iterator]),
         ("map", map, vec![Type::Vec, Type::Iterator]),
         ("filter", filter, vec![Type::Vec, Type::Iterator]),
