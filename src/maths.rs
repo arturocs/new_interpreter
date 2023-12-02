@@ -24,7 +24,7 @@ macro_rules! impl_unary_math_functions {
     };
 }
 
-impl_unary_math_functions!(abs, acos, asin, atan, ceil, cos, exp, floor, ln, round, sin, sqrt, tan);
+impl_unary_math_functions!(abs, acos, asin, atan, ceil, cos, exp, floor, ln, round, sin, sqrt, tan, trunc);
 
 impl Variant {
     pub const PI: Variant = Variant::Float(f64::consts::PI);
@@ -92,6 +92,7 @@ pub fn export_math_lib() -> Variant {
         ("sin", Variant::sin),
         ("sqrt", Variant::sqrt),
         ("tan", Variant::tan),
+        ("trunc", Variant::trunc)
     ]
     .map(|(name, f)| (name, Variant::native_fn(wrap_unary_math_function(f))));
 
