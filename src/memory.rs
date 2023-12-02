@@ -10,10 +10,6 @@ impl Memory {
         Memory(vec![AHashMap::new()])
     }
 
-    pub fn static_with_builtins() -> &'static mut Self {
-        Box::leak(Box::new(Self::with_builtins()))
-    }
-
     pub fn with_builtins() -> Self {
         let context = export_top_level_builtins()
             .chain(std::iter::once(("Math".into(), export_math_lib())))
