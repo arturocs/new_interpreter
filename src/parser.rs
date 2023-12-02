@@ -505,3 +505,4 @@ mod tests {
         let a_value = memory.get("a").unwrap().clone();
         assert_eq!(Variant::Bool(true), a_value);
     }
+}
