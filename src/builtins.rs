@@ -311,6 +311,37 @@ pub fn slice(args: &[Variant], _memory: &mut Memory) -> Variant {
     }
 }
 
+pub fn read_file(args: &[Variant], _memory: &mut Memory) -> Variant {
+    if args.len() != 1 {
+        return Variant::error("read_file function needs one argument");
+    }
+    let Variant::Str(path) = &args[0] else {
+        return Variant::error("read_file function needs a string as argument");
+    };
+    let path = path.to_str_lossy();
+    let content = std::fs::read_to_string(path.as_ref());
+    match content {
+        Ok(content) => Variant::str(content),
+        Err(e) => Variant::error(e),
+    }
+}
+
+pub fn write_to_file(args: &[Variant], _memory: &mut Memory) -> Variant {
+    if args.len() != 2 {
+        return Variant::error("write_to_file function needs two arguments");
+    }
+    let Variant::Str(path) = &args[0] else {
+        return Variant::error("write_to_file function needs a string as first argument");
+    };
+    let path = path.to_str_lossy();
+    let content = args[1].to_string();
+    let result = std::fs::write(path.as_ref(), content);
+    match result {
+        Ok(_) => Variant::Unit,
+        Err(e) => Variant::error(e),
+    }
+}
+
 pub fn export_top_level_builtins() -> impl Iterator<Item = (Rc<str>, Variant)> {
     [
         ("sum", sum as fn(&[Variant], &mut Memory) -> Variant, vec![]),
@@ -336,6 +367,9 @@ pub fn export_top_level_builtins() -> impl Iterator<Item = (Rc<str>, Variant)> {
         ("find", find, vec![Type::Vec, Type::Iterator]),
         ("for_each", for_each, vec![Type::Vec, Type::Iterator]),
         ("slice", slice, vec![Type::Vec, Type::Str]),
+        ("read_file", read_file, vec![]),
+        ("write_to_file", write_to_file, vec![]),
+
     ]
     .into_iter()
     .map(|(name, f, method_of)| {
