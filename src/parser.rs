@@ -478,7 +478,6 @@ mod tests {
     fn test_boolean() {
         let code = r"a = true";
         let ast = expr_parser::expr_sequence(code).unwrap();
-        dbg!(&ast);
         let mut memory = Memory::new();
         ast.evaluate(&mut memory).unwrap();
         let a_value = memory.get("a").unwrap().clone();
@@ -491,11 +490,18 @@ mod tests {
         a=r.map(|i|i*2).to_vec()
         ";
         let ast = expr_parser::expr_sequence(code).unwrap();
-        dbg!(&ast);
         let mut memory = Memory::with_builtins();
         ast.evaluate(&mut memory).unwrap();
         let a_value = memory.get("a").unwrap().clone();
         assert_eq!(Variant::vec((0..10).map(|i|Variant::Int(i*2)).collect()), a_value);
     }
 
-}
+    #[test]
+    fn test_function_equality() {
+        let code = r"a=(||1) == (||1)";
+        let ast = expr_parser::expr_sequence(code).unwrap();
+        let mut memory = Memory::with_builtins();
+        ast.evaluate(&mut memory).unwrap();
+        let a_value = memory.get("a").unwrap().clone();
+        assert_eq!(Variant::Bool(true), a_value);
+    }
