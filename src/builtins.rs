@@ -283,6 +283,41 @@ pub fn write_to_file(args: &[Variant], _memory: &mut Memory) -> Variant {
     }
 }
 
+pub fn items(args: &[Variant], _memory: &mut Memory) -> Variant {
+    if args.len() != 1 {
+        return Variant::error("items function needs one argument");
+    }
+    match &args[0] {
+        Variant::Dict(d) => Variant::vec(
+            d.borrow()
+                .iter()
+                .map(|(k, v)| Variant::vec(vec![k.clone(), v.clone()]))
+                .collect(),
+        ),
+        _ => Variant::error("items function needs a dict as argument"),
+    }
+}
+
+pub fn keys(args: &[Variant], _memory: &mut Memory) -> Variant {
+    if args.len() != 1 {
+        return Variant::error("keys function needs one argument");
+    }
+    match &args[0] {
+        Variant::Dict(d) => Variant::vec(d.borrow().keys().cloned().collect()),
+        _ => Variant::error("keys function needs a dict as argument"),
+    }
+}
+
+pub fn values(args: &[Variant], _memory: &mut Memory) -> Variant {
+    if args.len() != 1 {
+        return Variant::error("values function needs one argument");
+    }
+    match &args[0] {
+        Variant::Dict(d) => Variant::vec(d.borrow().values().cloned().collect()),
+        _ => Variant::error("values function needs a dict as argument"),
+    }
+}
+
 pub fn export_top_level_builtins() -> impl Iterator<Item = (Rc<str>, Variant)> {
     [
         ("sum", sum as fn(&[Variant], &mut Memory) -> Variant, vec![]),
@@ -310,6 +345,9 @@ pub fn export_top_level_builtins() -> impl Iterator<Item = (Rc<str>, Variant)> {
         ("slice", slice, vec![Type::Vec, Type::Str]),
         ("read_file", read_file, vec![]),
         ("write_to_file", write_to_file, vec![]),
+        ("items", items, vec![]),
+        ("keys", keys, vec![]),
+        ("values", values, vec![]),
     ]
     .into_iter()
     .map(|(name, f, method_of)| {
