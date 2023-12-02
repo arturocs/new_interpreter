@@ -1,7 +1,7 @@
 use crate::{
     memory::Memory,
     shared::Shared,
-    variant::{Dictionary, Variant},
+    variant::{Dictionary, Int, Variant},
 };
 use anyhow::{Context, Result};
 use dyn_clone::DynClone;
@@ -66,6 +66,72 @@ implement_adapters!(StepBy, usize);
 implement_adapters!(Take, usize);
 implement_adapters!(Skip, usize);
 
+macro_rules! apply_method_to_iter {
+    ($it:expr,$memory:expr,$method:expr) => {
+        {
+            let mut base = $it.base;
+            let mem = RefCell::new($memory);
+            for a in $it.adapters.iter() {
+                base = match a {
+                    Adapter::Map(f) => Box::new(base.map(|i| call_helper(f, &[i], &mem))),
+                    Adapter::Filter(f) => {
+                        Box::new(
+                            base.filter(|i| match call_helper(f, slice::from_ref(i), &mem) {
+                                Variant::Bool(b) => b,
+                                e => {
+                                    eprintln!(
+                                        "Warning: {e:?} it's not a boolean, interpreting it as false",
+                                    );
+                                    false
+                                }
+                            }),
+                        )
+                    }
+                    Adapter::Flatten => Box::new(
+                        base.flat_map(|i| match i {
+                            Variant::Iterator(j) => j
+                                .borrow_mut()
+                                .clone()
+                                .to_vec(&mut mem.borrow_mut())
+                                .into_iter(),
+                            e => vec![Variant::error(format!(
+                                "Flatten error: {e:?} is not an iterator"
+                            ))]
+                            .into_iter(),
+                        })
+                        .collect_vec()
+                        .into_iter(),
+                    ),
+                    Adapter::Enumerate => Box::new(
+                        base.enumerate()
+                            .map(|(i, it)| Variant::vec(vec![Variant::Int(i as i64), it])),
+                    ),
+                    Adapter::StepBy(step) => Box::new(base.step_by(*step)),
+                    Adapter::Take(t) => Box::new(base.take(*t)),
+                    Adapter::Skip(s) => Box::new(base.skip(*s)),
+                    Adapter::FlatMap(f) => Box::new(
+                        base.flat_map(|i| match i {
+                            Variant::Iterator(j) => j
+                                .borrow_mut()
+                                .clone()
+                                .to_vec(&mut mem.borrow_mut())
+                                .into_iter(),
+                            e => vec![Variant::error(format!(
+                                "FlatMap error: {e:?} is not an iterator"
+                            ))]
+                            .into_iter(),
+                        })
+                        .map(|i| call_helper(f, &[i], &mem))
+                        .collect_vec()
+                        .into_iter(),
+                    ),
+                }
+            }
+            $method(base,&mem)
+        }
+    };
+}
+
 impl VariantIterator {
     pub fn new(i: impl VariantIter + 'static) -> Self {
         Self {
@@ -75,66 +141,7 @@ impl VariantIterator {
     }
 
     pub fn to_vec(self, memory: &mut Memory) -> Vec<Variant> {
-        let mut base = self.base;
-        let mem = RefCell::new(memory);
-        for a in self.adapters.iter() {
-            base = match a {
-                Adapter::Map(f) => Box::new(base.map(|i| call_helper(f, &[i], &mem))),
-                Adapter::Filter(f) => {
-                    Box::new(
-                        base.filter(|i| match call_helper(f, slice::from_ref(i), &mem) {
-                            Variant::Bool(b) => b,
-                            e => {
-                                eprintln!(
-                                    "Warning: {e:?} it's not a boolean, interpreting it as false",
-                                );
-                                false
-                            }
-                        }),
-                    )
-                }
-                Adapter::Flatten => Box::new(
-                    base.flat_map(|i| match i {
-                        Variant::Iterator(j) => j
-                            .borrow_mut()
-                            .clone()
-                            .to_vec(&mut mem.borrow_mut())
-                            .into_iter(),
-                        e => vec![Variant::error(format!(
-                            "Flatten error: {e:?} is not an iterator"
-                        ))]
-                        .into_iter(),
-                    })
-                    .collect_vec()
-                    .into_iter(),
-                ),
-                Adapter::Enumerate => Box::new(
-                    base.enumerate()
-                        .map(|(i, it)| Variant::vec(vec![Variant::Int(i as i64), it])),
-                ),
-                Adapter::StepBy(step) => Box::new(base.step_by(*step)),
-                Adapter::Take(t) => Box::new(base.take(*t)),
-                Adapter::Skip(s) => Box::new(base.skip(*s)),
-                Adapter::FlatMap(f) => Box::new(
-                    base.flat_map(|i| match i {
-                        Variant::Iterator(j) => j
-                            .borrow_mut()
-                            .clone()
-                            .to_vec(&mut mem.borrow_mut())
-                            .into_iter(),
-                        e => vec![Variant::error(format!(
-                            "FlatMap error: {e:?} is not an iterator"
-                        ))]
-                        .into_iter(),
-                    })
-                    .map(|i| call_helper(f, &[i], &mem))
-                    .collect_vec()
-                    .into_iter(),
-                ),
-            }
-        }
-
-        base.collect()
+        apply_method_to_iter!(self, memory, |i, _| Vec::from_iter(i))
     }
 
     pub fn to_variant_vec(self, memory: &mut Memory) -> Variant {
@@ -142,16 +149,9 @@ impl VariantIterator {
     }
 
     pub fn to_dict(self, memory: &mut Memory) -> Result<Dictionary> {
-        self.to_vec(memory)
-            .into_iter()
-            .map(|i| {
-                /* let Variant::Vec(v) = i else { return None };
-                let first = v.borrow().get(0)?.clone();
-                let second = v.borrow().get(1)?.clone();
-                Some((first, second)) */
-                i.into_pair(memory)
-            })
-            .collect()
+        apply_method_to_iter!(self, memory, |i: Box<dyn VariantIter>, _| i
+            .map(|j| j.into_pair())
+            .collect())
     }
 
     pub fn to_variant_dict(self, memory: &mut Memory) -> Variant {
@@ -163,10 +163,72 @@ impl VariantIterator {
     }
 
     pub fn reduce(self, func: &Variant, memory: &mut Memory) -> Result<Variant> {
-        self.to_vec(memory)
-            .into_iter()
-            .reduce(move |acc, x| func.call(&[acc, x], memory).unwrap_or_else(Variant::error))
-            .context("Empty iterator")
+        apply_method_to_iter!(
+            self,
+            memory,
+            |i: Box<dyn VariantIter>, m: &RefCell<&mut Memory>| {
+                i.reduce(|acc, x| {
+                    func.call(&[acc, x], &mut m.borrow_mut())
+                        .unwrap_or_else(Variant::error)
+                })
+                .context("Empty iterator")
+            }
+        )
+    }
+
+    pub fn sum(self, memory: &mut Memory) -> Result<Variant> {
+        apply_method_to_iter!(self, memory, |i: Box<dyn VariantIter>, _| {
+            i.reduce(|acc, x| acc.add(&x).unwrap_or_else(Variant::error))
+                .context("Empty iterator")
+        })
+    }
+
+    pub fn count(self, memory: &mut Memory) -> Variant {
+        apply_method_to_iter!(self, memory, |i: Box<dyn VariantIter>, _| {
+            Variant::Int(i.count() as Int)
+        })
+    }
+
+    pub fn any(self, memory: &mut Memory) -> Variant {
+        apply_method_to_iter!(self, memory, |mut i: Box<dyn VariantIter>, _| {
+            Variant::Bool(i.any(|i| i.is_true().unwrap_or(false)))
+        })
+    }
+
+    pub fn all(self, memory: &mut Memory) -> Variant {
+        apply_method_to_iter!(self, memory, |mut i: Box<dyn VariantIter>, _| {
+            Variant::Bool(i.all(|i| i.is_true().unwrap_or(false)))
+        })
+    }
+
+    pub fn find(self, func: &Variant, memory: &mut Memory) -> Result<Variant> {
+        apply_method_to_iter!(
+            self,
+            memory,
+            |mut i: Box<dyn VariantIter>, m: &RefCell<&mut Memory>| {
+                i.find(|i| {
+                    func.call(slice::from_ref(i), &mut m.borrow_mut())
+                        .unwrap_or_else(Variant::error)
+                        .is_true()
+                        .unwrap_or(false)
+                })
+                .context("Empty iterator")
+            }
+        )
+    }
+
+    pub fn for_each(self, func: &Variant, memory: &mut Memory)  -> Variant{
+        apply_method_to_iter!(
+            self,
+            memory,
+            |i: Box<dyn VariantIter>, m: &RefCell<&mut Memory>| {
+                i.for_each(|i| {
+                    func.call(slice::from_ref(&i), &mut m.borrow_mut())
+                        .unwrap_or_else(Variant::error);
+                })
+            }
+        );
+        Variant::Unit
     }
 }
 

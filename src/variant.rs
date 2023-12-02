@@ -523,8 +523,8 @@ impl Variant {
         }
     }
 
-    pub fn into_pair(&self, memory: &mut Memory) -> Result<(Variant, Variant)> {
-        if self.len(memory)? != 2 {
+    pub fn into_pair(&self) -> Result<(Variant, Variant)> {
+        if self.len()? != 2 {
             bail!("Can't convert {self:?} to pair because it doesnt have two elements",)
         }
         if let Variant::Vec(v) = self {
@@ -542,7 +542,7 @@ impl Variant {
                 let r: Result<Dictionary> = v
                     .borrow()
                     .iter()
-                    .map(|i| i.clone().into_pair(memory))
+                    .map(|i| i.clone().into_pair())
                     .collect();
                 Ok(Variant::Dict(Shared::new(r?)))
             }
@@ -615,12 +615,11 @@ impl Variant {
         }
     }
 
-    pub fn len(&self, memory: &mut Memory) -> Result<usize> {
+    pub fn len(&self) -> Result<usize> {
         let l = match self {
             Variant::Vec(v) => v.borrow().len(),
             Variant::Str(s) => s.len(),
             Variant::Dict(d) => d.borrow().len(),
-            Variant::Iterator(i) => i.borrow_mut().clone().to_vec(memory).len(),
             _ => return Err(anyhow!("{self:?} doesn't have a lenght attribute")),
         };
         Ok(l)

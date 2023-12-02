@@ -10,50 +10,55 @@ fn generate_vec_builtins(
     name: &str,
     function: impl FnOnce(&[Variant]) -> Variant,
     args: &[Variant],
+    memory: &mut Memory
 ) -> Variant {
     match args.len() {
         0 => Variant::error(format!("No arguments received on function {name}")),
         1 => {
-            if let Variant::Vec(v) = &args[0] {
-                function(&v.borrow())
-            } else {
-                Variant::error(format!("Cannot calculate {name} of {}", &args[0]))
+            match &args[0] {
+                Variant::Vec(v) => function(&v.borrow()),
+                Variant::Iterator(i) => function(&i.borrow().clone().to_vec(memory)),
+                _ => Variant::error(format!(
+                    "Cannot calculate {name} of {}",
+                    &args[0] 
+                )),
             }
+          
         }
 
         _ => function(args),
     }
 }
 
-pub fn min(args: &[Variant], _memory: &mut Memory) -> Variant {
-    generate_vec_builtins("min", |v| v.iter().min().cloned().unwrap(), args)
+pub fn min(args: &[Variant], memory: &mut Memory) -> Variant {
+    generate_vec_builtins("min", |v| v.iter().min().cloned().unwrap(), args,memory)
 }
 
-pub fn max(args: &[Variant], _memory: &mut Memory) -> Variant {
-    generate_vec_builtins("max", |v| v.iter().max().cloned().unwrap(), args)
+pub fn max(args: &[Variant], memory: &mut Memory) -> Variant {
+    generate_vec_builtins("max", |v| v.iter().max().cloned().unwrap(), args,memory)
 }
 
-pub fn sum(args: &[Variant], _memory: &mut Memory) -> Variant {
+pub fn sum(args: &[Variant], memory: &mut Memory) -> Variant {
     let sum = |v: &[Variant]| {
         v.iter()
             .cloned()
             .reduce(|acc, i| acc.add(&i).unwrap_or_else(Variant::error))
             .unwrap_or(Variant::Int(0))
     };
-    generate_vec_builtins("sum", sum, args)
+    generate_vec_builtins("sum", sum, args,memory)
 }
 
-pub fn prod(args: &[Variant], _memory: &mut Memory) -> Variant {
+pub fn prod(args: &[Variant], memory: &mut Memory) -> Variant {
     let prod = |v: &[Variant]| {
         v.iter()
             .cloned()
             .reduce(|acc, i| acc.mul(&i).unwrap_or_else(Variant::error))
             .unwrap_or(Variant::Int(0))
     };
-    generate_vec_builtins("prod", prod, args)
+    generate_vec_builtins("prod", prod, args,memory)
 }
 
-pub fn sort(args: &[Variant], _memory: &mut Memory) -> Variant {
+pub fn sort(args: &[Variant], memory: &mut Memory) -> Variant {
     generate_vec_builtins(
         "sort",
         |v| {
@@ -62,6 +67,7 @@ pub fn sort(args: &[Variant], _memory: &mut Memory) -> Variant {
             Variant::vec(v)
         },
         args,
+        memory
     )
 }
 
@@ -198,6 +204,84 @@ pub fn to_vec(args: &[Variant], memory: &mut Memory) -> Variant {
     }
 }
 
+pub fn to_dict(args: &[Variant], memory: &mut Memory) -> Variant {
+    if args.len() != 1 {
+        return Variant::error("to_dict function needs one arguments");
+    }
+    match args[0].clone().into_iterator() {
+        Ok(Variant::Iterator(i)) => i.borrow_mut().clone().to_variant_dict(memory),
+        Ok(e) => Variant::error(format!("{e} is not iterable")),
+        Err(e) => Variant::error(e),
+    }
+}
+
+pub fn count(args: &[Variant], memory: &mut Memory) -> Variant {
+    if args.len() != 1 {
+        return Variant::error("count function needs one arguments");
+    }
+    match args[0].clone().into_iterator() {
+        Ok(Variant::Iterator(i)) => i.borrow_mut().clone().count(memory),
+        Ok(e) => Variant::error(format!("{e} is not iterable")),
+        Err(e) => Variant::error(e),
+    }
+}
+
+pub fn reduce(args: &[Variant], memory: &mut Memory) -> Variant {
+    if args.len() != 2 {
+        return Variant::error("reduce function needs two arguments");
+    }
+    match args[0].clone().into_iterator() {
+        Ok(Variant::Iterator(i)) => i.borrow_mut().clone().reduce(&args[1], memory).unwrap_or_else(Variant::error),
+        Ok(e) => Variant::error(format!("{e} is not iterable")),
+        Err(e) => Variant::error(e),
+    }
+}
+
+pub fn all(args: &[Variant], memory: &mut Memory) -> Variant {
+    if args.len() != 1 {
+        return Variant::error("all function needs one arguments");
+    }
+    match args[0].clone().into_iterator() {
+        Ok(Variant::Iterator(i)) => i.borrow_mut().clone().all(memory),
+        Ok(e) => Variant::error(format!("{e} is not iterable")),
+        Err(e) => Variant::error(e),
+    }
+}
+
+pub fn any(args: &[Variant], memory: &mut Memory) -> Variant {
+    if args.len() != 1 {
+        return Variant::error("any function needs one arguments");
+    }
+    match args[0].clone().into_iterator() {
+        Ok(Variant::Iterator(i)) => i.borrow_mut().clone().any(memory),
+        Ok(e) => Variant::error(format!("{e} is not iterable")),
+        Err(e) => Variant::error(e),
+    }
+}
+
+
+pub fn find(args: &[Variant], memory: &mut Memory) -> Variant {
+    if args.len() != 2 {
+        return Variant::error("find function needs two arguments");
+    }
+    match args[0].clone().into_iterator() {
+        Ok(Variant::Iterator(i)) => i.borrow_mut().clone().find(&args[1], memory).unwrap_or_else(Variant::error),
+        Ok(e) => Variant::error(format!("{e} is not iterable")),
+        Err(e) => Variant::error(e),
+    }
+}
+
+pub fn for_each(args: &[Variant], memory: &mut Memory) -> Variant {
+    if args.len() != 2 {
+        return Variant::error("for_each function needs two arguments");
+    }
+    match args[0].clone().into_iterator() {
+        Ok(Variant::Iterator(i)) => i.borrow_mut().clone().for_each(&args[1], memory),
+        Ok(e) => Variant::error(format!("{e} is not iterable")),
+        Err(e) => Variant::error(e),
+    }
+}
+
 macro_rules! as_number {
     ($variant:expr) => {
         match $variant {
@@ -244,6 +328,13 @@ pub fn export_top_level_builtins() -> impl Iterator<Item = (Rc<str>, Variant)> {
         ("map", map, vec![Type::Vec, Type::Iterator]),
         ("filter", filter, vec![Type::Vec, Type::Iterator]),
         ("to_vec", to_vec, vec![Type::Vec, Type::Iterator]),
+        ("to_dict", to_dict, vec![Type::Vec, Type::Iterator]),
+        ("count", count, vec![Type::Vec, Type::Iterator]),
+        ("reduce", reduce, vec![Type::Vec, Type::Iterator]),
+        ("all", all, vec![Type::Vec, Type::Iterator]),
+        ("any", any, vec![Type::Vec, Type::Iterator]),
+        ("find", find, vec![Type::Vec, Type::Iterator]),
+        ("for_each", for_each, vec![Type::Vec, Type::Iterator]),
         ("slice", slice, vec![Type::Vec, Type::Str]),
     ]
     .into_iter()
