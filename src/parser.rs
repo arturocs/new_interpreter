@@ -183,7 +183,7 @@ peg::parser!(pub grammar expr_parser() for str {
                 )
             }
         }
-        
+
         e:(@) "["  _ i:expression() _ "]" _ "=" _ v:@ {
             Expression::IndexAssign(Box::new((e,i,v)))
         }
