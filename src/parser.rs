@@ -125,6 +125,65 @@ peg::parser!(pub grammar expr_parser() for str {
             }
         }
 
+        i:$identifier() _ "+=" _ v:@ {
+            Expression::Declaration{
+                name:i.into(),
+                value:Box::new(
+                    Expression::Add(Box::new((
+                        Expression::Identifier(i.into()),
+                        v
+                    )))
+                )
+            }
+        }
+
+        i:$identifier() _ "-=" _ v:@ {
+            Expression::Declaration{
+                name:i.into(),
+                value:Box::new(
+                    Expression::Sub(Box::new((
+                        Expression::Identifier(i.into()),
+                        v
+                    )))
+                )
+            }
+        }
+
+        i:$identifier() _ "*=" _ v:@ {
+            Expression::Declaration{
+                name:i.into(),
+                value:Box::new(
+                    Expression::Mul(Box::new((
+                        Expression::Identifier(i.into()),
+                        v
+                    )))
+                )
+            }
+        }
+        i:$identifier() _ "/=" _ v:@ {
+            Expression::Declaration{
+                name:i.into(),
+                value:Box::new(
+                    Expression::Div(Box::new((
+                        Expression::Identifier(i.into()),
+                        v
+                    )))
+                )
+            }
+        }
+
+        i:$identifier() _ "%=" _ v:@ {
+            Expression::Declaration{
+                name:i.into(),
+                value:Box::new(
+                    Expression::Rem(Box::new((
+                        Expression::Identifier(i.into()),
+                        v
+                    )))
+                )
+            }
+        }
+        
         e:(@) "["  _ i:expression() _ "]" _ "=" _ v:@ {
             Expression::IndexAssign(Box::new((e,i,v)))
         }
@@ -507,5 +566,24 @@ mod tests {
         ast.evaluate(&mut memory).unwrap();
         let a_value = memory.get("a").unwrap().clone();
         assert_eq!(Variant::Bool(true), a_value);
+    }
+
+    #[test]
+    fn test_add_assign_fail() {
+        let code = r"a+=1";
+        let ast = expr_parser::expr_sequence(code).unwrap();
+        let mut memory = Memory::with_builtins();
+        assert!(ast.evaluate(&mut memory).is_err());
+    }
+
+    #[test]
+    fn test_add_assign() {
+        let code = r"a=0
+        a+=1";
+        let ast = expr_parser::expr_sequence(code).unwrap();
+        let mut memory = Memory::with_builtins();
+        ast.evaluate(&mut memory).unwrap();
+        let a_value = memory.get("a").unwrap().clone();
+        assert_eq!(Variant::Int(1), a_value);
     }
 }
