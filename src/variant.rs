@@ -574,27 +574,6 @@ impl Variant {
         }
     }
 
-    pub fn map(self, func: Variant) -> Result<Variant> {
-        let iter = self.into_iterator()?;
-        let i = iter.unwrap_iterator();
-        i.borrow_mut().map(func);
-        Ok(Variant::Iterator(i))
-    }
-
-    pub fn filter(self, func: Variant) -> Result<Variant> {
-        let iter = self.into_iterator()?;
-        let i = iter.unwrap_iterator();
-        i.borrow_mut().filter(func);
-        Ok(Variant::Iterator(i))
-    }
-
-    pub fn reduce(self, func: Variant, memory: &mut Memory) -> Result<Variant> {
-        let iter = self.into_iterator()?;
-        let iter = iter.unwrap_iterator();
-        let ref_iter = iter.borrow_mut();
-        ref_iter.clone().reduce(&func, memory)
-    }
-
     pub fn push(&mut self, element: Variant) -> Result<()> {
         match self {
             Variant::Vec(v) => {
@@ -808,12 +787,13 @@ mod tests {
         let a = var
             .into_iterator()
             .unwrap()
+            .unwrap_iterator()
+            .borrow_mut()
             .map(Variant::native_fn(|i, _| {
                 i[0].add(&Variant::str("a")).unwrap()
             }))
-            .unwrap()
-            .into_vec(memory)
-            .unwrap();
+            .clone()
+            .to_variant_vec(memory);
         assert_eq!(
             a,
             Variant::vec(vec![
@@ -836,15 +816,16 @@ mod tests {
         let a = var
             .into_iterator()
             .unwrap()
+            .unwrap_iterator()
+            .borrow_mut()
             .filter(Variant::native_fn(|i, _| {
                 Variant::Bool(match i[0] {
                     Variant::Int(_) => true,
                     _ => false,
                 })
             }))
-            .unwrap()
-            .into_vec(memory)
-            .unwrap();
+            .clone()
+            .to_variant_vec(memory);
         assert_eq!(a, Variant::vec(vec![Variant::Int(1),]));
     }
 
@@ -860,8 +841,11 @@ mod tests {
         let a = var
             .into_iterator()
             .unwrap()
+            .unwrap_iterator()
+            .borrow_mut()
+            .clone()
             .reduce(
-                Variant::native_fn(|i, _| i[0].add(&i[1]).unwrap()),
+                &Variant::native_fn(|i, _| i[0].add(&i[1]).unwrap()),
                 &mut Memory::new(),
             )
             .unwrap();
@@ -880,17 +864,18 @@ mod tests {
         let a = var
             .into_iterator()
             .unwrap()
+            .unwrap_iterator()
+            .borrow_mut()
             .map(Variant::native_fn(|i, _| Variant::str(i[0].clone())))
-            .unwrap()
             .filter(Variant::native_fn(|i, _| {
                 Variant::Bool(match &i[0] {
                     Variant::Str(s) => s.to_str_lossy().parse::<f64>().is_ok(),
                     _ => false,
                 })
             }))
-            .unwrap()
+            .clone()
             .reduce(
-                Variant::native_fn(|i, _| i[0].add(&i[1]).unwrap_or_else(Variant::error)),
+                &Variant::native_fn(|i, _| i[0].add(&i[1]).unwrap_or_else(Variant::error)),
                 &mut Memory::new(),
             )
             .unwrap();

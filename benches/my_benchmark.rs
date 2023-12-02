@@ -72,17 +72,18 @@ fn benchmark2(c: &mut Criterion) {
             let a = var
                 .into_iterator()
                 .unwrap()
+                .unwrap_iterator()
+                .borrow_mut()
                 .map(Variant::native_fn(|i, _| Variant::str(&i[0])))
-                .unwrap()
                 .filter(Variant::native_fn(|i, _| {
                     Variant::Bool(match &i[0] {
                         Variant::Str(s) => s.to_str_lossy().parse::<f64>().is_ok(),
                         _ => false,
                     })
                 }))
-                .unwrap()
+                .clone()
                 .reduce(
-                    Variant::native_fn(|i, _| i[0].add(&i[1]).unwrap()),
+                    &Variant::native_fn(|i, _| i[0].add(&i[1]).unwrap()),
                     &mut Memory::new(),
                 )
                 .unwrap();
@@ -120,10 +121,13 @@ fn benchmark4(c: &mut Criterion) {
                 let iter = &i[0];
                 let func = &i[1];
                 iter.clone()
+                    .into_iterator()
+                    .unwrap()
+                    .unwrap_iterator()
+                    .borrow_mut()
                     .filter(func.clone())
-                    .unwrap()
-                    .into_vec(m)
-                    .unwrap()
+                    .clone()
+                    .to_variant_vec(m)
             }),
         )
         .unwrap();
@@ -163,10 +167,13 @@ fn benchmark5(c: &mut Criterion) {
                 let iter = &i[0];
                 let func = &i[1];
                 iter.clone()
+                    .into_iterator()
+                    .unwrap()
+                    .unwrap_iterator()
+                    .borrow_mut()
                     .filter(func.clone())
-                    .unwrap()
-                    .into_vec(m)
-                    .unwrap()
+                    .clone()
+                    .to_variant_vec(m)
             }),
         )
         .unwrap();

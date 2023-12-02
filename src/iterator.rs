@@ -39,8 +39,9 @@ macro_rules! implement_adapters {
     ($func:ident,$type:ty) => {
         paste! {
             impl VariantIterator {
-                pub fn[<$func:snake>](&mut self, value: $type) {
+                pub fn[<$func:snake>](&mut self, value: $type) -> &mut Self{
                     self.adapters.push(Adapter::$func(value));
+                    self
                 }
             }
         }
@@ -49,8 +50,9 @@ macro_rules! implement_adapters {
     ($func:ident) => {
         paste! {
             impl VariantIterator {
-                pub fn[<$func:snake>](&mut self) {
+                pub fn[<$func:snake>](&mut self) -> &mut Self{
                     self.adapters.push(Adapter::$func);
+                    self
                 }
             }
         }

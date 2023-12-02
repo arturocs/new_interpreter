@@ -769,7 +769,7 @@ mod tests {
 
     #[test]
     fn test_filter() {
-        let mut variables = Memory::new();
+        let mut variables = Memory::with_builtins();
         variables
             .set(
                 "v",
@@ -779,21 +779,6 @@ mod tests {
                     Variant::Int(2),
                     Variant::Int(3),
                 ]),
-            )
-            .unwrap();
-        variables
-            .set(
-                "filter",
-                Variant::native_fn(|i, m| {
-                    let iter = &i[0];
-                    let func = &i[1];
-                    dbg!(iter);
-                    iter.clone()
-                        .filter(func.clone())
-                        .unwrap()
-                        .into_vec(m)
-                        .unwrap()
-                }),
             )
             .unwrap();
 
@@ -806,12 +791,16 @@ mod tests {
             )
             .unwrap();
         let expr = Expression::FunctionCall {
-            function: Box::new(Expression::Identifier("filter".to_string())),
-            arguments: vec![
-                Expression::Identifier("v".to_string()),
-                Expression::Identifier("is_even".to_string()),
-            ],
+            function: Box::new(Expression::Identifier("to_vec".to_string())),
+            arguments: vec![Expression::FunctionCall {
+                function: Box::new(Expression::Identifier("filter".to_string())),
+                arguments: vec![
+                    Expression::Identifier("v".to_string()),
+                    Expression::Identifier("is_even".to_string()),
+                ],
+            }],
         };
+
         dbg!(&variables);
         assert_eq!(
             expr.evaluate(&mut variables).unwrap(),

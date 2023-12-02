@@ -1,3 +1,4 @@
+use crate::iterator::VariantIterator;
 use crate::variant::Type;
 use crate::{memory::Memory, variant::Variant};
 use bstr::ByteSlice;
@@ -6,64 +7,49 @@ use std::io;
 use std::rc::Rc;
 use std::slice;
 
-fn generate_vec_builtins(
-    name: &str,
-    function: impl FnOnce(&[Variant]) -> Variant,
-    args: &[Variant],
-    memory: &mut Memory,
-) -> Variant {
-    match args.len() {
-        0 => Variant::error(format!("No arguments received on function {name}")),
-        1 => match &args[0] {
-            Variant::Vec(v) => function(&v.borrow()),
-            Variant::Iterator(i) => function(&i.borrow().clone().to_vec(memory)),
-            _ => Variant::error(format!("Cannot calculate {name} of {}", &args[0])),
-        },
+macro_rules! generate_vec_builtins {
+    ($name:ident, $function:expr) => {
+        pub fn $name(args: &[Variant], memory: &mut Memory) -> Variant {
+            match args.len() {
+                0 => Variant::error(concat!(
+                    "No arguments received on function ",
+                    stringify!($name)
+                )),
+                1 => match &args[0] {
+                    Variant::Vec(v) => ($function)(&v.borrow()),
+                    Variant::Iterator(i) => ($function)(&i.borrow().clone().to_vec(memory)),
+                    _ => Variant::error(format!(
+                        "Cannot calculate {} of {}",
+                        stringify!($name),
+                        &args[0]
+                    )),
+                },
 
-        _ => function(args),
-    }
-}
-
-pub fn min(args: &[Variant], memory: &mut Memory) -> Variant {
-    generate_vec_builtins("min", |v| v.iter().min().cloned().unwrap(), args, memory)
-}
-
-pub fn max(args: &[Variant], memory: &mut Memory) -> Variant {
-    generate_vec_builtins("max", |v| v.iter().max().cloned().unwrap(), args, memory)
-}
-
-pub fn sum(args: &[Variant], memory: &mut Memory) -> Variant {
-    let sum = |v: &[Variant]| {
-        v.iter()
-            .cloned()
-            .reduce(|acc, i| acc.add(&i).unwrap_or_else(Variant::error))
-            .unwrap_or(Variant::Int(0))
+                _ => ($function)(args),
+            }
+        }
     };
-    generate_vec_builtins("sum", sum, args, memory)
 }
 
-pub fn prod(args: &[Variant], memory: &mut Memory) -> Variant {
-    let prod = |v: &[Variant]| {
-        v.iter()
-            .cloned()
-            .reduce(|acc, i| acc.mul(&i).unwrap_or_else(Variant::error))
-            .unwrap_or(Variant::Int(0))
-    };
-    generate_vec_builtins("prod", prod, args, memory)
-}
-
-pub fn sort(args: &[Variant], memory: &mut Memory) -> Variant {
-    generate_vec_builtins(
-        "sort",
-        |v| {
-            let mut v = v.to_owned();
-            v.sort_unstable();
-            Variant::vec(v)
-        },
-        args,
-        memory,
-    )
-}
+generate_vec_builtins!(min, |v: &[_]| v.iter().min().cloned().unwrap());
+generate_vec_builtins!(max, |v: &[_]| v.iter().max().cloned().unwrap());
+generate_vec_builtins!(sum, |v: &[Variant]| {
+    v.iter()
+        .cloned()
+        .reduce(|acc, i| acc.add(&i).unwrap_or_else(Variant::error))
+        .unwrap_or(Variant::Int(0))
+});
+generate_vec_builtins!(prod, |v: &[Variant]| {
+    v.iter()
+        .cloned()
+        .reduce(|acc, i| acc.mul(&i).unwrap_or_else(Variant::error))
+        .unwrap_or(Variant::Int(0))
+});
+generate_vec_builtins!(sort, |v: &[_]| {
+    let mut v = v.to_owned();
+    v.sort_unstable();
+    Variant::vec(v)
+});
 
 pub fn sort_by(args: &[Variant], memory: &mut Memory) -> Variant {
     if args.len() != 2 {
@@ -165,112 +151,66 @@ pub fn join(args: &[Variant], memory: &mut Memory) -> Variant {
     Variant::str(result)
 }
 
-pub fn map(args: &[Variant], _memory: &mut Memory) -> Variant {
-    //dbg!("calling map");
-    if args.len() != 2 {
-        return Variant::error("map function needs two arguments");
-    }
-    args[0]
-        .clone()
-        .map(args[1].clone())
-        .unwrap_or_else(Variant::error)
+macro_rules! generate_iterator_adapters_builtins {
+    ($name:ident, $method:expr) => {
+        pub fn $name(args: &[Variant], _memory: &mut Memory) -> Variant {
+            if args.len() != 2 {
+                return Variant::error(concat!(stringify!($name), " function needs two arguments"));
+            }
+            let Ok(Variant::Iterator(i)) = args[0].clone().into_iterator() else {
+                return Variant::error(format!("{:?} is not iterable", args[0]));
+            };
+
+            $method(&mut i.borrow_mut(), args[1].clone());
+            Variant::Iterator(i)
+        }
+    };
 }
 
-pub fn filter(args: &[Variant], _memory: &mut Memory) -> Variant {
-    //dbg!("calling filter");
-    if args.len() != 2 {
-        return Variant::error("filter function needs two arguments");
-    }
-    args[0]
-        .clone()
-        .filter(args[1].clone())
-        .unwrap_or_else(Variant::error)
+generate_iterator_adapters_builtins!(map, VariantIterator::map);
+generate_iterator_adapters_builtins!(filter, VariantIterator::filter);
+
+macro_rules! generate_iterator_evaluator_builtins {
+    ($name:ident,$method:ident) => {
+        pub fn $name(args: &[Variant], memory: &mut Memory) -> Variant {
+            if args.len() != 1 {
+                return Variant::error(concat!(stringify!($name), " function needs one argument"));
+            }
+            match args[0].clone().into_iterator() {
+                Ok(Variant::Iterator(i)) => i.borrow_mut().clone().$method(memory),
+                Ok(e) => Variant::error(format!("{e} is not iterable")),
+                Err(e) => Variant::error(e),
+            }
+        }
+    };
 }
 
-pub fn to_vec(args: &[Variant], memory: &mut Memory) -> Variant {
-    if args.len() != 1 {
-        return Variant::error("to_vec function needs one arguments");
-    }
-    match args[0].clone().into_iterator() {
-        Ok(Variant::Iterator(i)) => i.borrow_mut().clone().to_variant_vec(memory),
-        Ok(e) => Variant::error(format!("{e} is not iterable")),
-        Err(e) => Variant::error(e),
-    }
+macro_rules! generate_iterator_evaluator_with_arguments_builtins {
+    ($name:ident,$method:ident) => {
+        pub fn $name(args: &[Variant], memory: &mut Memory) -> Variant {
+            if args.len() != 2 {
+                return Variant::error(concat!(stringify!($name), " function needs two arguments"));
+            }
+            match args[0].clone().into_iterator() {
+                Ok(Variant::Iterator(i)) => i
+                    .borrow_mut()
+                    .clone()
+                    .$method(&args[1], memory)
+                    .unwrap_or_else(Variant::error),
+                Ok(e) => Variant::error(format!("{e} is not iterable")),
+                Err(e) => Variant::error(e),
+            }
+        }
+    };
 }
 
-pub fn to_dict(args: &[Variant], memory: &mut Memory) -> Variant {
-    if args.len() != 1 {
-        return Variant::error("to_dict function needs one arguments");
-    }
-    match args[0].clone().into_iterator() {
-        Ok(Variant::Iterator(i)) => i.borrow_mut().clone().to_variant_dict(memory),
-        Ok(e) => Variant::error(format!("{e} is not iterable")),
-        Err(e) => Variant::error(e),
-    }
-}
-
-pub fn count(args: &[Variant], memory: &mut Memory) -> Variant {
-    if args.len() != 1 {
-        return Variant::error("count function needs one arguments");
-    }
-    match args[0].clone().into_iterator() {
-        Ok(Variant::Iterator(i)) => i.borrow_mut().clone().count(memory),
-        Ok(e) => Variant::error(format!("{e} is not iterable")),
-        Err(e) => Variant::error(e),
-    }
-}
-
-pub fn reduce(args: &[Variant], memory: &mut Memory) -> Variant {
-    if args.len() != 2 {
-        return Variant::error("reduce function needs two arguments");
-    }
-    match args[0].clone().into_iterator() {
-        Ok(Variant::Iterator(i)) => i
-            .borrow_mut()
-            .clone()
-            .reduce(&args[1], memory)
-            .unwrap_or_else(Variant::error),
-        Ok(e) => Variant::error(format!("{e} is not iterable")),
-        Err(e) => Variant::error(e),
-    }
-}
-
-pub fn all(args: &[Variant], memory: &mut Memory) -> Variant {
-    if args.len() != 1 {
-        return Variant::error("all function needs one arguments");
-    }
-    match args[0].clone().into_iterator() {
-        Ok(Variant::Iterator(i)) => i.borrow_mut().clone().all(memory),
-        Ok(e) => Variant::error(format!("{e} is not iterable")),
-        Err(e) => Variant::error(e),
-    }
-}
-
-pub fn any(args: &[Variant], memory: &mut Memory) -> Variant {
-    if args.len() != 1 {
-        return Variant::error("any function needs one arguments");
-    }
-    match args[0].clone().into_iterator() {
-        Ok(Variant::Iterator(i)) => i.borrow_mut().clone().any(memory),
-        Ok(e) => Variant::error(format!("{e} is not iterable")),
-        Err(e) => Variant::error(e),
-    }
-}
-
-pub fn find(args: &[Variant], memory: &mut Memory) -> Variant {
-    if args.len() != 2 {
-        return Variant::error("find function needs two arguments");
-    }
-    match args[0].clone().into_iterator() {
-        Ok(Variant::Iterator(i)) => i
-            .borrow_mut()
-            .clone()
-            .find(&args[1], memory)
-            .unwrap_or_else(Variant::error),
-        Ok(e) => Variant::error(format!("{e} is not iterable")),
-        Err(e) => Variant::error(e),
-    }
-}
+generate_iterator_evaluator_builtins!(to_vec, to_variant_vec);
+generate_iterator_evaluator_builtins!(to_dict, to_variant_dict);
+generate_iterator_evaluator_builtins!(count, count);
+generate_iterator_evaluator_builtins!(all, all);
+generate_iterator_evaluator_builtins!(any, any);
+generate_iterator_evaluator_with_arguments_builtins!(reduce, reduce);
+generate_iterator_evaluator_with_arguments_builtins!(find, find);
 
 pub fn for_each(args: &[Variant], memory: &mut Memory) -> Variant {
     if args.len() != 2 {
