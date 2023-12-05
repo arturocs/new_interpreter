@@ -311,11 +311,47 @@ pub fn keys(args: &[Variant], _memory: &mut Memory) -> Variant {
 
 pub fn values(args: &[Variant], _memory: &mut Memory) -> Variant {
     if args.len() != 1 {
-        return Variant::error("values function needs one argument");
+        return Variant::error("values() function needs one argument");
     }
     match &args[0] {
         Variant::Dict(d) => Variant::vec(d.borrow().values().cloned().collect()),
-        _ => Variant::error("values function needs a dict as argument"),
+        _ => Variant::error("values() function needs a dict as argument"),
+    }
+}
+
+pub fn int(args: &[Variant], _memory: &mut Memory) -> Variant {
+    if args.len() != 1 {
+        return Variant::error("int() function needs one argument");
+    }
+
+    match &args[0] {
+        &Variant::Bool(b) => Variant::Int(b as i64),
+        &Variant::Int(i) => Variant::Int(i),
+        &Variant::Float(f) => Variant::Int(f as i64),
+        Variant::Str(s) => s
+            .to_str_lossy()
+            .parse()
+            .map(Variant::Int)
+            .unwrap_or_else(Variant::error),
+        e => Variant::error(format!("{e} cannot be parsed as integer")),
+    }
+}
+
+pub fn float(args: &[Variant], _memory: &mut Memory) -> Variant {
+    if args.len() != 1 {
+        return Variant::error("float() function needs one argument");
+    }
+
+    match &args[0] {
+        &Variant::Bool(b) => Variant::Float(b as u8 as f64),
+        &Variant::Int(i) => Variant::Float(i as f64),
+        &Variant::Float(f) => Variant::Float(f),
+        Variant::Str(s) => s
+            .to_str_lossy()
+            .parse()
+            .map(Variant::Float)
+            .unwrap_or_else(Variant::error),
+        e => Variant::error(format!("{e} cannot be parsed as integer")),
     }
 }
 
@@ -354,6 +390,8 @@ pub fn export_top_level_builtins() -> impl Iterator<Item = (Rc<str>, Variant)> {
     [
         ("min", min as fn(&[Variant], &mut Memory) -> Variant),
         ("max", max),
+        ("int", int),
+        ("float", float),
         ("print", print),
         ("input", input),
         ("range", range),
