@@ -102,9 +102,15 @@ pub fn push(args: &[Variant], _memory: &mut Memory) -> Variant {
 }
 
 pub fn range(args: &[Variant], _memory: &mut Memory) -> Variant {
+    let error = Variant::error("range function arguments must be of int type");
     match args.len() {
+        1 => {
+            let Variant::Int(end) = &args[0] else {
+                return error;
+            };
+            Variant::iterator((0..*end).map(Variant::Int))
+        }
         2 | 3 => {
-            let error = Variant::error("range function arguments must be of int type");
             let Variant::Int(start) = &args[0] else {
                 return error;
             };
