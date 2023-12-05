@@ -149,7 +149,7 @@ impl fmt::Display for Variant {
             }
             Variant::Func(a) => write!(fmt, "{a}"),
             Variant::Byte(b) => write!(fmt, "\\{:#01x}", b),
-            Variant::Iterator(i) => write!(fmt, "Iterator({i:?})"),
+            Variant::Iterator(i) => write!(fmt, "{}", i.borrow()),
             Variant::NativeFunc(f) => write!(fmt, "{f}"),
             Variant::Unit => write!(fmt, "Unit"),
         }
@@ -229,8 +229,15 @@ impl Variant {
     pub fn dict(v: &[(Variant, Variant)]) -> Variant {
         Variant::Dict(Shared::new(v.iter().cloned().collect()))
     }
-    pub fn native_fn(f: impl Fn(&[Variant], &mut Memory) -> Variant + 'static) -> Variant {
-        Variant::NativeFunc(Rc::new(NativeFunction::anonymous(f)))
+    pub fn native_fn(
+        name: Option<&str>,
+        f: impl Fn(&[Variant], &mut Memory) -> Variant + 'static,
+    ) -> Variant {
+        if let Some(n) = name {
+            Variant::NativeFunc(Rc::new(NativeFunction::new(n, f)))
+        } else {
+            Variant::NativeFunc(Rc::new(NativeFunction::anonymous(f)))
+        }
     }
 
     pub fn method(
@@ -789,7 +796,7 @@ mod tests {
             .unwrap()
             .unwrap_iterator()
             .borrow_mut()
-            .map(Variant::native_fn(|i, _| {
+            .map(Variant::native_fn(None, |i, _| {
                 i[0].add(&Variant::str("a")).unwrap()
             }))
             .clone()
@@ -818,7 +825,7 @@ mod tests {
             .unwrap()
             .unwrap_iterator()
             .borrow_mut()
-            .filter(Variant::native_fn(|i, _| {
+            .filter(Variant::native_fn(None, |i, _| {
                 Variant::Bool(match i[0] {
                     Variant::Int(_) => true,
                     _ => false,
@@ -845,7 +852,7 @@ mod tests {
             .borrow_mut()
             .clone()
             .reduce(
-                &Variant::native_fn(|i, _| i[0].add(&i[1]).unwrap()),
+                &Variant::native_fn(None, |i, _| i[0].add(&i[1]).unwrap()),
                 &mut Memory::new(),
             )
             .unwrap();
@@ -866,8 +873,8 @@ mod tests {
             .unwrap()
             .unwrap_iterator()
             .borrow_mut()
-            .map(Variant::native_fn(|i, _| Variant::str(i[0].clone())))
-            .filter(Variant::native_fn(|i, _| {
+            .map(Variant::native_fn(None, |i, _| Variant::str(i[0].clone())))
+            .filter(Variant::native_fn(None, |i, _| {
                 Variant::Bool(match &i[0] {
                     Variant::Str(s) => s.to_str_lossy().parse::<f64>().is_ok(),
                     _ => false,
@@ -875,7 +882,7 @@ mod tests {
             }))
             .clone()
             .reduce(
-                &Variant::native_fn(|i, _| i[0].add(&i[1]).unwrap_or_else(Variant::error)),
+                &Variant::native_fn(None, |i, _| i[0].add(&i[1]).unwrap_or_else(Variant::error)),
                 &mut Memory::new(),
             )
             .unwrap();

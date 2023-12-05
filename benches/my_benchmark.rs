@@ -74,8 +74,8 @@ fn benchmark2(c: &mut Criterion) {
                 .unwrap()
                 .unwrap_iterator()
                 .borrow_mut()
-                .map(Variant::native_fn(|i, _| Variant::str(&i[0])))
-                .filter(Variant::native_fn(|i, _| {
+                .map(Variant::native_fn(None, |i, _| Variant::str(&i[0])))
+                .filter(Variant::native_fn(None, |i, _| {
                     Variant::Bool(match &i[0] {
                         Variant::Str(s) => s.to_str_lossy().parse::<f64>().is_ok(),
                         _ => false,
@@ -83,7 +83,7 @@ fn benchmark2(c: &mut Criterion) {
                 }))
                 .clone()
                 .reduce(
-                    &Variant::native_fn(|i, _| i[0].add(&i[1]).unwrap()),
+                    &Variant::native_fn(None, |i, _| i[0].add(&i[1]).unwrap()),
                     &mut Memory::new(),
                 )
                 .unwrap();
@@ -117,7 +117,7 @@ fn benchmark4(c: &mut Criterion) {
     variables
         .set(
             "filter",
-            Variant::native_fn(move |i, m| {
+            Variant::native_fn(None, move |i, m| {
                 let iter = &i[0];
                 let func = &i[1];
                 iter.clone()
@@ -135,7 +135,7 @@ fn benchmark4(c: &mut Criterion) {
     variables
         .set(
             "is_even",
-            Variant::native_fn(|i, _| {
+            Variant::native_fn(None, |i, _| {
                 Variant::Bool(i[0].rem(&Variant::Int(2)).unwrap() == Variant::Int(0))
             }),
         )
@@ -163,7 +163,7 @@ fn benchmark5(c: &mut Criterion) {
     variables
         .set(
             "filter",
-            Variant::native_fn(|i, m| {
+            Variant::native_fn(None, |i, m| {
                 let iter = &i[0];
                 let func = &i[1];
                 iter.clone()

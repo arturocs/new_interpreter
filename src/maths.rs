@@ -57,7 +57,7 @@ impl Variant {
     }
 }
 
-fn wrap_unary_math_function(
+fn wrap_unary_function(
     f: fn(&Variant) -> Result<Variant>,
 ) -> impl Fn(&[Variant], &mut Memory) -> Variant {
     move |args: &[Variant], _: &mut Memory| {
@@ -68,7 +68,7 @@ fn wrap_unary_math_function(
     }
 }
 
-fn wrap_binary_math_function(
+fn wrap_binary_function(
     f: fn(&Variant, &Variant) -> Result<Variant>,
 ) -> impl Fn(&[Variant], &mut Memory) -> Variant {
     move |args: &[Variant], _: &mut Memory| {
@@ -96,11 +96,15 @@ pub fn export_math_lib() -> Variant {
         ("tan", Variant::tan),
         ("trunc", Variant::trunc),
     ]
-    .map(|(name, f)| (name, Variant::native_fn(wrap_unary_math_function(f))));
+    .map(|(name, f)| (name, Variant::native_fn(Some(name), wrap_unary_function(f))));
 
     let log = Variant::log as fn(&Variant, &Variant) -> Result<Variant>;
-    let binary_functions = [("log", log), ("pow", Variant::pow)]
-        .map(|(name, f)| (name, Variant::native_fn(wrap_binary_math_function(f))));
+    let binary_functions = [("log", log), ("pow", Variant::pow)].map(|(name, f)| {
+        (
+            name,
+            Variant::native_fn(Some(name), wrap_binary_function(f)),
+        )
+    });
 
     let constants = [("PI", Variant::PI), ("E", Variant::E)];
 

@@ -19,6 +19,8 @@ impl fmt::Display for Function {
         let body: String = self.body.iter().join("\n\t");
         if let Some(n) = &self.name {
             write!(f, "fn {n}({args}) {{\n\t{body}\t\n}}")
+        } else if self.body.len() <= 1 {
+            write!(f, "|{args}| {body}")
         } else {
             write!(f, "|{args}| {{\n\t{body}\t\n}}")
         }
@@ -71,7 +73,7 @@ impl Function {
 
 pub struct NativeFunction {
     pub name: Option<Box<str>>,
-    method_of: Option<Box<[Type]>>,
+    method_of: Box<[Type]>,
     function: Box<dyn Fn(&[Variant], &mut Memory) -> Variant>,
 }
 impl fmt::Debug for NativeFunction {
@@ -86,7 +88,7 @@ impl fmt::Debug for NativeFunction {
 
 impl fmt::Display for NativeFunction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let type_ = if self.method_of.is_none() {
+        let type_ = if self.method_of.is_empty() {
             "function"
         } else {
             "method"
@@ -104,7 +106,7 @@ impl NativeFunction {
     pub fn new(name: &str, f: impl Fn(&[Variant], &mut Memory) -> Variant + 'static) -> Self {
         NativeFunction {
             name: Some(name.into()),
-            method_of: None,
+            method_of: vec![].into_boxed_slice(),
             function: Box::new(f),
         }
     }
@@ -112,7 +114,7 @@ impl NativeFunction {
     pub fn anonymous(f: impl Fn(&[Variant], &mut Memory) -> Variant + 'static) -> Self {
         NativeFunction {
             name: None,
-            method_of: None,
+            method_of: vec![].into_boxed_slice(),
             function: Box::new(f),
         }
     }
@@ -124,23 +126,23 @@ impl NativeFunction {
     ) -> Self {
         NativeFunction {
             name: Some(name.into()),
-            method_of: Some(method_of.into()),
+            method_of: method_of.into(),
             function: Box::new(f),
         }
     }
 
     pub fn is_method(&self) -> bool {
-        self.method_of.is_some()
+        !self.method_of.is_empty()
     }
 
     pub fn call(&self, args: &[Variant], memory: &mut Memory) -> Variant {
-        let Some(types) = &self.method_of else {
+        if self.method_of.is_empty() {
             return (self.function)(args, memory);
-        };
+        }
         let Some(v) = args.get(0) else {
             return Variant::error(format!("Cannot call {self} without arguments"));
         };
-        types
+        self.method_of
             .contains(&v.get_type())
             .then(|| (self.function)(args, memory))
             .unwrap_or_else(|| Variant::error(format!("Cannot call {self} on variant {v:?}")))

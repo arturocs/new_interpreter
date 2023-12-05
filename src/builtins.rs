@@ -402,5 +402,5 @@ pub fn export_top_level_builtins() -> impl Iterator<Item = (Rc<str>, Variant)> {
         ("values", values),
     ]
     .into_iter()
-    .map(|(name, f)| (name.into(), Variant::native_fn(f)))
+    .map(|(name, f)| (name.into(), Variant::native_fn(Some(name), f)))
 }

@@ -302,7 +302,7 @@ impl Expression {
                 return Self::evaluate_index(variables, indexable_and_index);
             }
 
-            let new_function = Variant::native_fn(move |a, memory| {
+            let new_function = Variant::native_fn(None, move |a, memory| {
                 let mut args = Vec::with_capacity(a.len() + 1);
                 args.push(indexable.clone());
                 args.extend(a.iter().cloned());
@@ -693,7 +693,7 @@ mod tests {
     fn test_native_function_call() {
         let mut variables = Memory::new();
         variables.set("arg", Variant::Int(1)).unwrap();
-        let native_function = Expression::Value(Variant::native_fn(|i, _| {
+        let native_function = Expression::Value(Variant::native_fn(None, |i, _| {
             i[0].add(&Variant::Int(2)).unwrap()
         }));
         let expr = Expression::FunctionCall {
@@ -754,7 +754,7 @@ mod tests {
             iterable_and_body: Box::new((
                 Expression::Identifier("v".to_string()),
                 Expression::FunctionCall {
-                    function: Box::new(Expression::Value(Variant::native_fn(|i, _| {
+                    function: Box::new(Expression::Value(Variant::native_fn(None, |i, _| {
                         println!("{:?}", i[0]);
                         Variant::Unit
                     }))),
@@ -785,7 +785,7 @@ mod tests {
         variables
             .set(
                 "is_even",
-                Variant::native_fn(|i, _| {
+                Variant::native_fn(None, |i, _| {
                     Variant::Bool(i[0].rem(&Variant::Int(2)).unwrap() == Variant::Int(0))
                 }),
             )
