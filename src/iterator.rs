@@ -25,10 +25,36 @@ pub enum Adapter {
     Skip(usize),
 }
 
+impl fmt::Display for Adapter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Adapter::Filter(a) => write!(f, "Filter({a})"),
+            Adapter::Map(a) => write!(f, "Map({a})"),
+            Adapter::FlatMap(a) => write!(f, "FlatMap({a})"),
+            Adapter::Zip(a) => write!(f, "Zip({a})"),
+            Adapter::Flatten => write!(f, "Flatten"),
+            Adapter::Enumerate => write!(f, "Enumerate"),
+            Adapter::StepBy(a) => write!(f, "StepBy({a})"),
+            Adapter::Take(a) => write!(f, "Take({a})"),
+            Adapter::Skip(a) => write!(f, "Skip({a})"),
+        }
+    }
+}
 #[derive(Debug, Clone)]
 pub struct VariantIterator {
     adapters: Vec<Adapter>,
     base: Box<dyn VariantIter>,
+}
+
+impl fmt::Display for VariantIterator {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Iterator {{ base: {:?}, adapters: [ {} ] }}",
+            self.base,
+            self.adapters.iter().map(Adapter::to_string).join(", ")
+        )
+    }
 }
 
 fn call_helper(func: &Variant, args: &[Variant], memory: &RefCell<&mut Memory>) -> Variant {
@@ -227,7 +253,6 @@ impl VariantIterator {
             }
         )
     }
-    
 
     pub fn for_each(self, func: &Variant, memory: &mut Memory) -> Variant {
         apply_method_to_iter!(
