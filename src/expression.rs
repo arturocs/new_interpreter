@@ -294,7 +294,7 @@ impl Expression {
                 bail!("dot operator can only be used with identifiers")
             };
             let Ok(Variant::NativeFunc(f)) =
-                variables.get_mut(&id.to_str_lossy()).map(|i| i.clone())
+                variables.get_method(&id.to_str_lossy()).map(|i| i.clone())
             else {
                 return Self::evaluate_index(variables, indexable_and_index);
             };
@@ -790,16 +790,20 @@ mod tests {
                 }),
             )
             .unwrap();
-        let expr = Expression::FunctionCall {
-            function: Box::new(Expression::Identifier("to_vec".to_string())),
-            arguments: vec![Expression::FunctionCall {
-                function: Box::new(Expression::Identifier("filter".to_string())),
-                arguments: vec![
-                    Expression::Identifier("v".to_string()),
-                    Expression::Identifier("is_even".to_string()),
-                ],
-            }],
-        };
+
+        let expr = Expression::ExprSequence(vec![Expression::FunctionCall {
+            function: Box::new(Expression::Dot(Box::new((
+                Expression::FunctionCall {
+                    function: Box::new(Expression::Dot(Box::new((
+                        Expression::Identifier("v".to_string()),
+                        Expression::Value(Variant::str("filter")),
+                    )))),
+                    arguments: vec![Expression::Identifier("is_even".to_string())],
+                },
+                Expression::Value(Variant::str("to_vec")),
+            )))),
+            arguments: vec![],
+        }]);
 
         dbg!(&variables);
         assert_eq!(

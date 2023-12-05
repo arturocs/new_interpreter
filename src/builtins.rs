@@ -261,9 +261,9 @@ pub fn read_file(args: &[Variant], _memory: &mut Memory) -> Variant {
         return Variant::error("read_file function needs a string as argument");
     };
     let path = path.to_str_lossy();
-    let content = std::fs::read_to_string(path.as_ref());
+    let content = std::fs::read(path.as_ref());
     match content {
-        Ok(content) => Variant::str(content),
+        Ok(content) => Variant::Str(Rc::new(content.into())),
         Err(e) => Variant::error(e),
     }
 }
@@ -319,18 +319,19 @@ pub fn values(args: &[Variant], _memory: &mut Memory) -> Variant {
     }
 }
 
-pub fn export_top_level_builtins() -> impl Iterator<Item = (Rc<str>, Variant)> {
+pub fn export_global_metods() -> impl Iterator<Item = (Rc<str>, Variant)> {
     [
-        ("sum", sum as fn(&[Variant], &mut Memory) -> Variant, vec![]),
-        ("prod", prod, vec![]),
-        ("min", min, vec![]),
-        ("max", max, vec![]),
+        (
+            "sum",
+            sum as fn(&[Variant], &mut Memory) -> Variant,
+            vec![Type::Vec, Type::Iterator],
+        ),
+        ("prod", prod, vec![Type::Vec, Type::Iterator]),
+        ("min", min, vec![Type::Vec, Type::Iterator]),
+        ("max", max, vec![Type::Vec, Type::Iterator]),
         ("sort", sort, vec![Type::Vec]),
         ("sort_by", sort_by, vec![Type::Vec]),
-        ("print", print, vec![]),
-        ("input", input, vec![]),
         ("push", push, vec![Type::Vec]),
-        ("range", range, vec![]),
         ("contains", contains, vec![Type::Vec]),
         ("join", join, vec![Type::Vec, Type::Iterator]),
         ("map", map, vec![Type::Vec, Type::Iterator]),
@@ -344,18 +345,24 @@ pub fn export_top_level_builtins() -> impl Iterator<Item = (Rc<str>, Variant)> {
         ("find", find, vec![Type::Vec, Type::Iterator]),
         ("for_each", for_each, vec![Type::Vec, Type::Iterator]),
         ("slice", slice, vec![Type::Vec, Type::Str]),
-        ("read_file", read_file, vec![]),
-        ("write_to_file", write_to_file, vec![]),
-        ("items", items, vec![]),
-        ("keys", keys, vec![]),
-        ("values", values, vec![]),
     ]
     .into_iter()
-    .map(|(name, f, method_of)| {
-        if method_of.len() > 0 {
-            (name.into(), Variant::method(name, f, method_of))
-        } else {
-            (name.into(), Variant::native_fn(f))
-        }
-    })
+    .map(|(name, f, method_of)| (name.into(), Variant::method(name, f, method_of)))
+}
+
+pub fn export_top_level_builtins() -> impl Iterator<Item = (Rc<str>, Variant)> {
+    [
+        ("min", min as fn(&[Variant], &mut Memory) -> Variant),
+        ("max", max),
+        ("print", print),
+        ("input", input),
+        ("range", range),
+        ("read_file", read_file),
+        ("write_to_file", write_to_file),
+        ("items", items),
+        ("keys", keys),
+        ("values", values),
+    ]
+    .into_iter()
+    .map(|(name, f)| (name.into(), Variant::native_fn(f)))
 }
