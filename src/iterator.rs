@@ -14,6 +14,7 @@ dyn_clone::clone_trait_object!(VariantIter);
 
 #[derive(Debug, Clone)]
 pub enum Adapter {
+    Generator(Variant),
     Filter(Variant),
     Map(Variant),
     FlatMap(Variant),
@@ -28,6 +29,7 @@ pub enum Adapter {
 impl fmt::Display for Adapter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Adapter::Generator(a) => write!(f, "Generator({a})"),
             Adapter::Filter(a) => write!(f, "Filter({a})"),
             Adapter::Map(a) => write!(f, "Map({a})"),
             Adapter::FlatMap(a) => write!(f, "FlatMap({a})"),
@@ -63,11 +65,25 @@ fn call_helper(func: &Variant, args: &[Variant], memory: &RefCell<&mut Memory>) 
 }
 
 macro_rules! implement_adapters {
-    ($func:ident,$type:ty) => {
+    ($func:ident,Variant) => {
         paste! {
             impl VariantIterator {
-                pub fn[<$func:snake>](&mut self, value: $type) -> &mut Self{
+                pub fn[<$func:snake>](&mut self, value: Variant) -> &mut Self{
                     self.adapters.push(Adapter::$func(value));
+                    self
+                }
+            }
+        }
+    };
+    ($func:ident,usize) => {
+        paste! {
+            impl VariantIterator {
+                pub fn[<$func:snake>](&mut self, value: Variant) -> &mut Self{
+                    match value {
+                        Variant::Int(i) => self.adapters.push(Adapter::$func(i as usize)),
+                        Variant::Float(f) => self.adapters.push(Adapter::$func(f as usize)),
+                        _ => panic!("{} error: {} is not a number",stringify!($func),value),
+                    }
                     self
                 }
             }
@@ -102,6 +118,12 @@ macro_rules! apply_method_to_iter {
         let mem = RefCell::new($memory);
         for a in $it.adapters.iter() {
             base = match a {
+                Adapter::Generator(f) => {
+                    Box::new(std::iter::from_fn(|| match call_helper(f, &[], &mem) {
+                        Variant::Error(_) => None,
+                        a => Some(a),
+                    }))
+                }
                 Adapter::Map(f) => Box::new(base.map(|i| call_helper(f, &[i], &mem))),
                 Adapter::Filter(f) => {
                     Box::new(
@@ -179,6 +201,15 @@ impl VariantIterator {
     pub fn new(i: impl VariantIter + 'static) -> Self {
         Self {
             adapters: Vec::with_capacity(5),
+            base: Box::new(i),
+        }
+    }
+
+    pub fn from_adapter(adapter: Adapter, i: impl VariantIter + 'static) -> Self {
+        let mut adapters = vec![adapter];
+        adapters.reserve(5);
+        Self {
+            adapters,
             base: Box::new(i),
         }
     }

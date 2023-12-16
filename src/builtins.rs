@@ -376,28 +376,36 @@ pub fn split(args: &[Variant], _memory: &mut Memory) -> Variant {
         _ => Variant::error("split() method only works on strings"),
     }
 }
-/*
-pub fn generator(args: &[Variant], memory: &mut Memory) -> Variant {
+
+pub fn generator(args: &[Variant], _memory: &mut Memory) -> Variant {
     if args.len() != 1 {
         return Variant::error("generator() method needs one argument");
     }
-    let m = Rc::new(RefCell::new(memory));
-    let f = args[0].clone();
-    let it = std::iter::from_fn(move || f.call(&[], *m.borrow_mut()).ok());
 
     match &args[0] {
-        Variant::Func(_f) => Variant::iterator(it),
+        Variant::Func(f) => Variant::Iterator(Shared::new(VariantIterator::from_adapter(
+            Adapter::Generator(Variant::Func(f.clone())),
+            std::iter::empty(),
+        ))),
         _ => Variant::error("generator() method only works on functions"),
     }
-} */
+}
+
+pub fn err(args: &[Variant], _memory: &mut Memory) -> Variant {
+    match args.len() {
+        0 => Variant::error("Emtpy error"),
+        1 => match &args[0] {
+            Variant::Str(s) => Variant::error(s),
+            _ => Variant::error("err() method only works on strings"),
+        },
+        _ => Variant::error("err() method needs zero or one arguments"),
+    }
+}
 
 pub fn export_global_metods() -> impl Iterator<Item = (Rc<str>, Variant)> {
+    let sum = sum as fn(&[Variant], &mut Memory) -> Variant;
     [
-        (
-            "sum",
-            sum as fn(&[Variant], &mut Memory) -> Variant,
-            vec![Type::Vec, Type::Iterator],
-        ),
+        ("sum", sum, vec![Type::Vec, Type::Iterator]),
         ("prod", prod, vec![Type::Vec, Type::Iterator]),
         ("min", min, vec![Type::Vec, Type::Iterator]),
         ("max", max, vec![Type::Vec, Type::Iterator]),
@@ -437,6 +445,8 @@ pub fn export_top_level_builtins() -> impl Iterator<Item = (Rc<str>, Variant)> {
         ("items", items),
         ("keys", keys),
         ("values", values),
+        ("generator", generator),
+        ("err", err),
     ]
     .into_iter()
     .map(|(name, f)| (name.into(), Variant::native_fn(Some(name), f)))
