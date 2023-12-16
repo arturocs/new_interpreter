@@ -1,5 +1,5 @@
 use crate::{expression::Expression, variant::Variant};
-
+use itertools::Itertools;
 peg::parser!(pub grammar expr_parser() for str {
     rule _() = [' ' | '\t']*
 
@@ -86,7 +86,7 @@ peg::parser!(pub grammar expr_parser() for str {
 
     rule anonymous_function() -> Expression
         = "|" _ a:(identifier() ** value_separator()) _ "|" _ b:(expression()/block()) {
-            let args: Vec<_> = a
+            let args = a
             .into_iter()
             .map(|i| {
                 if let Expression::Identifier(id) = i {
@@ -95,14 +95,14 @@ peg::parser!(pub grammar expr_parser() for str {
                     unreachable!()
                 }
             })
-            .collect();
+            .collect_vec();
             let body = if let Expression::Block(bl) = b { bl } else { vec![b] };
             Expression::Value(Variant::anonymous_func(args, body))
         }
 
     rule function_declaration() -> Expression
         = "fn" _ i:$identifier() "(" _ a:(identifier() ** value_separator()) _ ")" _ b:block() {
-            let args: Vec<_> = a
+            let args = a
             .into_iter()
             .map(|i| {
                 if let Expression::Identifier(id) = i {
@@ -111,7 +111,7 @@ peg::parser!(pub grammar expr_parser() for str {
                     unreachable!()
                 }
             })
-            .collect();
+            .collect_vec();
             let body = if let Expression::Block(bl) = b { bl } else { vec![b] };
             Expression::FunctionDeclaration { name:i.into(), function: Variant::func(i,args, body) }
         }

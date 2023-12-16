@@ -3,6 +3,7 @@ use crate::{
     variant::{Float, Variant},
 };
 use anyhow::{bail, Result};
+use itertools::Itertools;
 use std::f64;
 
 macro_rules! impl_unary_math_functions {
@@ -114,7 +115,7 @@ pub fn export_math_lib() -> Variant {
             .chain(binary_functions)
             .chain(constants)
             .map(|(name, f)| (Variant::str(name), f))
-            .collect::<Vec<_>>(),
+            .collect_vec(),
     )
 }
 

@@ -11,7 +11,7 @@ use std::fs;
 static GLOBAL: MiMalloc = MiMalloc;
 
 fn main() -> Result<()> {
-    let args: Vec<_> = env::args().collect();
+    let args = env::args().collect_vec();
     if args.len() == 2 {
         let code = fs::read_to_string(&args[1])?;
         let filtered_comments = code

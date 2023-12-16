@@ -570,7 +570,7 @@ impl Variant {
                 d.borrow()
                     .iter()
                     .map(|(k, v)| Variant::vec(vec![k.clone(), v.clone()]))
-                    .collect::<Vec<_>>()
+                    .collect_vec()
                     .into_iter(),
             )),
             Variant::Iterator(i) => Ok(Variant::Iterator(i)),
