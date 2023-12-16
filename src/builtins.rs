@@ -177,6 +177,9 @@ macro_rules! generate_iterator_adapters_builtins {
 generate_iterator_adapters_builtins!(map, VariantIterator::map);
 generate_iterator_adapters_builtins!(filter, VariantIterator::filter);
 generate_iterator_adapters_builtins!(zip, VariantIterator::zip);
+generate_iterator_adapters_builtins!(take, VariantIterator::take);
+generate_iterator_adapters_builtins!(skip, VariantIterator::skip);
+generate_iterator_adapters_builtins!(step_by, VariantIterator::step_by);
 
 macro_rules! generate_iterator_evaluator_builtins {
     ($name:ident,$method:ident) => {
@@ -433,6 +436,10 @@ pub fn export_global_metods() -> impl Iterator<Item = (Rc<str>, Variant)> {
         ("for_each", for_each, vec![Type::Vec, Type::Iterator]),
         ("slice", slice, vec![Type::Vec, Type::Str]),
         ("split", split, vec![Type::Str]),
+        ("step_by", step_by, vec![Type::Vec, Type::Iterator]),
+        ("zip", zip, vec![Type::Vec, Type::Iterator]),
+        ("take", take, vec![Type::Vec, Type::Iterator]),
+        ("skip", skip, vec![Type::Vec, Type::Iterator]),
     ]
     .into_iter()
     .map(|(name, f, method_of)| (name.into(), Variant::method(name, f, method_of)))
