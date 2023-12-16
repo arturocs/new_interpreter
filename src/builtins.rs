@@ -361,6 +361,21 @@ pub fn float(args: &[Variant], _memory: &mut Memory) -> Variant {
     }
 }
 
+pub fn split(args: &[Variant], _memory: &mut Memory) -> Variant {
+    if args.len() != 2 {
+        return Variant::error("split() method needs two arguments");
+    }
+    match (&args[0], &args[1]) {
+        (Variant::Str(s1), Variant::Str(s2)) => Variant::vec(
+            s1.to_str_lossy()
+                .split(s2.to_str_lossy().as_ref())
+                .map(Variant::str)
+                .collect(),
+        ),
+        _ => Variant::error("split() method only works on strings"),
+    }
+}
+}
 pub fn export_global_metods() -> impl Iterator<Item = (Rc<str>, Variant)> {
     [
         (
@@ -387,6 +402,7 @@ pub fn export_global_metods() -> impl Iterator<Item = (Rc<str>, Variant)> {
         ("find", find, vec![Type::Vec, Type::Iterator]),
         ("for_each", for_each, vec![Type::Vec, Type::Iterator]),
         ("slice", slice, vec![Type::Vec, Type::Str]),
+        ("split", split, vec![Type::Str]),
     ]
     .into_iter()
     .map(|(name, f, method_of)| (name.into(), Variant::method(name, f, method_of)))
