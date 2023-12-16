@@ -97,7 +97,7 @@ impl fmt::Display for NativeFunction {
             write!(f, "{} {}()", type_, name)
         } else {
             let p = &self.function as *const _;
-            write!(f, "Anonymous {} at {:?}", type_, p)
+            write!(f, "Anonymous {type_} at {p:?}")
         }
     }
 }
@@ -145,6 +145,6 @@ impl NativeFunction {
         self.method_of
             .contains(&v.get_type())
             .then(|| (self.function)(args, memory))
-            .unwrap_or_else(|| Variant::error(format!("Cannot call {self} on variant {v:?}")))
+            .unwrap_or_else(|| Variant::error(format!("Cannot call {self} on variant {v}")))
     }
 }

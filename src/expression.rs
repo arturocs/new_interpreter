@@ -209,7 +209,7 @@ impl Expression {
                     arguments.iter().map(|e| e.evaluate(variables)).collect();
                 f.call(&evaluated_args?, variables)
             }
-            a => bail!("{a:?} is not a function"),
+            a => bail!("{a} is not a function"),
         }
     }
     fn evaluate_expr_sequence(

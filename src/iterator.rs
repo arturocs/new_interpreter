@@ -97,76 +97,82 @@ implement_adapters!(Take, usize);
 implement_adapters!(Skip, usize);
 
 macro_rules! apply_method_to_iter {
-    ($it:expr,$memory:expr,$method:expr) => {
-        {
-            let mut base = $it.base;
-            let mem = RefCell::new($memory);
-            for a in $it.adapters.iter() {
-                base = match a {
-                    Adapter::Map(f) => Box::new(base.map(|i| call_helper(f, &[i], &mem))),
-                    Adapter::Filter(f) => {
+    ($it:expr,$memory:expr,$method:expr) => {{
+        let mut base = $it.base;
+        let mem = RefCell::new($memory);
+        for a in $it.adapters.iter() {
+            base = match a {
+                Adapter::Map(f) => Box::new(base.map(|i| call_helper(f, &[i], &mem))),
+                Adapter::Filter(f) => {
+                    Box::new(
+                        base.filter(|i| match call_helper(f, slice::from_ref(i), &mem) {
+                            Variant::Bool(b) => b,
+                            e => {
+                                eprintln!(
+                                    "Warning: {e} it's not a boolean, interpreting it as false",
+                                );
+                                false
+                            }
+                        }),
+                    )
+                }
+                Adapter::Flatten => Box::new(
+                    base.flat_map(|i| match i {
+                        Variant::Iterator(j) => j
+                            .borrow_mut()
+                            .clone()
+                            .to_vec(&mut mem.borrow_mut())
+                            .into_iter(),
+                        e => vec![Variant::error(format!(
+                            "Flatten error: {e} is not an iterator"
+                        ))]
+                        .into_iter(),
+                    })
+                    .collect_vec()
+                    .into_iter(),
+                ),
+                Adapter::Zip(other) => {
+                    if let Ok(Variant::Iterator(it)) = other.clone().into_iterator() {
                         Box::new(
-                            base.filter(|i| match call_helper(f, slice::from_ref(i), &mem) {
-                                Variant::Bool(b) => b,
-                                e => {
-                                    eprintln!(
-                                        "Warning: {e:?} it's not a boolean, interpreting it as false",
-                                    );
-                                    false
-                                }
-                            }),
+                            base.zip(it.borrow_mut().clone().to_vec(&mut mem.borrow_mut()))
+                                .map(|(i, j)| Variant::vec(vec![i, j])),
+                        )
+                    } else {
+                        Box::new(
+                            vec![Variant::error(format!(
+                                "Zip error: {other} is not an iterator"
+                            ))]
+                            .into_iter(),
                         )
                     }
-                    Adapter::Flatten => Box::new(
-                        base.flat_map(|i| match i {
-                            Variant::Iterator(j) => j
-                                .borrow_mut()
-                                .clone()
-                                .to_vec(&mut mem.borrow_mut())
-                                .into_iter(),
-                            e => vec![Variant::error(format!(
-                                "Flatten error: {e:?} is not an iterator"
-                            ))]
-                            .into_iter(),
-                        })
-                        .collect_vec()
-                        .into_iter(),
-                    ),
-                    Adapter::Zip(other) =>{
-                        if let Ok(Variant::Iterator(it)) = other.clone().into_iterator() {
-                            Box::new(base.zip(it.borrow_mut().clone().to_vec(&mut mem.borrow_mut())).map(|(i,j)| Variant::vec(vec![i,j])))
-                        } else {
-                            Box::new(vec![Variant::error(format!("Zip error: {other:?} is not an iterator"))].into_iter())
-                        }
-                    },
-                    Adapter::Enumerate => Box::new(
-                        base.enumerate()
-                            .map(|(i, it)| Variant::vec(vec![Variant::Int(i as i64), it])),
-                    ),
-                    Adapter::StepBy(step) => Box::new(base.step_by(*step)),
-                    Adapter::Take(t) => Box::new(base.take(*t)),
-                    Adapter::Skip(s) => Box::new(base.skip(*s)),
-                    Adapter::FlatMap(f) => Box::new(
-                        base.flat_map(|i| match i {
-                            Variant::Iterator(j) => j
-                                .borrow_mut()
-                                .clone()
-                                .to_vec(&mut mem.borrow_mut())
-                                .into_iter(),
-                            e => vec![Variant::error(format!(
-                                "FlatMap error: {e:?} is not an iterator"
-                            ))]
-                            .into_iter(),
-                        })
-                        .map(|i| call_helper(f, &[i], &mem))
-                        .collect_vec()
-                        .into_iter(),
-                    ),
                 }
+                Adapter::Enumerate => Box::new(
+                    base.enumerate()
+                        .map(|(i, it)| Variant::vec(vec![Variant::Int(i as i64), it])),
+                ),
+                Adapter::StepBy(step) => Box::new(base.step_by(*step)),
+                Adapter::Take(t) => Box::new(base.take(*t)),
+                Adapter::Skip(s) => Box::new(base.skip(*s)),
+                Adapter::FlatMap(f) => Box::new(
+                    base.flat_map(|i| match i {
+                        Variant::Iterator(j) => j
+                            .borrow_mut()
+                            .clone()
+                            .to_vec(&mut mem.borrow_mut())
+                            .into_iter(),
+                        e => vec![Variant::error(format!(
+                            "FlatMap error: {e} is not an iterator"
+                        ))]
+                        .into_iter(),
+                    })
+                    .map(|i| call_helper(f, &[i], &mem))
+                    .collect_vec()
+                    .into_iter(),
+                ),
             }
-            $method(base,&mem)
         }
-    };
+        $method(base, &mem)
+    }};
 }
 
 impl VariantIterator {
