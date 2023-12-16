@@ -1,9 +1,9 @@
-use crate::iterator::VariantIterator;
+use crate::iterator::{Adapter, VariantIterator};
+use crate::shared::Shared;
 use crate::variant::Type;
 use crate::{memory::Memory, variant::Variant};
 use bstr::ByteSlice;
 use itertools::Itertools;
-use std::cell::{Ref, RefCell};
 use std::io;
 use std::rc::Rc;
 use std::slice;
@@ -402,6 +402,13 @@ pub fn err(args: &[Variant], _memory: &mut Memory) -> Variant {
     }
 }
 
+pub fn type_(args: &[Variant], _memory: &mut Memory) -> Variant {
+    if args.len() != 1 {
+        return Variant::error("typeof() method needs one argument");
+    }
+    Variant::str(args[0].get_type().to_string())
+}
+
 pub fn export_global_metods() -> impl Iterator<Item = (Rc<str>, Variant)> {
     let sum = sum as fn(&[Variant], &mut Memory) -> Variant;
     [
@@ -447,6 +454,7 @@ pub fn export_top_level_builtins() -> impl Iterator<Item = (Rc<str>, Variant)> {
         ("values", values),
         ("generator", generator),
         ("err", err),
+        ("type", type_),
     ]
     .into_iter()
     .map(|(name, f)| (name.into(), Variant::native_fn(Some(name), f)))
