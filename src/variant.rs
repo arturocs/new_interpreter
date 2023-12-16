@@ -8,6 +8,7 @@ use crate::{
 use ahash::RandomState;
 use anyhow::{anyhow, bail, Result};
 use bstr::{BString, ByteSlice, ByteVec};
+use derive_more::Display;
 use derive_more::{IsVariant, Unwrap};
 use dyn_clone::DynClone;
 use indexmap::IndexMap;
@@ -19,7 +20,6 @@ use std::{
     hash::{Hash, Hasher},
     rc::Rc,
 };
-
 pub trait VariantIter: Iterator<Item = Variant> + fmt::Debug + DynClone {}
 impl<T> VariantIter for T where T: Iterator<Item = Variant> + fmt::Debug + DynClone {}
 dyn_clone::clone_trait_object!(VariantIter);
@@ -45,7 +45,7 @@ pub enum Variant {
     Unit,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Display, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(u8)]
 pub enum Type {
     Int,
