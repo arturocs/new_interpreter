@@ -365,6 +365,18 @@ pub fn float(args: &[Variant], _memory: &mut Memory) -> Variant {
     }
 }
 
+pub fn assert_(args: &[Variant], _memory: &mut Memory) -> Variant {
+    if args.len() != 1 {
+        return Variant::error("assert() function needs one argument");
+    }
+
+    if args[0].is_true().unwrap_or(false) {
+        Variant::Unit
+    } else {
+        Variant::error("Assertion failed")
+    }
+}
+
 pub fn split(args: &[Variant], _memory: &mut Memory) -> Variant {
     if args.len() != 2 {
         return Variant::error("split() method needs two arguments");
@@ -459,6 +471,7 @@ pub fn export_top_level_builtins() -> impl Iterator<Item = (Rc<str>, Variant)> {
         ("items", items),
         ("keys", keys),
         ("values", values),
+        ("assert", assert_),
         ("generator", generator),
         ("err", err),
         ("type", type_),
