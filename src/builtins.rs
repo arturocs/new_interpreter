@@ -3,6 +3,7 @@ use crate::variant::Type;
 use crate::{memory::Memory, variant::Variant};
 use bstr::ByteSlice;
 use itertools::Itertools;
+use std::cell::{Ref, RefCell};
 use std::io;
 use std::rc::Rc;
 use std::slice;
@@ -164,7 +165,7 @@ macro_rules! generate_iterator_adapters_builtins {
                 return Variant::error(concat!(stringify!($name), " function needs two arguments"));
             }
             let Ok(Variant::Iterator(i)) = args[0].clone().into_iterator() else {
-                return Variant::error(format!("{:?} is not iterable", args[0]));
+                return Variant::error(format!("{} is not iterable", args[0]));
             };
 
             $method(&mut i.borrow_mut(), args[1].clone());
@@ -373,6 +374,35 @@ pub fn assert_(args: &[Variant], _memory: &mut Memory) -> Variant {
     }
 }
 
+pub fn split(args: &[Variant], _memory: &mut Memory) -> Variant {
+    if args.len() != 2 {
+        return Variant::error("split() method needs two arguments");
+    }
+    match (&args[0], &args[1]) {
+        (Variant::Str(s1), Variant::Str(s2)) => Variant::vec(
+            s1.to_str_lossy()
+                .split(s2.to_str_lossy().as_ref())
+                .map(Variant::str)
+                .collect(),
+        ),
+        _ => Variant::error("split() method only works on strings"),
+    }
+}
+/*
+pub fn generator(args: &[Variant], memory: &mut Memory) -> Variant {
+    if args.len() != 1 {
+        return Variant::error("generator() method needs one argument");
+    }
+    let m = Rc::new(RefCell::new(memory));
+    let f = args[0].clone();
+    let it = std::iter::from_fn(move || f.call(&[], *m.borrow_mut()).ok());
+
+    match &args[0] {
+        Variant::Func(_f) => Variant::iterator(it),
+        _ => Variant::error("generator() method only works on functions"),
+    }
+} */
+
 pub fn export_global_metods() -> impl Iterator<Item = (Rc<str>, Variant)> {
     [
         (
@@ -399,6 +429,7 @@ pub fn export_global_metods() -> impl Iterator<Item = (Rc<str>, Variant)> {
         ("find", find, vec![Type::Vec, Type::Iterator]),
         ("for_each", for_each, vec![Type::Vec, Type::Iterator]),
         ("slice", slice, vec![Type::Vec, Type::Str]),
+        ("split", split, vec![Type::Str]),
     ]
     .into_iter()
     .map(|(name, f, method_of)| (name.into(), Variant::method(name, f, method_of)))
