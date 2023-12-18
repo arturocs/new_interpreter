@@ -1,5 +1,6 @@
 use crate::{
     builtins::{export_global_metods, export_top_level_builtins},
+    function::Function,
     maths::export_math_lib,
     variant::Variant,
 };
@@ -87,5 +88,16 @@ impl Memory {
             }
         }
         Ok(())
+    }
+
+    pub fn get_tests(&self) -> Vec<(Rc<str>, Rc<Function>)> {
+        self.variables
+            .iter()
+            .flat_map(|i| {
+                i.iter()
+                    .filter(|(name, j)| name.starts_with("test_") && j.is_func())
+                    .map(|(name, j)| (name.clone(), j.clone().unwrap_func()))
+            })
+            .collect()
     }
 }

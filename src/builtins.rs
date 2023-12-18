@@ -361,6 +361,18 @@ pub fn float(args: &[Variant], _memory: &mut Memory) -> Variant {
     }
 }
 
+pub fn assert_(args: &[Variant], _memory: &mut Memory) -> Variant {
+    if args.len() != 1 {
+        return Variant::error("assert() function needs one argument");
+    }
+
+    if args[0].is_true().unwrap_or(false) {
+        Variant::Unit
+    } else {
+        Variant::error("Assertion failed")
+    }
+}
+
 pub fn export_global_metods() -> impl Iterator<Item = (Rc<str>, Variant)> {
     [
         (
@@ -406,6 +418,7 @@ pub fn export_top_level_builtins() -> impl Iterator<Item = (Rc<str>, Variant)> {
         ("items", items),
         ("keys", keys),
         ("values", values),
+        ("assert", assert_),
     ]
     .into_iter()
     .map(|(name, f)| (name.into(), Variant::native_fn(Some(name), f)))
