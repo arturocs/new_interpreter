@@ -627,7 +627,7 @@ mod tests {
         )));
         assert_eq!(
             expr.evaluate(&mut variables).err().unwrap().to_string(),
-            "Cannot index Int(1)"
+            "Cannot index 1"
         );
     }
 
@@ -663,7 +663,7 @@ mod tests {
         )));
         assert_eq!(
             expr.evaluate(&mut variables).err().unwrap().to_string(),
-            "Cannot index Int(1)"
+            "Cannot index 1"
         );
     }
 
