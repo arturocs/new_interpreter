@@ -2,7 +2,7 @@ use crate::{
     builtins::{export_global_metods, export_top_level_builtins},
     function::Function,
     maths::export_math_lib,
-    variant::Variant,
+    variant::{Dictionary, Variant},
 };
 use ahash::AHashMap;
 use anyhow::{anyhow, Ok, Result};
@@ -96,6 +96,15 @@ impl Memory {
             .iter()
             .filter(|(name, j)| name.starts_with("test_") && j.is_func())
             .map(|(name, j)| (name.clone(), j.clone().unwrap_func()))
+            .collect()
+    }
+
+    pub fn to_dict(mut self) -> Dictionary {
+        self.variables.sort_by(|a, b| b.0.cmp(&a.0));
+        self.variables.dedup_by(|a,b| a.0 == b.0);
+        self.variables
+            .into_iter()
+            .map(|(name, value)| (Variant::str(name), value))
             .collect()
     }
 }

@@ -434,6 +434,19 @@ pub fn assert_(args: &[Variant], _memory: &mut Memory) -> Variant {
         Variant::error("Assertion failed")
     }
 }
+
+pub fn import(args: &[Variant], _memory: &mut Memory) -> Variant {
+    if args.len() != 1 {
+        return Variant::error("import() function needs one argument");
+    }
+    let Variant::Str(path) = &args[0] else {
+        return Variant::error("import() function needs a string as argument");
+    };
+    let path = path.to_str_lossy();
+    let (_, memory) = crate::runner::run_file(path.as_ref()).unwrap();
+    Variant::Dict(Shared::new(memory.to_dict()))
+}
+
 pub fn export_global_metods() -> impl Iterator<Item = (Rc<str>, Variant)> {
     let sum = sum as fn(&[Variant], &mut Memory) -> Variant;
     [
@@ -486,6 +499,7 @@ pub fn export_top_level_builtins() -> impl Iterator<Item = (Rc<str>, Variant)> {
         ("generator", generator),
         ("err", err),
         ("type", type_),
+        ("import", import),
     ]
     .into_iter()
     .map(|(name, f)| (name.into(), Variant::native_fn(Some(name), f)))
