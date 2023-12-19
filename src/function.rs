@@ -1,7 +1,6 @@
 use crate::expression::Expression;
 use crate::memory::Memory;
 use crate::variant::{Type, Variant};
-use ahash::AHashMap;
 use anyhow::{anyhow, Result};
 use itertools::Itertools;
 use std::fmt;
@@ -52,11 +51,11 @@ impl Function {
 
     pub fn call(&self, args: &[Variant], variables: &mut Memory) -> Result<Variant> {
         let args_without_self = &self.arg_names[self.is_method() as usize..];
-        let context: AHashMap<_, _> = args_without_self
+        let context = args_without_self
             .iter()
             .zip(args.iter())
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect();
+            .map(|(k, v)| (k.clone(), v.clone()));
+
         variables.push_context(context);
 
         let result = self

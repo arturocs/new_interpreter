@@ -1,5 +1,5 @@
 use crate::{memory::Memory, variant::Variant};
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use bstr::ByteSlice;
 use itertools::Itertools;
 use std::fmt;
@@ -216,15 +216,15 @@ impl Expression {
         variables: &mut Memory,
         statements: &[Expression],
     ) -> Result<Variant> {
-        let results: Result<Vec<_>> = statements.iter().map(|e| e.evaluate(variables)).collect();
+        let results: Result<Vec<_>> = statements
+            .iter()
+            .map(|e| match e.evaluate(variables) {
+                Ok(Variant::Error(e)) => Err(anyhow!("{}", e.trim_start_matches("Error: "))),
+                a => a,
+            })
+            .collect();
         let results = results?;
-        if let Some(error) = results.iter().find(|i| i.is_error()) {
-            let error = error.to_string();
-            let message = error.trim_start_matches("Error: ");
-            bail!("{message}")
-        } else {
-            results.last().context("No statements in scope").cloned()
-        }
+        results.last().context("No statements in scope").cloned()
     }
     fn evaluate_block(variables: &mut Memory, statements: &[Expression]) -> Result<Variant> {
         variables.push_empty_context();

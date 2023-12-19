@@ -5,18 +5,20 @@ use crate::{
     variant::Variant,
 };
 use ahash::AHashMap;
-use anyhow::{anyhow, bail, Context, Ok, Result};
+use anyhow::{anyhow, Ok, Result};
 use std::{rc::Rc, vec};
 #[derive(Debug, Clone)]
 pub struct Memory {
-    variables: Vec<AHashMap<Rc<str>, Variant>>,
+    context_delimiters: Vec<usize>,
+    variables: Vec<(Rc<str>, Variant)>,
     global_methods: AHashMap<Rc<str>, Variant>,
 }
 
 impl Memory {
     pub fn new() -> Self {
         Memory {
-            variables: vec![AHashMap::new()],
+            context_delimiters: vec![],
+            variables: vec![],
             global_methods: AHashMap::new(),
         }
     }
@@ -27,23 +29,28 @@ impl Memory {
             .collect();
 
         Memory {
-            variables: vec![context],
+            context_delimiters: vec![],
+            variables: context,
             global_methods: export_global_metods().collect(),
         }
     }
 
     pub fn push_empty_context(&mut self) {
-        self.variables.push(AHashMap::new())
+        self.context_delimiters.push(self.variables.len())
     }
 
-    pub fn push_context(&mut self, context: AHashMap<Rc<str>, Variant>) {
-        self.variables.push(context)
+    pub fn push_context(&mut self, context: impl Iterator<Item = (Rc<str>, Variant)>) {
+        self.push_empty_context();
+        self.variables.extend(context)
     }
 
     pub fn pop_context(&mut self) {
         // Avoid removing last context
-        if self.variables.len() >= 2 {
-            self.variables.pop();
+        if self.context_delimiters.len() >= 1 {
+            let start = self.context_delimiters.pop().unwrap();
+            self.variables.truncate(start);
+        } else {
+            eprintln!("Warning: tried to pop context from empty stack")
         }
     }
 
@@ -57,7 +64,7 @@ impl Memory {
         self.variables
             .iter()
             .rev()
-            .find_map(|x| x.get(identifier))
+            .find_map(|(name, value)| (name.as_ref() == identifier).then_some(value))
             .ok_or_else(|| anyhow!("Variable '{identifier}' not declared"))
     }
 
@@ -65,26 +72,20 @@ impl Memory {
         self.variables
             .iter_mut()
             .rev()
-            .find_map(|x| x.get_mut(identifier))
+            .find_map(|(name, value)| (name.as_ref() == identifier).then_some(value))
             .ok_or_else(|| anyhow!("Variable '{identifier}' not declared"))
     }
 
     pub fn set(&mut self, identifier: &str, value: Variant) -> Result<()> {
-        if value.is_error() {
-            bail!("{value}");
-        }
         match self
             .variables
             .iter_mut()
             .rev()
-            .find_map(|x| x.get_mut(identifier))
+            .find_map(|(name, value)| (name.as_ref() == identifier).then_some(value))
         {
             Some(v) => *v = value,
             None => {
-                self.variables
-                    .last_mut()
-                    .context("Fatal error: There is no current context in memory")?
-                    .insert(identifier.into(), value);
+                self.variables.push((identifier.into(), value));
             }
         }
         Ok(())
@@ -93,11 +94,8 @@ impl Memory {
     pub fn get_tests(&self) -> Vec<(Rc<str>, Rc<Function>)> {
         self.variables
             .iter()
-            .flat_map(|i| {
-                i.iter()
-                    .filter(|(name, j)| name.starts_with("test_") && j.is_func())
-                    .map(|(name, j)| (name.clone(), j.clone().unwrap_func()))
-            })
+            .filter(|(name, j)| name.starts_with("test_") && j.is_func())
+            .map(|(name, j)| (name.clone(), j.clone().unwrap_func()))
             .collect()
     }
 }
