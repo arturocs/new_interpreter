@@ -1,6 +1,0 @@
-r  = range(0,10)
-v=r.map(|i|i*2).to_vec()
-print(v)
-v=to_vec( map( filter( r , |i| i%2==0 ) , |i| i*2 ) )
-print(v)
-print(range(0,10).map(|i|i*2).to_vec())

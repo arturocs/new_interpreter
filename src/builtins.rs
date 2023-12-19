@@ -365,18 +365,6 @@ pub fn float(args: &[Variant], _memory: &mut Memory) -> Variant {
     }
 }
 
-pub fn assert_(args: &[Variant], _memory: &mut Memory) -> Variant {
-    if args.len() != 1 {
-        return Variant::error("assert() function needs one argument");
-    }
-
-    if args[0].is_true().unwrap_or(false) {
-        Variant::Unit
-    } else {
-        Variant::error("Assertion failed")
-    }
-}
-
 pub fn split(args: &[Variant], _memory: &mut Memory) -> Variant {
     if args.len() != 2 {
         return Variant::error("split() method needs two arguments");
@@ -424,6 +412,28 @@ pub fn type_(args: &[Variant], _memory: &mut Memory) -> Variant {
     Variant::str(args[0].get_type().to_string())
 }
 
+pub fn assert_eq(args: &[Variant], _memory: &mut Memory) -> Variant {
+    if args.len() != 2 {
+        return Variant::error("assert_eq() method needs two arguments");
+    }
+    if args[0] == args[1] {
+        Variant::Unit
+    } else {
+        Variant::error(format!("assert_eq() failed: {} != {}", args[0], args[1]))
+    }
+}
+
+pub fn assert_(args: &[Variant], _memory: &mut Memory) -> Variant {
+    if args.len() != 1 {
+        return Variant::error("assert() function needs one argument");
+    }
+
+    if args[0].is_true().unwrap_or(false) {
+        Variant::Unit
+    } else {
+        Variant::error("Assertion failed")
+    }
+}
 pub fn export_global_metods() -> impl Iterator<Item = (Rc<str>, Variant)> {
     let sum = sum as fn(&[Variant], &mut Memory) -> Variant;
     [
@@ -472,6 +482,7 @@ pub fn export_top_level_builtins() -> impl Iterator<Item = (Rc<str>, Variant)> {
         ("keys", keys),
         ("values", values),
         ("assert", assert_),
+        ("assert_eq", assert_eq),
         ("generator", generator),
         ("err", err),
         ("type", type_),

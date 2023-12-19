@@ -151,7 +151,7 @@ impl fmt::Display for Variant {
             Variant::Byte(b) => write!(fmt, "\\{:#01x}", b),
             Variant::Iterator(i) => write!(fmt, "{}", i.borrow()),
             Variant::NativeFunc(f) => write!(fmt, "{f}"),
-            Variant::Unit => write!(fmt, "Unit"),
+            Variant::Unit => write!(fmt, "()"),
         }
     }
 }
@@ -473,7 +473,7 @@ impl Variant {
                     a.borrow()
                         .get(index)
                         .map(|_| ())
-                        .ok_or_else(|| anyhow!("Key not found in dictionary"))
+                        .ok_or_else(|| anyhow!("Key {index} not found in dictionary {self}"))
                 }
             }
 

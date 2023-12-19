@@ -28,6 +28,7 @@ peg::parser!(pub grammar expr_parser() for str {
 
     rule false_() -> Expression = "false" {Expression::Value(Variant::Bool(false))}
 
+
     rule string() -> Expression
         = s:$("\"" (!"\"" [_])* "\"") { Expression::Value(Variant::str(&s[1..s.len()-1])) }
 
@@ -235,6 +236,8 @@ peg::parser!(pub grammar expr_parser() for str {
         s:fstring(){s}
 
        // --
+       //rule unit_() -> Expression = "()" {Expression::Value(Variant::Unit)}
+        "()" {Expression::Value(Variant::Unit)}
         "(" v:expression() ")" { v }
         d:dict() {d}
         b:true_() {b}

@@ -614,7 +614,7 @@ mod tests {
         )));
         assert_eq!(
             expr.evaluate(&mut variables).err().unwrap().to_string(),
-            "Key not found in dictionary"
+            "Key 2 not found in dictionary {\n    1 : \"test\"\n}"
         );
     }
 

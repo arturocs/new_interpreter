@@ -7,5 +7,6 @@ pub mod memory;
 pub mod parser;
 pub mod shared;
 pub mod variant;
+pub mod runner;
 #[macro_use]
 pub mod iterator;

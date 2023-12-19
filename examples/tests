@@ -1,3 +1,68 @@
-fn test_1() {
-    assert(1+1==2)
+fn test_basic_math() {
+    assert_eq(1 + 1, 2)
+}
+
+fn test_function_equality() {
+    assert_eq(|| {}, || {})
+}
+
+fn test_filter_sort_by() {
+    a = [1, 2, 3, 4].filter(|i| i % 2 == 0).to_vec().sort_by(|a| -a)
+    assert_eq(a, [4, 2])
+}
+
+fn test_double_if(){
+    a = 13
+    b = if if a == 13 { 10 } else { 0 } > 5 {
+        true
+    }
+    assert(b)
+}
+
+fn test_range_sum() {
+    assert_eq(range(0,10).sum(), 45)
+}
+
+fn test_range_for_each() {
+    a = 0
+    range(0,10).for_each(|i| a += i)
+    assert_eq(a, 45)
+}
+
+fn test_filter_map() {
+    a=[1,2,3,4,5].filter(|i| i % 2 == 0).map(|i| i * 2).to_vec()
+    assert_eq(a, [4,8])
+}
+
+fn test_recursion() {
+    fib = |n| if n ==1 or n==2 {
+        1
+    } else {
+        fib(n - 1) + fib(n - 2)
+    }
+    
+    assert_eq(fib(10), 55)
+}
+
+fn test_set(){
+    Set = {
+        new:|| {
+            data:{},
+            insert:|self,element| self.data[element]=(),
+            as_list:|self| keys(self.data),
+            to_string:|self| self.as_list().join(", ")
+            
+        },
+        from_iter: |iter| {
+            s = Set.new()
+            for i in iter {
+                s.insert(i)
+            }
+            s
+        }
+    }
+    
+    s = Set.from_iter([4,5,3,1,2,12,4,5,5])
+    assert_eq(s.to_string(), "4, 5, 3, 1, 2, 12")
+    
 }
