@@ -84,3 +84,8 @@ fn test_function_with_optional_args(){
     assert_eq(f(1,2), 5)
     assert_eq(f(1,2,3), 6)
 }
+
+fn test_fstring() {
+    value = 1
+    assert_eq(f"randomstring {0+1}{value}", "randomstring 11")
+}
