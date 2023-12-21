@@ -1,8 +1,8 @@
-use crate::{memory::Memory, parser::expr_parser, variant::Variant};
+use crate::{function::Function, memory::Memory, parser::expr_parser, variant::Variant};
 use anyhow::Result;
+use colored::Colorize;
 use itertools::Itertools;
-use std::fs;
-
+use std::{fs, rc::Rc};
 pub fn run_file(path: &str) -> Result<(Variant, Memory)> {
     let code = fs::read_to_string(path)?;
     let filtered_comments = code
@@ -17,18 +17,18 @@ pub fn run_file(path: &str) -> Result<(Variant, Memory)> {
 
 pub fn run_tests(path: &str) -> Result<()> {
     let (_result, mut memory) = run_file(path)?;
-    let tests: Vec<(std::rc::Rc<str>, std::rc::Rc<crate::function::Function>)> = memory.get_tests();
+    let tests: Vec<(Rc<str>, Rc<Function>)> = memory.get_tests();
     let n_tests = tests.len();
     println!("Found {n_tests} tests in {path}:\n");
     let mut passed = 0;
     for (test_name, test_function) in tests {
         print!("Running test {test_name}... ");
         match test_function.call(&[], &mut memory) {
-            Ok(Variant::Error(e)) => println!("Failed!: {e}"),
-            Err(e) => println!("Failed!: {e}"),
+            Ok(Variant::Error(e)) => println!("{}: {e}", "Failed!".red()),
+            Err(e) => println!("{}: {e}", "Failed!".red()),
             Ok(_) => {
                 passed += 1;
-                println!("Ok!")
+                println!("{}", "Ok!".green())
             }
         }
     }
