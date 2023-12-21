@@ -192,7 +192,7 @@ fn apply_op_between_vecs(
     };
     let mut result = bigger.to_owned();
     for (i, v) in smaller.iter().enumerate() {
-        unsafe { *result.get_unchecked_mut(i) = op(result.get_unchecked(i), v)? }
+        unsafe { *result.get_unchecked_mut(i) = op(v, result.get_unchecked(i))? }
     }
     Ok(Variant::vec(result))
 }
