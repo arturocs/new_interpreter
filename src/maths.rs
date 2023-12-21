@@ -74,7 +74,7 @@ fn wrap_binary_function(
 ) -> impl Fn(&[Variant], &mut Memory) -> Variant {
     move |args: &[Variant], _: &mut Memory| {
         if args.len() != 2 {
-            Variant::error(format!("Expected 2 arguments, got {}", args.len()));
+            return Variant::error(format!("Expected 2 arguments, got {}", args.len()));
         }
         f(&args[0], &args[1]).unwrap_or_else(|e| Variant::error(e))
     }
