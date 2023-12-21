@@ -182,7 +182,7 @@ fn benchmark5(c: &mut Criterion) {
         .set(
             "is_even",
             Variant::anonymous_func(
-                vec!["i".into()],
+                vec![("i".into(), None)],
                 vec![Expression::Eq(Box::new((
                     Expression::Rem(Box::new((
                         Expression::Identifier("i".to_string()),

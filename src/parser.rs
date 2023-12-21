@@ -1,5 +1,5 @@
 use crate::{expression::Expression, variant::Variant};
-use itertools::Itertools;
+use std::rc::Rc;
 peg::parser!(pub grammar expr_parser() for str {
     rule _() = [' ' | '\t']*
 
@@ -85,36 +85,21 @@ peg::parser!(pub grammar expr_parser() for str {
             Expression::Conditional(Box::new((c,b1,Some(b2))))
         }
 
+    rule arg_value() -> Expression =  "=" _ e:expression() { e }
+
+    rule function_argument() -> (Rc<str>, Option<Expression>)
+        = i:$identifier() _ e:arg_value()? { (i.into(), e) }
+
     rule anonymous_function() -> Expression
-        = "|" _ a:(identifier() ** value_separator()) _ "|" _ b:(expression()/block()) {
-            let args = a
-            .into_iter()
-            .map(|i| {
-                if let Expression::Identifier(id) = i {
-                    id.into()
-                } else {
-                    unreachable!()
-                }
-            })
-            .collect_vec();
+        = "|" _ a:(function_argument() ** value_separator()) _ "|" _ b:(expression()/block()) {
             let body = if let Expression::Block(bl) = b { bl } else { vec![b] };
-            Expression::Value(Variant::anonymous_func(args, body))
+            Expression::Value(Variant::anonymous_func(a, body))
         }
 
     rule function_declaration() -> Expression
-        = "fn" _ i:$identifier() "(" _ a:(identifier() ** value_separator()) _ ")" _ b:block() {
-            let args = a
-            .into_iter()
-            .map(|i| {
-                if let Expression::Identifier(id) = i {
-                    id.into()
-                } else {
-                    unreachable!()
-                }
-            })
-            .collect_vec();
+        = "fn" _ i:$identifier() "(" _ a:(function_argument() ** value_separator()) _ ")" _ b:block() {
             let body = if let Expression::Block(bl) = b { bl } else { vec![b] };
-            Expression::FunctionDeclaration { name:i.into(), function: Variant::func(i,args, body) }
+            Expression::FunctionDeclaration { name:i.into(), function: Variant::func(i,a, body) }
         }
 
     pub rule expression() -> Expression = precedence!{

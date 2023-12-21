@@ -79,7 +79,9 @@ impl Ord for Variant {
             (&Variant::Bool(a), Variant::Bool(b)) => a.cmp(b),
             (&Variant::Byte(a), Variant::Byte(b)) => a.cmp(b),
             (Variant::Str(a), Variant::Str(b)) => a.cmp(b),
-            (Variant::Dict(a), Variant::Dict(b)) => a.borrow().as_slice().cmp(b.borrow().as_slice()),
+            (Variant::Dict(a), Variant::Dict(b)) => {
+                a.borrow().as_slice().cmp(b.borrow().as_slice())
+            }
             (Variant::Vec(a), Variant::Vec(b)) => a.cmp(b),
             (Variant::Iterator(a), Variant::Iterator(b)) => a.as_ptr().cmp(&b.as_ptr()),
             (Variant::NativeFunc(a), Variant::NativeFunc(b)) => (a.name).cmp(&b.name),
@@ -248,10 +250,17 @@ impl Variant {
         Variant::NativeFunc(Rc::new(NativeFunction::method(name, f, method_of)))
     }
 
-    pub fn anonymous_func(args: Vec<Rc<str>>, body: Vec<Expression>) -> Variant {
+    pub fn anonymous_func(
+        args: Vec<(Rc<str>, Option<Expression>)>,
+        body: Vec<Expression>,
+    ) -> Variant {
         Variant::Func(Rc::new(Function::anonymous(args, body)))
     }
-    pub fn func(name: &str, args: Vec<Rc<str>>, body: Vec<Expression>) -> Variant {
+    pub fn func(
+        name: &str,
+        args: Vec<(Rc<str>, Option<Expression>)>,
+        body: Vec<Expression>,
+    ) -> Variant {
         Variant::Func(Rc::new(Function::new(name, args, body)))
     }
 

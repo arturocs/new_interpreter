@@ -212,7 +212,8 @@ impl Expression {
             a => bail!("{a} is not a function"),
         }
     }
-    fn evaluate_expr_sequence(
+
+    pub fn evaluate_expr_sequence(
         variables: &mut Memory,
         statements: &[Expression],
     ) -> Result<Variant> {
@@ -226,6 +227,7 @@ impl Expression {
         let results = results?;
         results.last().context("No statements in scope").cloned()
     }
+
     fn evaluate_block(variables: &mut Memory, statements: &[Expression]) -> Result<Variant> {
         variables.push_empty_context();
         let result = Self::evaluate_expr_sequence(variables, statements);
@@ -849,7 +851,7 @@ mod tests {
             .set(
                 "add_1",
                 Variant::anonymous_func(
-                    vec!["i".into()],
+                    vec![("i".into(), None)],
                     vec![Expression::Add(Box::new((
                         Expression::Identifier("i".to_string()),
                         Expression::Value(Variant::Int(1)),

@@ -2,19 +2,30 @@ use crate::expression::Expression;
 use crate::memory::Memory;
 use crate::variant::{Type, Variant};
 use anyhow::{anyhow, Result};
-use itertools::Itertools;
+use itertools::{EitherOrBoth, Itertools};
 use std::fmt;
 use std::rc::Rc;
 
 #[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Function {
     pub name: Option<Box<str>>,
-    pub arg_names: Box<[Rc<str>]>,
+    pub arg_names: Box<[(Rc<str>, Option<Expression>)]>,
     pub body: Box<[Expression]>,
 }
 impl fmt::Display for Function {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let args = self.arg_names.iter().join(", ");
+        let args = self
+            .arg_names
+            .iter()
+            .map(|(name, value)| {
+                if let Some(value) = value {
+                    format!("{} = {}", name, value)
+                } else {
+                    name.to_string()
+                }
+            })
+            .join(", ");
+
         let body: String = self.body.iter().join("\n\t");
         if let Some(n) = &self.name {
             write!(f, "fn {n}({args}) {{\n\t{body}\t\n}}")
@@ -26,7 +37,7 @@ impl fmt::Display for Function {
     }
 }
 impl Function {
-    pub fn anonymous(args: Vec<Rc<str>>, body: Vec<Expression>) -> Self {
+    pub fn anonymous(args: Vec<(Rc<str>, Option<Expression>)>, body: Vec<Expression>) -> Self {
         Function {
             name: None,
             arg_names: args.into(),
@@ -34,7 +45,11 @@ impl Function {
         }
     }
 
-    pub fn new(name: &str, args: Vec<Rc<str>>, body: Vec<Expression>) -> Self {
+    pub fn new(
+        name: &str,
+        args: Vec<(Rc<str>, Option<Expression>)>,
+        body: Vec<Expression>,
+    ) -> Self {
         Function {
             name: Some(name.into()),
             arg_names: args.into(),
@@ -45,26 +60,38 @@ impl Function {
     pub fn is_method(&self) -> bool {
         self.arg_names
             .first()
-            .map(|i| i.as_ref() == "self")
+            .map(|i| i.0.as_ref() == "self")
             .unwrap_or(false)
     }
 
-    pub fn call(&self, args: &[Variant], variables: &mut Memory) -> Result<Variant> {
+    pub fn call(&self, arg_values: &[Variant], variables: &mut Memory) -> Result<Variant> {
         let args_without_self = &self.arg_names[self.is_method() as usize..];
-        let context = args_without_self
+        let context: Result<Vec<_>> = args_without_self
             .iter()
-            .zip(args.iter())
-            .map(|(k, v)| (k.clone(), v.clone()));
+            .zip_longest(arg_values.iter())
+            .map(|i| match i {
+                EitherOrBoth::Both((name, _), value) => Ok((name.clone(), value.clone())),
+                EitherOrBoth::Left((name, Some(value))) => {
+                    Ok((name.clone(), value.evaluate(variables)?))
+                }
+                EitherOrBoth::Left((name, None)) => Err(anyhow!("Missing argument {}", name)),
+                EitherOrBoth::Right(_) => {
+                    if let Some(name) = &self.name {
+                        Err(anyhow!("Function {name} called with too many arguments"))
+                    } else {
+                        Err(anyhow!(
+                            "Annonymous function called with too many arguments"
+                        ))
+                    }
+                }
+            })
+            .collect();
+
+        let context = context?.into_iter();
 
         variables.push_context(context);
+        let result = Expression::evaluate_expr_sequence(variables, &self.body);
 
-        let result = self
-            .body
-            .iter()
-            .map(|exp| exp.evaluate(variables))
-            .last()
-            .ok_or_else(|| anyhow!("Function call without body"))
-            .and_then(|i| i);
         variables.pop_context();
         result
     }
