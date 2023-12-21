@@ -17,12 +17,9 @@ impl fmt::Display for Function {
         let args = self
             .arg_names
             .iter()
-            .map(|(name, value)| {
-                if let Some(value) = value {
-                    format!("{} = {}", name, value)
-                } else {
-                    name.to_string()
-                }
+            .map(|(name, value)| match value {
+                Some(v) => format!("{name} = {v}",),
+                None => name.to_string(),
             })
             .join(", ");
 

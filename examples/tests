@@ -89,3 +89,9 @@ fn test_fstring() {
     value = 1
     assert_eq(f"randomstring {0+1}{value}", "randomstring 11")
 }
+
+fn test_format_function() {
+    f = |a,b=1,c=2| a+b+c
+
+    assert_eq(f"{f}", "|a, b = 1, c = 2| a + b + c")
+}
