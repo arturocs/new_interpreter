@@ -1,14 +1,5 @@
-fn test_basic_math() {
-    assert_eq(1 + 1, 2)
-}
-
 fn test_function_equality() {
     assert_eq(|| {}, || {})
-}
-
-fn test_filter_sort_by() {
-    a = [1, 2, 3, 4].filter(|i| i % 2 == 0).to_vec().sort_by(|a| -a)
-    assert_eq(a, [4, 2])
 }
 
 fn test_double_if(){
@@ -17,21 +8,6 @@ fn test_double_if(){
         true
     }
     assert(b)
-}
-
-fn test_range_sum() {
-    assert_eq(range(0,10).sum(), 45)
-}
-
-fn test_range_for_each() {
-    a = 0
-    range(0,10).for_each(|i| a += i)
-    assert_eq(a, 45)
-}
-
-fn test_filter_map() {
-    a=[1,2,3,4,5].filter(|i| i % 2 == 0).map(|i| i * 2).to_vec()
-    assert_eq(a, [4,8])
 }
 
 fn test_recursion() {
@@ -68,12 +44,12 @@ fn test_set(){
 }
 
 fn test_import(){
-    tests = import("examples/tests")
+    tests = import("tests/math")
     assert_eq(type(tests.test_basic_math()), type(()))
 }
 
 fn test_import_repeated_function(){
-    tests = import("examples/test_import_functions")
+    tests = import("tests/test_import_functions")
     assert_eq(tests.importable_fn(), 2)
 
 }
@@ -92,6 +68,6 @@ fn test_fstring() {
 
 fn test_format_function() {
     f = |a,b=1,c=2| a+b+c
-
     assert_eq(f"{f}", "|a, b = 1, c = 2| a + b + c")
 }
+

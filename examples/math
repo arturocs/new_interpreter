@@ -1,4 +1,0 @@
-print(Math.PI)
-print(Math.sqrt(2))
-Math.PI = 1
-print(Math.PI)

@@ -1,0 +1,121 @@
+fn test_basic_math() {
+    assert_eq(1 + 1, 2)
+}
+
+fn test_math_with_variables() {
+    a = 1
+    b = 2
+    assert_eq(a + b, 3)
+}
+
+fn test_math_priority() {
+    assert_eq(1 + 2 * 3, 7)
+}
+
+fn test_math_with_parenthesis() {
+    assert_eq((1 + 2) * 3, 9)
+}
+
+fn test_math_library_sqrt() {
+    assert_eq(Math.sqrt(4), 2)
+}
+
+fn test_math_library_exp() {
+    assert_eq(Math.exp(2), 7.38905609893065)
+}
+
+fn test_math_library_sin() {
+    assert_eq(Math.sin(0), 0)
+}
+
+fn test_math_library_cos() {
+    assert_eq(Math.cos(0), 1)
+}
+
+fn test_math_library_tan() {
+    assert_eq(Math.tan(0), 0)
+}
+
+fn test_math_library_asin() {
+    assert_eq(Math.asin(0), 0)
+}
+
+fn test_math_library_acos() {
+    assert_eq(Math.acos(0), 1.5707963267948966)
+}
+
+fn test_math_library_atan() {
+    assert_eq(Math.atan(0), 0)
+}
+
+fn test_math_library_ceil() {
+    assert_eq(Math.ceil(0.5), 1)
+}
+
+fn test_math_library_floor() {
+    assert_eq(Math.floor(0.5), 0)
+}
+
+fn test_math_library_round() {
+    assert_eq(Math.round(0.5), 1)
+}
+
+fn test_math_library_trunc() {
+    assert_eq(Math.trunc(0.5), 0)
+}
+
+fn test_math_library_abs() {
+    assert_eq(Math.abs(-1), 1)
+}
+
+fn test_math_library_pow() {
+    assert_eq(Math.pow(2, 3), 8)
+}
+
+fn test_math_library_pi() {
+    assert_eq(Math.PI, 3.141592653589793)
+}
+
+fn test_math_library_e() {
+    assert_eq(Math.E, 2.718281828459045)
+}
+
+fn test_math_library_log_with_base() {
+    assert_eq(Math.log(10, 10), 1)
+}
+
+fn test_math_library_log_with_base_2() {
+    assert_eq(Math.log(10, 2), 3.3219280948873626)
+}
+
+fn test_vec_addition() {
+    a = [1, 2, 3, 4]
+    b = [4, 5, 6]
+    assert_eq(a + b, [5, 7, 9, 4])
+}
+
+fn test_vec_subtraction() {
+    a = [1, 2, 3]
+    b = [4, 5, 6]
+    assert_eq(a - b, [-3, -3, -3])
+}
+
+fn test_vec_multiplication() {
+    a = [1, 2, 3]
+    b = [4, 5, 6, 0]
+    assert_eq(a * b, [4, 10, 18, 0])
+}
+
+fn test_vec_division() {
+    a = [1, 2, 3]
+    b = [4, 5, 6]
+    assert_eq(a / b, [0.25, 0.4, 0.5])
+}
+
+fn test_vec_modulo() {
+    a = [1, 2, 3]
+    b = [4, 5, 6]
+    assert_eq(a % b, [1, 2, 3])
+}
+ 
+
