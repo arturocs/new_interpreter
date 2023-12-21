@@ -416,10 +416,15 @@ pub fn assert_eq(args: &[Variant], _memory: &mut Memory) -> Variant {
     if args.len() != 2 {
         return Variant::error("assert_eq() method needs two arguments");
     }
-    if args[0] == args[1] {
-        Variant::Unit
-    } else {
-        Variant::error(format!("assert_eq() failed: {} != {}", args[0], args[1]))
+    match args.iter().find(|i| i.is_error()) {
+        Some(e) => e.clone(),
+        None => {
+            if args[0] == args[1] {
+                Variant::Unit
+            } else {
+                Variant::error(format!("assert_eq() failed: {} != {}", args[0], args[1]))
+            }
+        }
     }
 }
 
@@ -443,9 +448,12 @@ pub fn import(args: &[Variant], _memory: &mut Memory) -> Variant {
         return Variant::error("import() function needs a string as argument");
     };
     let path = path.to_str_lossy();
-    let (_, memory) = crate::runner::run_file(path.as_ref()).unwrap();
-    Variant::Dict(Shared::new(memory.to_dict()))
+    match crate::runner::run_file(path.as_ref()) {
+        Ok((_, memory)) => Variant::Dict(Shared::new(memory.to_dict())),
+        Err(e) => Variant::error(e),
+    }
 }
+
 
 pub fn export_global_metods() -> impl Iterator<Item = (Rc<str>, Variant)> {
     let sum = sum as fn(&[Variant], &mut Memory) -> Variant;
