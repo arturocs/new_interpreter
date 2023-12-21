@@ -99,12 +99,11 @@ impl Memory {
             .collect()
     }
 
-    pub fn to_dict(mut self) -> Dictionary {
-        self.variables.sort_by(|a, b| b.0.cmp(&a.0));
-        self.variables.dedup_by(|a,b| a.0 == b.0);
-        self.variables
+    pub fn to_dict(&self) -> Dictionary {
+        let builtins_len = Memory::with_builtins().variables.len();
+        self.variables[builtins_len..]
             .into_iter()
-            .map(|(name, value)| (Variant::str(name), value))
+            .map(|(name, value)| (Variant::str(name), value.clone()))
             .collect()
     }
 }

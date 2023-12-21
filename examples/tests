@@ -67,6 +67,16 @@ fn test_set(){
     
 }
 
+fn test_import(){
+    tests = import("examples/tests")
+    assert_eq(type(tests.test_basic_math()), type(()))
+}
+
+fn test_import_repeated_function(){
+    tests = import("examples/test_import_functions")
+    assert_eq(tests.importable_fn(), 2)
+
+}
 
 fn test_function_with_optional_args(){
     f = |a,b=1,c=2| a+b+c

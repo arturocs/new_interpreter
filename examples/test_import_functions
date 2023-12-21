@@ -1,0 +1,7 @@
+fn importable_fn(){
+    1
+}
+
+fn importable_fn(){
+    2
+}
