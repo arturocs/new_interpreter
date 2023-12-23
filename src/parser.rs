@@ -185,6 +185,13 @@ peg::parser!(pub grammar expr_parser() for str {
         x:(@) _ "==" _ y:@ { Expression::Eq(Box::new((x,y))) }
         x:(@) _ "!=" _ y:@ { Expression::NotEq(Box::new((x,y))) }
         --
+        x:(@) _ ("in") _ y:@ {
+            Expression::FunctionCall{
+                function: Box::new(Expression::Identifier("contains".into())),
+                arguments: vec![y,x]
+            }
+        }
+        --
         x:(@) _ "<" _ y:@ { Expression::Lt(Box::new((x,y))) }
         x:(@) _ ">" _ y:@ { Expression::Gt(Box::new((x,y))) }
         x:(@) _ "<=" _ y:@ { Expression::Ltoe(Box::new((x,y))) }
@@ -199,7 +206,7 @@ peg::parser!(pub grammar expr_parser() for str {
         --
         "-" e:@ { Expression::Neg(Box::new(e)) }
         "+" e:@ { e }
-        ("!"/"not") e:@ { Expression::Not(Box::new(e)) }
+        ("!"/"not")_ e:@ { Expression::Not(Box::new(e)) }
         --
         e:@ "["  _ i:expression() _ "]" { Expression::Index(Box::new((e,i))) }
         e:@ "." i:$identifier()  { Expression::Dot(Box::new((e,Expression::Value(Variant::str(i))))) }
