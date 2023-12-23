@@ -1,0 +1,54 @@
+fn test_string_to_int() {
+    a = int("123")
+    assert_eq(a, 123)
+}
+
+fn test_string_to_float() {
+    a = float("123.456")
+    assert_eq(a, 123.456)
+}
+
+fn test_string_add() {
+    a = "123" + "456"
+    assert_eq(a, "123456")
+}
+
+fn test_string_mul() {
+    a = "123" * 3
+    assert_eq(a, "123123123")
+}
+
+fn test_string_split() {
+    a = "123,456,789".split(",").to_vec()
+    assert_eq(a, ["123", "456", "789"])
+}
+
+fn test_string_split_map_sum() {
+    a = "123,456,789".split(",").map(int).sum()
+    assert_eq(a, 1368)
+}
+
+fn test_fstring() {
+    value = 1
+    assert_eq(f"randomstring {0+1}{value}", "randomstring 11")
+}
+
+fn test_string_contains() {
+    assert("hello".contains("ell"))
+    assert(!"hello".contains("abc"))
+}
+
+fn test_string_starts_with() {
+    assert("hello".starts_with("he"))
+    assert(!"hello".starts_with("abc"))
+}
+
+fn test_string_ends_with() {
+    assert("hello".ends_with("lo"))
+    assert(!"hello".ends_with("abc"))
+}
+
+fn test_string_in(){
+    assert("a" in "abc")
+    assert(! "d" in "abc")
+}

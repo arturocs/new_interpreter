@@ -1,0 +1,64 @@
+fn test_dict_items() {
+    d = {a:1,b:2,c:3}
+    assert_eq(items(d), [["a",1],["b",2],["c",3]])
+}
+
+fn test_dict_access() {
+    d = {a:1,b:2,c:3}
+    assert_eq(d["a"], 1)
+    assert_eq(d["b"], 2)
+    assert_eq(d["c"], 3)
+}
+
+fn test_dict_set() {
+    d = {a:1,b:2,c:3}
+    d["a"] = 4
+    assert_eq(d["a"], 4)
+}
+
+fn test_dict_contains() {
+    d = {a:1,b:2,c:3}
+    assert(contains(d,"a"))
+}
+
+fn test_dict_in() {
+    d = {a:1,b:2,c:3}
+    assert("a" in d)
+}
+
+fn test_dict_keys() {
+    d = {a:1,b:2,c:3}
+    assert_eq(keys(d), ["a","b","c"])
+}
+
+fn test_dict_values() {
+    d = {a:1,b:2,c:3}
+    assert_eq(values(d), [1,2,3])
+}
+
+fn test_dict_len() {
+    d = {a:1,b:2,c:3}
+    assert_eq(len(d), 3)
+}
+
+fn test_set(){
+    Set = {
+        new:|| {
+            data:{},
+            insert:|self,element| self.data[element]=(),
+            as_list:|self| keys(self.data),
+            to_string:|self| self.as_list().join(", ")
+            
+        },
+        from_iter: |iter| {
+            s = Set.new()
+            for i in iter {
+                s.insert(i)
+            }
+            s
+        }
+    }
+    
+    s = Set.from_iter([4,5,3,1,2,12,4,5,5])
+    assert_eq(s.to_string(), "4, 5, 3, 1, 2, 12")
+}

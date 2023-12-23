@@ -20,28 +20,6 @@ fn test_recursion() {
     assert_eq(fib(10), 55)
 }
 
-fn test_set(){
-    Set = {
-        new:|| {
-            data:{},
-            insert:|self,element| self.data[element]=(),
-            as_list:|self| keys(self.data),
-            to_string:|self| self.as_list().join(", ")
-            
-        },
-        from_iter: |iter| {
-            s = Set.new()
-            for i in iter {
-                s.insert(i)
-            }
-            s
-        }
-    }
-    
-    s = Set.from_iter([4,5,3,1,2,12,4,5,5])
-    assert_eq(s.to_string(), "4, 5, 3, 1, 2, 12")
-    
-}
 
 fn test_import(){
     tests = import("tests/math")
@@ -61,13 +39,12 @@ fn test_function_with_optional_args(){
     assert_eq(f(1,2,3), 6)
 }
 
-fn test_fstring() {
-    value = 1
-    assert_eq(f"randomstring {0+1}{value}", "randomstring 11")
-}
-
 fn test_format_function() {
     f = |a,b=1,c=2| a+b+c
     assert_eq(f"{f}", "|a, b = 1, c = 2| a + b + c")
 }
 
+fn test_slice(){
+    a = [1,2,3,4,5,6,7,8,9,10]
+    assert_eq(a.slice(1,5), [2,3,4,5])
+}
