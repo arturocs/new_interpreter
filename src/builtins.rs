@@ -163,7 +163,10 @@ macro_rules! generate_iterator_adapters_builtins {
     ($name:ident, $method:expr) => {
         pub fn $name(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
             if args.len() != 2 {
-                bail!(concat!(stringify!($name), "() function needs two arguments"));
+                bail!(concat!(
+                    stringify!($name),
+                    "() function needs two arguments"
+                ));
             }
             let Ok(Variant::Iterator(i)) = args[0].clone().into_iterator() else {
                 bail!(format!("{} is not iterable", args[0]));
@@ -179,7 +182,10 @@ macro_rules! generate_iterator_adapters_builtins_without_args {
     ($name:ident, $method:expr) => {
         pub fn $name(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
             if args.len() != 1 {
-                bail!(concat!(stringify!($name), "() function needs two arguments"));
+                bail!(concat!(
+                    stringify!($name),
+                    "() function needs two arguments"
+                ));
             }
             match args[0].clone().into_iterator() {
                 Ok(Variant::Iterator(i)) => {
@@ -387,6 +393,46 @@ pub fn split(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
     }
 }
 
+fn starts_with(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
+    if args.len() != 2 {
+        bail!("starts_with() method needs two arguments");
+    }
+    match (&args[0], &args[1]) {
+        (Variant::Str(s1), Variant::Str(s2)) => Ok(Variant::Bool(s1.starts_with(s2.as_ref()))),
+        _ => bail!("starts_with() method only works on strings"),
+    }
+}
+
+fn ends_with(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
+    if args.len() != 2 {
+        bail!("ends_with() method needs two arguments");
+    }
+    match (&args[0], &args[1]) {
+        (Variant::Str(s1), Variant::Str(s2)) => Ok(Variant::Bool(s1.ends_with(s2.as_ref()))),
+        _ => bail!("ends_with() method only works on strings"),
+    }
+}
+
+fn trim(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
+    if args.len() == 1 {
+        bail!("trim() method needs one argument");
+    }
+    match args.len() {
+        1 => match &args[0] {
+            Variant::Str(s) => Ok(Variant::str(s.trim().to_str_lossy())),
+            _ => bail!("trim() method only works on strings"),
+        },
+        /*       2 => match (&args[0], &args[1]) {
+            (Variant::Str(s1), Variant::Str(s2)) => Ok(Variant::str(
+                s1.to_str_lossy().trim_matches(&s2.as_ref().to_str_lossy().to_string()),
+
+            )),
+            _ => bail!("trim() method only works on strings"),
+        }, */
+        _ => bail!("trim() method needs one argument"),
+    }
+}
+
 pub fn generator(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
     if args.len() != 1 {
         bail!("generator() method needs one argument");
@@ -461,6 +507,18 @@ pub fn import(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
     Ok(Variant::Dict(Shared::new(memory.to_dict())))
 }
 
+pub fn len(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
+    if args.len() != 1 {
+        bail!("len() function needs one argument");
+    }
+    match &args[0] {
+        Variant::Str(s) => Ok(Variant::Int(s.len() as i64)),
+        Variant::Vec(v) => Ok(Variant::Int(v.borrow().len() as i64)),
+        Variant::Dict(d) => Ok(Variant::Int(d.borrow().len() as i64)),
+        _ => bail!("len() function only works on strings, vecs and dictionaries"),
+    }
+}
+
 pub fn export_global_metods() -> impl Iterator<Item = (Rc<str>, Variant)> {
     let sum = sum as fn(&[Variant], &mut Memory) -> Result<Variant>;
     [
@@ -471,7 +529,7 @@ pub fn export_global_metods() -> impl Iterator<Item = (Rc<str>, Variant)> {
         ("sort", sort, vec![Type::Vec]),
         ("sort_by", sort_by, vec![Type::Vec]),
         ("push", push, vec![Type::Vec]),
-        ("contains", contains, vec![Type::Vec]),
+        ("contains", contains, vec![Type::Vec, Type::Str, Type::Dict]),
         ("join", join, vec![Type::Vec, Type::Iterator]),
         ("map", map, vec![Type::Vec, Type::Iterator]),
         ("filter", filter, vec![Type::Vec, Type::Iterator]),
@@ -490,8 +548,12 @@ pub fn export_global_metods() -> impl Iterator<Item = (Rc<str>, Variant)> {
         ("take", take, vec![Type::Vec, Type::Iterator]),
         ("skip", skip, vec![Type::Vec, Type::Iterator]),
         ("flat_map", flat_map, vec![Type::Vec, Type::Iterator]),
-        ("enumerate",enumerate,vec![Type::Vec,Type::Iterator]),
-        ("flatten",flatten,vec![Type::Vec,Type::Iterator])
+        ("enumerate", enumerate, vec![Type::Vec, Type::Iterator]),
+        ("flatten", flatten, vec![Type::Vec, Type::Iterator]),
+        ("starts_with", starts_with, vec![Type::Str]),
+        ("ends_with", ends_with, vec![Type::Str]),
+        ("trim", trim, vec![Type::Str]),
+        ("len", len, vec![Type::Str, Type::Vec]),
     ]
     .into_iter()
     .map(|(name, f, method_of)| (name.into(), Variant::method(name, f, method_of)))
@@ -517,6 +579,8 @@ pub fn export_top_level_builtins() -> impl Iterator<Item = (Rc<str>, Variant)> {
         ("err", err),
         ("type", type_),
         ("import", import),
+        ("contains", contains),
+        ("len", len),
     ]
     .into_iter()
     .map(|(name, f)| (name.into(), Variant::native_fn(Some(name), f)))
