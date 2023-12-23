@@ -74,16 +74,16 @@ fn benchmark2(c: &mut Criterion) {
                 .unwrap()
                 .unwrap_iterator()
                 .borrow_mut()
-                .map(Variant::native_fn(None, |i, _| Variant::str(&i[0])))
+                .map(Variant::native_fn(None, |i, _| Ok(Variant::str(&i[0]))))
                 .filter(Variant::native_fn(None, |i, _| {
-                    Variant::Bool(match &i[0] {
+                    Ok(Variant::Bool(match &i[0] {
                         Variant::Str(s) => s.to_str_lossy().parse::<f64>().is_ok(),
                         _ => false,
-                    })
+                    }))
                 }))
                 .clone()
                 .reduce(
-                    &Variant::native_fn(None, |i, _| i[0].add(&i[1]).unwrap()),
+                    &Variant::native_fn(None, |i, _| i[0].add(&i[1])),
                     &mut Memory::new(),
                 )
                 .unwrap();
@@ -120,14 +120,15 @@ fn benchmark4(c: &mut Criterion) {
             Variant::native_fn(None, move |i, m| {
                 let iter = &i[0];
                 let func = &i[1];
-                iter.clone()
+                Ok(iter
+                    .clone()
                     .into_iterator()
                     .unwrap()
                     .unwrap_iterator()
                     .borrow_mut()
                     .filter(func.clone())
                     .clone()
-                    .to_variant_vec(m)
+                    .to_variant_vec(m))
             }),
         )
         .unwrap();
@@ -136,7 +137,9 @@ fn benchmark4(c: &mut Criterion) {
         .set(
             "is_even",
             Variant::native_fn(None, |i, _| {
-                Variant::Bool(i[0].rem(&Variant::Int(2)).unwrap() == Variant::Int(0))
+                Ok(Variant::Bool(
+                    i[0].rem(&Variant::Int(2)).unwrap() == Variant::Int(0),
+                ))
             }),
         )
         .unwrap();
@@ -166,14 +169,15 @@ fn benchmark5(c: &mut Criterion) {
             Variant::native_fn(None, |i, m| {
                 let iter = &i[0];
                 let func = &i[1];
-                iter.clone()
+                Ok(iter
+                    .clone()
                     .into_iterator()
                     .unwrap()
                     .unwrap_iterator()
                     .borrow_mut()
                     .filter(func.clone())
                     .clone()
-                    .to_variant_vec(m)
+                    .to_variant_vec(m))
             }),
         )
         .unwrap();

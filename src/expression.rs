@@ -202,7 +202,7 @@ impl Expression {
                     .iter()
                     .map(|e| e.evaluate(variables))
                     .collect::<Result<Vec<_>>>()?;
-                Ok(f.call(&evaluated_args, variables))
+                f.call(&evaluated_args, variables)
             }
             Variant::Func(f) => {
                 let evaluated_args: Result<Vec<_>> =
@@ -695,9 +695,8 @@ mod tests {
     fn test_native_function_call() {
         let mut variables = Memory::new();
         variables.set("arg", Variant::Int(1)).unwrap();
-        let native_function = Expression::Value(Variant::native_fn(None, |i, _| {
-            i[0].add(&Variant::Int(2)).unwrap()
-        }));
+        let native_function =
+            Expression::Value(Variant::native_fn(None, |i, _| i[0].add(&Variant::Int(2))));
         let expr = Expression::FunctionCall {
             function: Box::new(native_function),
             arguments: vec![Expression::Identifier("arg".to_string())],
@@ -758,7 +757,7 @@ mod tests {
                 Expression::FunctionCall {
                     function: Box::new(Expression::Value(Variant::native_fn(None, |i, _| {
                         println!("{:?}", i[0]);
-                        Variant::Unit
+                        Ok(Variant::Unit)
                     }))),
                     arguments: vec![Expression::Identifier("i".to_string())],
                 },
@@ -788,7 +787,9 @@ mod tests {
             .set(
                 "is_even",
                 Variant::native_fn(None, |i, _| {
-                    Variant::Bool(i[0].rem(&Variant::Int(2)).unwrap() == Variant::Int(0))
+                    Ok(Variant::Bool(
+                        i[0].rem(&Variant::Int(2)).unwrap() == Variant::Int(0),
+                    ))
                 }),
             )
             .unwrap();

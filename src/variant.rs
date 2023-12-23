@@ -233,7 +233,7 @@ impl Variant {
     }
     pub fn native_fn(
         name: Option<&str>,
-        f: impl Fn(&[Variant], &mut Memory) -> Variant + 'static,
+        f: impl Fn(&[Variant], &mut Memory) -> Result<Variant> + 'static,
     ) -> Variant {
         if let Some(n) = name {
             Variant::NativeFunc(Rc::new(NativeFunction::new(n, f)))
@@ -244,7 +244,7 @@ impl Variant {
 
     pub fn method(
         name: &str,
-        f: impl Fn(&[Variant], &mut Memory) -> Variant + 'static,
+        f: impl Fn(&[Variant], &mut Memory) -> Result<Variant> + 'static,
         method_of: Vec<Type>,
     ) -> Variant {
         Variant::NativeFunc(Rc::new(NativeFunction::method(name, f, method_of)))
@@ -617,7 +617,7 @@ impl Variant {
 
     pub fn call(&self, args: &[Variant], memory: &mut Memory) -> Result<Variant> {
         match self {
-            Variant::NativeFunc(f) => Ok(f.call(args, memory)),
+            Variant::NativeFunc(f) => f.call(args, memory),
             Variant::Func(f) => f.call(args, memory),
             _ => bail!("{self} it is not callable"),
         }
@@ -804,7 +804,7 @@ mod tests {
             .unwrap_iterator()
             .borrow_mut()
             .map(Variant::native_fn(None, |i, _| {
-                i[0].add(&Variant::str("a")).unwrap()
+                i[0].add(&Variant::str("a"))
             }))
             .clone()
             .to_variant_vec(memory);
@@ -833,10 +833,10 @@ mod tests {
             .unwrap_iterator()
             .borrow_mut()
             .filter(Variant::native_fn(None, |i, _| {
-                Variant::Bool(match i[0] {
+                Ok(Variant::Bool(match i[0] {
                     Variant::Int(_) => true,
                     _ => false,
-                })
+                }))
             }))
             .clone()
             .to_variant_vec(memory);
@@ -859,7 +859,7 @@ mod tests {
             .borrow_mut()
             .clone()
             .reduce(
-                &Variant::native_fn(None, |i, _| i[0].add(&i[1]).unwrap()),
+                &Variant::native_fn(None, |i, _| i[0].add(&i[1])),
                 &mut Memory::new(),
             )
             .unwrap();
@@ -880,16 +880,18 @@ mod tests {
             .unwrap()
             .unwrap_iterator()
             .borrow_mut()
-            .map(Variant::native_fn(None, |i, _| Variant::str(i[0].clone())))
+            .map(Variant::native_fn(None, |i, _| {
+                Ok(Variant::str(i[0].clone()))
+            }))
             .filter(Variant::native_fn(None, |i, _| {
-                Variant::Bool(match &i[0] {
+                Ok(Variant::Bool(match &i[0] {
                     Variant::Str(s) => s.to_str_lossy().parse::<f64>().is_ok(),
                     _ => false,
-                })
+                }))
             }))
             .clone()
             .reduce(
-                &Variant::native_fn(None, |i, _| i[0].add(&i[1]).unwrap_or_else(Variant::error)),
+                &Variant::native_fn(None, |i, _| i[0].add(&i[1])),
                 &mut Memory::new(),
             )
             .unwrap();

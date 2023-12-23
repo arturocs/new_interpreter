@@ -60,23 +60,23 @@ impl Variant {
 
 fn wrap_unary_function(
     f: fn(&Variant) -> Result<Variant>,
-) -> impl Fn(&[Variant], &mut Memory) -> Variant {
+) -> impl Fn(&[Variant], &mut Memory) -> Result<Variant> {
     move |args: &[Variant], _: &mut Memory| {
         if args.len() != 1 {
-            Variant::error(format!("Expected 1 argument, got {}", args.len()));
+            bail!("Expected 1 argument, got {}", args.len());
         }
-        f(&args[0]).unwrap_or_else(|e| Variant::error(e))
+        f(&args[0])
     }
 }
 
 fn wrap_binary_function(
     f: fn(&Variant, &Variant) -> Result<Variant>,
-) -> impl Fn(&[Variant], &mut Memory) -> Variant {
+) -> impl Fn(&[Variant], &mut Memory) -> Result<Variant> {
     move |args: &[Variant], _: &mut Memory| {
         if args.len() != 2 {
-            return Variant::error(format!("Expected 2 arguments, got {}", args.len()));
+            bail!("Expected 2 arguments, got {}", args.len());
         }
-        f(&args[0], &args[1]).unwrap_or_else(|e| Variant::error(e))
+        f(&args[0], &args[1])
     }
 }
 

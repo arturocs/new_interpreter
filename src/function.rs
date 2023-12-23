@@ -1,7 +1,7 @@
 use crate::expression::Expression;
 use crate::memory::Memory;
 use crate::variant::{Type, Variant};
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use itertools::{EitherOrBoth, Itertools};
 use std::fmt;
 use std::rc::Rc;
@@ -97,7 +97,7 @@ impl Function {
 pub struct NativeFunction {
     pub name: Option<Box<str>>,
     method_of: Box<[Type]>,
-    function: Box<dyn Fn(&[Variant], &mut Memory) -> Variant>,
+    function: Box<dyn Fn(&[Variant], &mut Memory) -> Result<Variant>>,
 }
 impl fmt::Debug for NativeFunction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -126,7 +126,10 @@ impl fmt::Display for NativeFunction {
 }
 
 impl NativeFunction {
-    pub fn new(name: &str, f: impl Fn(&[Variant], &mut Memory) -> Variant + 'static) -> Self {
+    pub fn new(
+        name: &str,
+        f: impl Fn(&[Variant], &mut Memory) -> Result<Variant> + 'static,
+    ) -> Self {
         NativeFunction {
             name: Some(name.into()),
             method_of: vec![].into_boxed_slice(),
@@ -134,7 +137,7 @@ impl NativeFunction {
         }
     }
 
-    pub fn anonymous(f: impl Fn(&[Variant], &mut Memory) -> Variant + 'static) -> Self {
+    pub fn anonymous(f: impl Fn(&[Variant], &mut Memory) -> Result<Variant> + 'static) -> Self {
         NativeFunction {
             name: None,
             method_of: vec![].into_boxed_slice(),
@@ -144,7 +147,7 @@ impl NativeFunction {
 
     pub fn method(
         name: &str,
-        f: impl Fn(&[Variant], &mut Memory) -> Variant + 'static,
+        f: impl Fn(&[Variant], &mut Memory) -> Result<Variant> + 'static,
         method_of: Vec<Type>,
     ) -> Self {
         NativeFunction {
@@ -158,16 +161,16 @@ impl NativeFunction {
         !self.method_of.is_empty()
     }
 
-    pub fn call(&self, args: &[Variant], memory: &mut Memory) -> Variant {
+    pub fn call(&self, args: &[Variant], memory: &mut Memory) -> Result<Variant> {
         if self.method_of.is_empty() {
             return (self.function)(args, memory);
         }
         let Some(v) = args.get(0) else {
-            return Variant::error(format!("Cannot call {self} without arguments"));
+            bail!("Cannot call {self} without arguments");
         };
         self.method_of
             .contains(&v.get_type())
             .then(|| (self.function)(args, memory))
-            .unwrap_or_else(|| Variant::error(format!("Cannot call {self} on variant {v}")))
+            .unwrap_or_else(|| bail!("Cannot call {self} on variant {v}"))
     }
 }
