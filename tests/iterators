@@ -8,8 +8,6 @@ fn test_range_for_each() {
     assert_eq(a, 45)
 }
 
-
-
 fn test_flatten() {
     a = [[1,2],[3,4]].flatten().to_vec()
     assert_eq(a, [1,2,3,4])

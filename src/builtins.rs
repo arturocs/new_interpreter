@@ -163,7 +163,7 @@ macro_rules! generate_iterator_adapters_builtins {
     ($name:ident, $method:expr) => {
         pub fn $name(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
             if args.len() != 2 {
-                bail!(concat!(stringify!($name), " function needs two arguments"));
+                bail!(concat!(stringify!($name), "() function needs two arguments"));
             }
             let Ok(Variant::Iterator(i)) = args[0].clone().into_iterator() else {
                 bail!(format!("{} is not iterable", args[0]));
@@ -175,12 +175,33 @@ macro_rules! generate_iterator_adapters_builtins {
     };
 }
 
+macro_rules! generate_iterator_adapters_builtins_without_args {
+    ($name:ident, $method:expr) => {
+        pub fn $name(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
+            if args.len() != 1 {
+                bail!(concat!(stringify!($name), "() function needs two arguments"));
+            }
+            match args[0].clone().into_iterator() {
+                Ok(Variant::Iterator(i)) => {
+                    $method(&mut i.borrow_mut());
+                    Ok(Variant::Iterator(i))
+                }
+                Ok(e) => bail!("{e} is not iterable"),
+                e => e,
+            }
+        }
+    };
+}
+
 generate_iterator_adapters_builtins!(map, VariantIterator::map);
 generate_iterator_adapters_builtins!(filter, VariantIterator::filter);
 generate_iterator_adapters_builtins!(zip, VariantIterator::zip);
 generate_iterator_adapters_builtins!(take, VariantIterator::take);
 generate_iterator_adapters_builtins!(skip, VariantIterator::skip);
 generate_iterator_adapters_builtins!(step_by, VariantIterator::step_by);
+generate_iterator_adapters_builtins!(flat_map, VariantIterator::flat_map);
+generate_iterator_adapters_builtins_without_args!(flatten, VariantIterator::flatten);
+generate_iterator_adapters_builtins_without_args!(enumerate, VariantIterator::enumerate);
 
 macro_rules! generate_iterator_evaluator_builtins {
     ($name:ident,$method:ident) => {
@@ -468,6 +489,9 @@ pub fn export_global_metods() -> impl Iterator<Item = (Rc<str>, Variant)> {
         ("zip", zip, vec![Type::Vec, Type::Iterator]),
         ("take", take, vec![Type::Vec, Type::Iterator]),
         ("skip", skip, vec![Type::Vec, Type::Iterator]),
+        ("flat_map", flat_map, vec![Type::Vec, Type::Iterator]),
+        ("enumerate",enumerate,vec![Type::Vec,Type::Iterator]),
+        ("flatten",flatten,vec![Type::Vec,Type::Iterator])
     ]
     .into_iter()
     .map(|(name, f, method_of)| (name.into(), Variant::method(name, f, method_of)))

@@ -145,6 +145,7 @@ macro_rules! apply_method_to_iter {
                             .clone()
                             .to_vec(&mut mem.borrow_mut())
                             .into_iter(),
+                        Variant::Vec(j) => j.borrow_mut().clone().into_iter(),
                         e => vec![Variant::error(format!(
                             "Flatten error: {e} is not an iterator"
                         ))]
@@ -182,6 +183,7 @@ macro_rules! apply_method_to_iter {
                             .clone()
                             .to_vec(&mut mem.borrow_mut())
                             .into_iter(),
+                        Variant::Vec(j) => j.borrow_mut().clone().into_iter(),
                         e => vec![Variant::error(format!(
                             "FlatMap error: {e} is not an iterator"
                         ))]
