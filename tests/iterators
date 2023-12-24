@@ -78,3 +78,38 @@ fn test_generator(){
 
     assert_eq(g.to_vec(), [1,2,3,4,5,6,7,8,9,10])
 }
+
+fn test_filter_map_reduce(){
+    a = [1,2,3,4,5].filter(|i| i % 2 == 0).reduce(|a,b| a+b)
+    assert_eq(a, 6)
+}
+
+fn test_reduce(){
+    a = [1,2,3,4,5].reduce(|a,b| a+b)
+    assert_eq(a, 15)
+}
+
+fn test_filter_count(){
+    a = [1,2,3,4,5].filter(|i| i % 2 == 0).count()
+    assert_eq(a, 2)
+}
+
+fn test_iterator_find(){
+    a = [1,2,3,4,5].find(|i| i % 2 == 0)
+    assert_eq(a, 2)
+}
+
+fn test_iterator_all(){
+    a = [1,2,3,4,5].all(|i| i % 2 == 0)
+    assert_eq(a, false)
+}
+
+fn test_iterator_any(){
+    a = [1,2,3,4,5].any(|i| i % 2 == 0)
+    assert_eq(a, true)
+}
+
+fn test_iterator_to_dict(){
+    a = [[0,1],[1,2],[2,3],[3,4],[4,5]].to_dict()
+    assert_eq(a, {0:1,1:2,2:3,3:4,4:5})
+}
