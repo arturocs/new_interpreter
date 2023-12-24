@@ -102,7 +102,7 @@ impl Memory {
     pub fn to_dict(&self) -> Dictionary {
         let builtins_len = Memory::with_builtins().variables.len();
         self.variables[builtins_len..]
-            .into_iter()
+            .iter()
             .map(|(name, value)| (Variant::str(name), value.clone()))
             .collect()
     }

@@ -195,7 +195,7 @@ macro_rules! apply_method_to_iter {
                 ),
             }
         }
-        $method(base, &mem)
+        ({$method})(base, &mem)
     }};
 }
 

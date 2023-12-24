@@ -19,12 +19,12 @@ macro_rules! generate_vec_builtins {
                     stringify!($name)
                 )),
                 1 => match &args[0] {
-                    Variant::Vec(v) => ($function)(&v.borrow()),
-                    Variant::Iterator(i) => ($function)(&i.borrow().clone().to_vec(memory)),
+                    Variant::Vec(v) => ({$function})(&v.borrow()),
+                    Variant::Iterator(i) => ({$function})(&i.borrow().clone().to_vec(memory)),
                     _ => bail!("Cannot calculate {} of {}", stringify!($name), &args[0]),
                 },
 
-                _ => ($function)(args),
+                _ => ({$function})(args),
             }
         }
     };
@@ -33,10 +33,10 @@ macro_rules! generate_vec_builtins {
 generate_vec_builtins!(min, |v: &[_]| Ok(v.iter().min().cloned().unwrap()));
 generate_vec_builtins!(max, |v: &[_]| Ok(v.iter().max().cloned().unwrap()));
 generate_vec_builtins!(sum, |v: &[Variant]| {
-    v.iter().fold(Ok(Variant::Int(0)), |acc, i| acc?.add(&i))
+    v.iter().try_fold(Variant::Int(0), |acc, i| acc.add(i))
 });
 generate_vec_builtins!(prod, |v: &[Variant]| {
-    v.iter().fold(Ok(Variant::Int(1)), |acc, i| acc?.mul(&i))
+    v.iter().try_fold(Variant::Int(1), |acc, i| acc.mul(i))
 });
 generate_vec_builtins!(sort, |v: &[_]| {
     let mut v = v.to_owned();
