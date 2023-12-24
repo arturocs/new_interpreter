@@ -50,5 +50,5 @@ fn test_string_ends_with() {
 
 fn test_string_in(){
     assert("a" in "abc")
-    assert(! "d" in "abc")
+    assert(! ("d" in "abc"))
 }
