@@ -19,12 +19,12 @@ macro_rules! generate_vec_builtins {
                     stringify!($name)
                 )),
                 1 => match &args[0] {
-                    Variant::Vec(v) => ({$function})(&v.borrow()),
-                    Variant::Iterator(i) => ({$function})(&i.borrow().clone().to_vec(memory)),
+                    Variant::Vec(v) => ({ $function })(&v.borrow()),
+                    Variant::Iterator(i) => ({ $function })(&i.borrow().clone().to_vec(memory)),
                     _ => bail!("Cannot calculate {} of {}", stringify!($name), &args[0]),
                 },
 
-                _ => ({$function})(args),
+                _ => ({ $function })(args),
             }
         }
     };
@@ -242,8 +242,8 @@ macro_rules! generate_iterator_evaluator_with_arguments_builtins {
 generate_iterator_evaluator_builtins!(to_vec, to_variant_vec);
 generate_iterator_evaluator_builtins!(to_dict, to_variant_dict);
 generate_iterator_evaluator_builtins!(count, count);
-generate_iterator_evaluator_builtins!(all, all);
-generate_iterator_evaluator_builtins!(any, any);
+generate_iterator_evaluator_with_arguments_builtins!(all, all);
+generate_iterator_evaluator_with_arguments_builtins!(any, any);
 generate_iterator_evaluator_with_arguments_builtins!(reduce, reduce);
 generate_iterator_evaluator_with_arguments_builtins!(find, find);
 

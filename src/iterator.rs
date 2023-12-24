@@ -195,7 +195,7 @@ macro_rules! apply_method_to_iter {
                 ),
             }
         }
-        ({$method})(base, &mem)
+        ({ $method })(base, &mem)
     }};
 }
 
@@ -265,16 +265,34 @@ impl VariantIterator {
         })
     }
 
-    pub fn any(self, memory: &mut Memory) -> Variant {
-        apply_method_to_iter!(self, memory, |mut i: Box<dyn VariantIter>, _| {
-            Variant::Bool(i.any(|i| i.is_true().unwrap_or(false)))
-        })
+    pub fn any(self, func: &Variant, memory: &mut Memory) -> Result<Variant> {
+        apply_method_to_iter!(
+            self,
+            memory,
+            |mut i: Box<dyn VariantIter>, m: &RefCell<&mut Memory>| {
+                Ok(Variant::Bool(i.any(|j| {
+                    func.call(&[j], &mut m.borrow_mut())
+                        .unwrap_or(Variant::Bool(false))
+                        .is_true()
+                        .unwrap_or(false)
+                })))
+            }
+        )
     }
 
-    pub fn all(self, memory: &mut Memory) -> Variant {
-        apply_method_to_iter!(self, memory, |mut i: Box<dyn VariantIter>, _| {
-            Variant::Bool(i.all(|i| i.is_true().unwrap_or(false)))
-        })
+    pub fn all(self, func: &Variant, memory: &mut Memory) -> Result<Variant> {
+        apply_method_to_iter!(
+            self,
+            memory,
+            |mut i: Box<dyn VariantIter>, m: &RefCell<&mut Memory>| {
+                Ok(Variant::Bool(i.all(|j| {
+                    func.call(&[j], &mut m.borrow_mut())
+                        .unwrap_or(Variant::Bool(false))
+                        .is_true()
+                        .unwrap_or(false)
+                })))
+            }
+        )
     }
 
     pub fn find(self, func: &Variant, memory: &mut Memory) -> Result<Variant> {
