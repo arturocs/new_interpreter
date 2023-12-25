@@ -209,7 +209,7 @@ peg::parser!(pub grammar expr_parser() for str {
         ("!"/"not")_ e:@ { Expression::Not(Box::new(e)) }
         --
         e:@ "["  _ i:expression() _ "]" { Expression::Index(Box::new((e,i))) }
-        e:@ "." i:$identifier()  { Expression::Dot(Box::new((e,Expression::Value(Variant::str(i))))) }
+        e:@ __ "." __ i:$identifier()  { Expression::Dot(Box::new((e,Expression::Value(Variant::str(i))))) }
         f:@ "(" _ l:(expression() ** value_separator()) _ ")" {
             Expression::FunctionCall { function: Box::new(f), arguments: l }
         }
