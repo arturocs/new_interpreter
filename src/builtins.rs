@@ -244,7 +244,6 @@ generate_iterator_evaluator_builtins!(to_dict, to_variant_dict);
 generate_iterator_evaluator_builtins!(count, count);
 generate_iterator_evaluator_with_arguments_builtins!(all, all);
 generate_iterator_evaluator_with_arguments_builtins!(any, any);
-generate_iterator_evaluator_with_arguments_builtins!(reduce, reduce);
 generate_iterator_evaluator_with_arguments_builtins!(find, find);
 
 pub fn for_each(args: &[Variant], memory: &mut Memory) -> Result<Variant> {
@@ -255,6 +254,21 @@ pub fn for_each(args: &[Variant], memory: &mut Memory) -> Result<Variant> {
         Ok(Variant::Iterator(i)) => Ok(i.borrow_mut().clone().for_each(&args[1], memory)),
         Ok(e) => bail!("{e} is not iterable"),
         e => e,
+    }
+}
+
+pub fn reduce(args: &[Variant], memory: &mut Memory) -> Result<Variant> {
+    match args.len() {
+        0 | 1 => bail!("reduce function needs at least two arguments"),
+        2 | 3 => match (args[0].clone().into_iterator(), args.len()) {
+            (Ok(Variant::Iterator(i)), 2) => i.borrow_mut().clone().reduce(&args[1], memory),
+            (Ok(Variant::Iterator(i)), 3) => {
+                i.borrow_mut().clone().fold(&args[1], &args[2], memory)
+            }
+            (Ok(e), _) => bail!("{e} is not iterable"),
+            (e, _) => e,
+        },
+        _ => bail!("reduce function needs two or three arguments"),
     }
 }
 

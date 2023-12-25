@@ -252,6 +252,24 @@ impl VariantIterator {
         )
     }
 
+    pub fn fold(
+        self,
+        initial_value: &Variant,
+        func: &Variant,
+        memory: &mut Memory,
+    ) -> Result<Variant> {
+        apply_method_to_iter!(
+            self,
+            memory,
+            |i: Box<dyn VariantIter>, m: &RefCell<&mut Memory>| {
+                Ok(i.fold(initial_value.clone(), |acc, x| {
+                    func.call(&[acc, x], &mut m.borrow_mut())
+                        .unwrap_or_else(Variant::error)
+                }))
+            }
+        )
+    }
+
     pub fn sum(self, memory: &mut Memory) -> Result<Variant> {
         apply_method_to_iter!(self, memory, |i: Box<dyn VariantIter>, _| {
             i.reduce(|acc, x| acc.add(&x).unwrap_or_else(Variant::error))
