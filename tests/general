@@ -20,15 +20,14 @@ fn test_recursion() {
     assert_eq(fib(10), 55)
 }
 
-
 fn test_import(){
-    tests = import("tests/math")
-    assert_eq(type(tests.test_basic_math()), type(()))
+    tests = import("tests/test_import_functions")
+    assert_eq(tests.importable_fn(), 1)
 }
 
 fn test_import_repeated_function(){
     tests = import("tests/test_import_functions")
-    assert_eq(tests.importable_fn(), 2)
+    assert_eq(tests.duplicated_fn(), 2)
 
 }
 

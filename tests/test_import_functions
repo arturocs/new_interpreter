@@ -2,6 +2,10 @@ fn importable_fn(){
     1
 }
 
-fn importable_fn(){
+fn duplicated_fn(){
+    1
+}
+
+fn duplicated_fn(){
     2
 }
