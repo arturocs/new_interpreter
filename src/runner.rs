@@ -44,7 +44,7 @@ fn run_bench(
     warmup_seconds: u64,
     bench_seconds: u64,
 ) -> Result<()> {
-    println!("Running bench {name}...");
+    println!("Running {name}...");
 
     let warmup_time = Duration::from_secs(warmup_seconds);
     let mut iterations = 0;
@@ -65,7 +65,7 @@ fn run_bench(
     let average_time = times.iter().sum::<Duration>() / bench_iterations as u32;
     let time_formated = format!("{average_time:?}").bold();
     let colored_name = name.green().bold();
-    println!("Ran bench {colored_name} {bench_iterations} times. Average time: {time_formated}\n");
+    println!("Ran {colored_name} {bench_iterations} times. Average time: {time_formated}\n");
     Ok(())
 }
 
@@ -97,7 +97,7 @@ pub fn run_tests_in_file(path: &str) -> Result<()> {
     let failed_msg = "Failed!".bold().red();
     let ok_msg = "Ok!".bold().green();
     for (test_name, test_function) in tests {
-        print!("Running test {}... ",test_name.bold());
+        print!("Running {}... ",test_name.bold());
         match test_function.call(&[], &mut memory) {
             Ok(Variant::Error(e)) => println!("{failed_msg}: {e}"),
             Err(e) => println!("{failed_msg}: {e}"),
