@@ -113,3 +113,20 @@ fn test_iterator_to_dict(){
     a = [[0,1],[1,2],[2,3],[3,4],[4,5]].to_dict()
     assert_eq(a, {0:1,1:2,2:3,3:4,4:5})
 }
+
+fn test_reduce_with_initial_value(){
+    a = [1,2,3,4,5].reduce(0, |a,b| a+b)
+    assert_eq(a, 15)
+}
+
+fn test_reduce_to_object(){
+    d = range(10)
+        .filter(|i|i%3==0)
+        .map(|i| f"{i * 2} ")
+        .enumerate()
+        .reduce({},|a,b| {
+           a[b[0]] = b[1]
+           a
+        })
+    assert_eq(d, {0:"0 ",1:"6 ",2:"12 ",3:"18 "})
+}

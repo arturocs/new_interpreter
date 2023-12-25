@@ -10,6 +10,13 @@ fn test_dict_access() {
     assert_eq(d["c"], 3)
 }
 
+fn test_dict_access_by_dot() {
+    d = {a:1,b:2,c:3}
+    assert_eq(d.a, 1)
+    assert_eq(d.b, 2)
+    assert_eq(d.c, 3)
+}
+
 fn test_dict_set() {
     d = {a:1,b:2,c:3}
     d["a"] = 4
