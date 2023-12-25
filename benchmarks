@@ -17,9 +17,51 @@ fn bench_iterators(){
            a[b[0]] = b[1][1]*b[1][0]
            a
         })
-        //.reduce("",|a,b| a+b[1]*b[0])
 }
 
-fn bench_maths(){
+fn bench_basic_maths(){
     1+2*3
+}
+
+fn bench_math_lib(){
+    Math.sin(1.0)
+    Math.cos(1.0)
+    Math.tan(1.0)
+    Math.asin(1.0)
+    Math.acos(1.0)
+    Math.atan(1.0)
+    Math.abs(-1.0)
+    Math.ceil(1.0)
+    Math.floor(1.0)
+    Math.exp(1.0)
+    Math.ln(1.0)
+    Math.log(1.0, 2.0)
+    Math.round(1.0)
+    Math.sqrt(1.0)
+    Math.trunc(1.0)
+    Math.pow(1.0, 2.0)
+}
+
+fn bench_huge_dict(){
+    d = {}
+    for i in range(10000) {
+        d[i*1000] = i
+        d[f"{i}"] = f"{i}"
+    }
+    
+}
+
+fn bench_huge_vec(){
+    d = []
+    for i in range(10000) {
+        d.push(i)
+        d.push(f"{i}")
+    }
+    
+}
+
+fn bench_fstring_1000_times(){
+    a = range(0,1000).reduce("first", |acc, i| {
+         f"{acc}{i / (i + 1)} test B {true and false} test C"
+    })
 }
