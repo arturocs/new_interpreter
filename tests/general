@@ -47,3 +47,19 @@ fn test_slice(){
     a = [1,2,3,4,5,6,7,8,9,10]
     assert_eq(a.slice(1,5), [2,3,4,5])
 }
+
+fn test_type(){
+    assert_eq(type(1), "Int")
+    assert_eq(type(1.0), "Float")
+    assert_eq(type("1"), "Str")
+    assert_eq(type([]), "Vec")
+    assert_eq(type({}), "Dict")
+    assert_eq(type(|| ()), "Func")
+    assert_eq(type(true), "Bool")
+    assert_eq(type(false), "Bool")
+    assert_eq(type(()), "Unit")
+    assert_eq(type(range(1)), "Iterator")
+    assert_eq(type(max), "NativeFunc")
+    assert_eq(type(err()), "Error")
+
+}
