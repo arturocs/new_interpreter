@@ -1,0 +1,25 @@
+fn bench_recursion(){
+    fib = |n| if n ==1 or n==2 {
+        1
+    } else {
+        fib(n - 1) + fib(n - 2)
+    }
+    fib(25)
+}
+
+fn bench_iterators(){
+    range(-1000,1000)
+        .filter(|i| i>0)
+        .filter(|i|i%3==0)
+        .map(|i| [i, f"{i * 2} "])
+        .enumerate()
+        .reduce({},|a,b| {
+           a[b[0]] = b[1][1]*b[1][0]
+           a
+        })
+        //.reduce("",|a,b| a+b[1]*b[0])
+}
+
+fn bench_maths(){
+    1+2*3
+}

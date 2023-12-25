@@ -91,10 +91,10 @@ impl Memory {
         Ok(())
     }
 
-    pub fn get_tests(&self) -> Vec<(Rc<str>, Rc<Function>)> {
+    pub fn get_functions_starting_with(&self, pattern: &str) -> Vec<(Rc<str>, Rc<Function>)> {
         self.variables
             .iter()
-            .filter(|(name, j)| name.starts_with("test_") && j.is_func())
+            .filter(|(name, j)| name.starts_with(pattern) && j.is_func())
             .map(|(name, j)| (name.clone(), j.clone().unwrap_func()))
             .collect()
     }
