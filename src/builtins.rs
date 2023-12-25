@@ -397,11 +397,11 @@ pub fn split(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
         bail!("split() method needs two arguments");
     }
     match (&args[0], &args[1]) {
-        (Variant::Str(s1), Variant::Str(s2)) => Ok(Variant::vec(
-            s1.to_str_lossy()
-                .split(s2.to_str_lossy().as_ref())
-                .map(Variant::str)
-                .collect(),
+        (Variant::Str(s1), Variant::Str(s2)) => Ok(Variant::iterator(
+            s1.split_str(s2.as_slice())
+                .map(|i| Variant::str(i.to_str_lossy()))
+                .collect_vec()
+                .into_iter(),
         )),
         _ => bail!("split() method only works on strings"),
     }
