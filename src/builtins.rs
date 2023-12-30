@@ -1,11 +1,13 @@
 use crate::iterator::{Adapter, VariantIterator};
-use crate::runner;
+use crate::parser::expr_parser;
+use crate::runner::{self, remove_comments};
 use crate::shared::Shared;
 use crate::variant::Type;
 use crate::{memory::Memory, variant::Variant};
 use anyhow::{anyhow, bail, Result};
 use bstr::ByteSlice;
 use itertools::Itertools;
+use rand::Rng;
 use std::io;
 use std::rc::Rc;
 use std::slice;
@@ -533,6 +535,65 @@ pub fn len(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
     }
 }
 
+fn eval(args: &[Variant], memory: &mut Memory) -> Result<Variant> {
+    if args.len() != 1 {
+        bail!("eval() function needs one argument");
+    }
+    if let Variant::Str(s) = &args[0] {
+        let filtered_comments = remove_comments(s.to_str_lossy().as_ref());
+        let ast = expr_parser::expr_sequence(&filtered_comments)?;
+        Ok(ast.evaluate(memory)?)
+    } else {
+        bail!("eval() function only works on strings")
+    }
+}
+
+fn catch_err(args: &[Variant], memory: &mut Memory) -> Result<Variant> {
+    if args.len() != 1 {
+        bail!("catch_err() function needs one argument");
+    }
+    let result = match &args[0] {
+        Variant::Func(f) => f.call(&[], memory),
+        _ => bail!("catch_err() function only works on functions"),
+    };
+    Ok(result.unwrap_or_else(Variant::error))
+}
+
+fn rand(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
+
+    let mut rng = rand::thread_rng();
+    match args.len() {
+        0 => Ok(Variant::Int(rng.gen_range(0..1))),
+        2 => {
+            let Variant::Int(start) = &args[0] else {
+                bail!("First argument of rand() must be an integer");
+            };
+            let Variant::Int(end) = &args[1] else {
+                bail!("Second argument of rand() must be an integer");
+            };
+            Ok(Variant::Int(rng.gen_range(*start..*end)))
+        }
+        _ => bail!("rand() function needs zero or two arguments"),
+    }
+}
+
+fn rand_float(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
+    let mut rng = rand::thread_rng();
+    match args.len() {
+        0 => Ok(Variant::Float(rng.gen_range(0.0..1.0))),
+        2 => {
+            let Variant::Float(start) = &args[0] else {
+                bail!("First argument of rand_float() must be a float");
+            };
+            let Variant::Float(end) = &args[1] else {
+                bail!("Second argument of rand_float() must be a float");
+            };
+            Ok(Variant::Float(rng.gen_range(*start..*end)))
+        }
+        _ => bail!("rand_float() function needs zero or two arguments"),
+    }
+}
+
 pub fn export_global_metods() -> impl Iterator<Item = (Rc<str>, Variant)> {
     let sum = sum as fn(&[Variant], &mut Memory) -> Result<Variant>;
     [
@@ -595,6 +656,10 @@ pub fn export_top_level_builtins() -> impl Iterator<Item = (Rc<str>, Variant)> {
         ("import", import),
         ("contains", contains),
         ("len", len),
+        ("eval", eval),
+        ("catch_err", catch_err),
+        ("rand", rand),
+        ("rand_float", rand_float),
     ]
     .into_iter()
     .map(|(name, f)| (name.into(), Variant::native_fn(Some(name), f)))

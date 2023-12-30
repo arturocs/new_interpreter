@@ -6,12 +6,15 @@ use std::io::{self, Write};
 use std::time::{Duration, Instant};
 use std::{fs, rc::Rc};
 
+pub fn remove_comments(code: &str) -> String {
+    code.lines()
+        .map(|s| s.find("//").map(|i| &s[..i]).unwrap_or(s))
+        .join("\n")
+}
+
 pub fn run_file(path: &str) -> Result<(Variant, Memory)> {
     let code = fs::read_to_string(path)?;
-    let filtered_comments = code
-        .lines()
-        .map(|s| s.find("//").map(|i| &s[..i]).unwrap_or(s))
-        .join("\n");
+    let filtered_comments = remove_comments(&code);
     let ast = expr_parser::expr_sequence(&filtered_comments)?;
     let mut memory = Memory::with_builtins();
     let result = ast.evaluate(&mut memory)?;

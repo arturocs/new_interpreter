@@ -63,3 +63,23 @@ fn test_type(){
     assert_eq(type(err()), "Error")
 
 }
+
+fn test_catch_error(){
+    a = catch_err(|| 1/0)
+    assert(a == err("Cannot divide by zero"))
+}
+
+fn test_eval(){
+    a = eval("1+1")
+    assert_eq(a, 2)
+}
+
+fn test_rand() {
+    a = rand(1, 10)
+    assert(a >= 1 and a <= 10)
+}
+
+fn test_rand_float() {
+    a = rand_float(-0.5, 0.5)
+    assert(a >= -0.5 and a <= 0.5)
+}
