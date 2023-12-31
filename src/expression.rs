@@ -295,16 +295,14 @@ impl Expression {
             let Variant::Str(id) = index else {
                 bail!("dot operator can only be used with identifiers")
             };
-            let Ok(Variant::NativeFunc(f)) =
-                variables.get_method(&id.to_str_lossy()).map(|i| i.clone())
-            else {
+            let Ok(f) = variables.get_method(&id.to_str_lossy()) else {
                 return Self::evaluate_index(variables, indexable_and_index);
             };
             if !f.is_method() {
                 return Self::evaluate_index(variables, indexable_and_index);
             }
-
-            let new_function = Variant::native_fn(None, move |a, memory| {
+            let name = f.name.clone();
+            let new_function = Variant::native_fn(name.as_deref(), move |a, memory| {
                 let mut args = Vec::with_capacity(a.len() + 1);
                 args.push(indexable.clone());
                 args.extend(a.iter().cloned());

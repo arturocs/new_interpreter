@@ -1,6 +1,6 @@
 use crate::{
     builtins::{export_global_metods, export_top_level_builtins},
-    function::Function,
+    function::{Function, NativeFunction},
     maths::export_math_lib,
     variant::{Dictionary, Variant},
 };
@@ -10,11 +10,11 @@ use bstr::{BString, ByteSlice};
 use regex::bytes::Regex;
 use std::{collections::hash_map::Entry, rc::Rc};
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default)]
 pub struct Memory {
     context_delimiters: Vec<usize>,
     variables: Vec<(Rc<str>, Variant)>,
-    global_methods: AHashMap<Rc<str>, Variant>,
+    global_methods: AHashMap<Rc<str>, Rc<NativeFunction>>,
     regex_cache: AHashMap<Rc<BString>, Regex>,
 }
 
@@ -56,9 +56,9 @@ impl Memory {
         }
     }
 
-    pub fn get_method(&self, identifier: &str) -> Result<&Variant> {
+    pub fn get_method(&self, identifier: &str) -> Result<Rc<NativeFunction>> {
         self.global_methods
-            .get(identifier)
+            .get(identifier).map(|i|i.clone())
             .ok_or_else(|| anyhow!("Method '{identifier}' not declared",))
     }
 

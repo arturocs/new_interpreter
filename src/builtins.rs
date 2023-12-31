@@ -1,3 +1,4 @@
+use crate::function::NativeFunction;
 use crate::iterator::{Adapter, VariantIterator};
 use crate::parser::expr_parser;
 use crate::runner::{self, remove_comments};
@@ -594,7 +595,7 @@ fn rand_float(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
     }
 }
 
-pub fn export_global_metods() -> impl Iterator<Item = (Rc<str>, Variant)> {
+pub fn export_global_metods() -> impl Iterator<Item = (Rc<str>, Rc<NativeFunction>)> {
     let sum = sum as fn(&[Variant], &mut Memory) -> Result<Variant>;
     [
         ("sum", sum, vec![Type::Vec, Type::Iterator]),
@@ -631,7 +632,7 @@ pub fn export_global_metods() -> impl Iterator<Item = (Rc<str>, Variant)> {
         ("len", len, vec![Type::Str, Type::Vec]),
     ]
     .into_iter()
-    .map(|(name, f, method_of)| (name.into(), Variant::method(name, f, method_of)))
+    .map(|(name, f, method_of)| (name.into(), Rc::new(NativeFunction::method(name, f, method_of))))
 }
 
 pub fn export_top_level_builtins() -> impl Iterator<Item = (Rc<str>, Variant)> {
