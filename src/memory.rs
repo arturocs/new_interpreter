@@ -6,20 +6,22 @@ use crate::{
 };
 use ahash::AHashMap;
 use anyhow::{anyhow, Ok, Result};
-use std::{rc::Rc, vec};
-#[derive(Debug, Clone)]
+use bstr::{BString, ByteSlice};
+use regex::bytes::Regex;
+use std::{collections::hash_map::Entry, rc::Rc};
+
+#[derive(Debug, Clone, Default)]
 pub struct Memory {
     context_delimiters: Vec<usize>,
     variables: Vec<(Rc<str>, Variant)>,
     global_methods: AHashMap<Rc<str>, Variant>,
+    regex_cache: AHashMap<Rc<BString>, Regex>,
 }
 
 impl Memory {
     pub fn new() -> Self {
         Memory {
-            context_delimiters: vec![],
-            variables: vec![],
-            global_methods: AHashMap::new(),
+            ..Default::default()
         }
     }
 
@@ -29,9 +31,9 @@ impl Memory {
             .collect();
 
         Memory {
-            context_delimiters: vec![],
             variables: context,
             global_methods: export_global_metods().collect(),
+            ..Default::default()
         }
     }
 
@@ -97,6 +99,17 @@ impl Memory {
             .filter(|(name, j)| name.starts_with(pattern) && j.is_func())
             .map(|(name, j)| (name.clone(), j.clone().unwrap_func()))
             .collect()
+    }
+
+    pub fn get_regex(&mut self, pattern: Rc<BString>) -> Result<&Regex> {
+        match self.regex_cache.entry(pattern.clone()) {
+            Entry::Occupied(e) => Ok(e.into_mut()),
+            Entry::Vacant(e) => {
+                let clean_pattent = pattern.to_str()?.as_ref();
+                let regex = Regex::new(clean_pattent)?;
+                Ok(e.insert(regex))
+            }
+        }
     }
 
     pub fn to_dict(&self) -> Dictionary {
