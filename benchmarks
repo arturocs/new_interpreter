@@ -65,3 +65,59 @@ fn bench_fstring_1000_times(){
          f"{acc}{i / (i + 1)} test B {true and false} test C"
     })
 }
+
+fn bench_builtin_method_access() {
+a = [
+    [].sum,
+    [].prod,
+    [].max,
+    [].min,
+    [].sort,
+    [].sort_by,
+    [].push,
+    [].contains,
+    [].join,
+    [].map,
+    [].filter,
+    [].to_vec,
+    [].to_dict,
+    [].reduce,
+    [].count,
+    [].any,
+    [].all,
+    [].find,
+    [].for_each,
+    [].slice,
+    [].step_by,
+    [].zip,
+    [].take,
+    [].skip,
+    [].flat_map,
+    [].enumerate,
+    [].flatten,
+    "".starts_with,
+    "".ends_with,
+    "".trim,
+    [].len
+]
+}
+
+d1 = {}
+fn bench_dict_set_by_brackets() {
+    d1["a"]=1
+}
+
+d2 = {"a":1}
+fn bench_dict_get_by_brackets() {
+    d2["a"]
+}
+
+d3={}
+fn bench_dict_set_by_dot() {
+    d3.a=1
+}
+
+d4={a:1}
+fn bench_dict_get_by_dot() {
+    d4.a
+}
