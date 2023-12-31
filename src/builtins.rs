@@ -561,7 +561,6 @@ fn catch_err(args: &[Variant], memory: &mut Memory) -> Result<Variant> {
 }
 
 fn rand(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
-
     let mut rng = rand::thread_rng();
     match args.len() {
         0 => Ok(Variant::Int(rng.gen_range(0..1))),
@@ -632,7 +631,12 @@ pub fn export_global_metods() -> impl Iterator<Item = (Rc<str>, Rc<NativeFunctio
         ("len", len, vec![Type::Str, Type::Vec]),
     ]
     .into_iter()
-    .map(|(name, f, method_of)| (name.into(), Rc::new(NativeFunction::method(name, f, method_of))))
+    .map(|(name, f, method_of)| {
+        (
+            name.into(),
+            Rc::new(NativeFunction::method(name, f, method_of)),
+        )
+    })
 }
 
 pub fn export_top_level_builtins() -> impl Iterator<Item = (Rc<str>, Variant)> {

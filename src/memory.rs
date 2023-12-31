@@ -58,7 +58,8 @@ impl Memory {
 
     pub fn get_method(&self, identifier: &str) -> Result<Rc<NativeFunction>> {
         self.global_methods
-            .get(identifier).map(|i|i.clone())
+            .get(identifier)
+            .map(|i| i.clone())
             .ok_or_else(|| anyhow!("Method '{identifier}' not declared",))
     }
 

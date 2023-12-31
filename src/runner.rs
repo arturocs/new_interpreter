@@ -5,6 +5,7 @@ use itertools::Itertools;
 use std::io::{self, Write};
 use std::time::{Duration, Instant};
 use std::{fs, rc::Rc};
+use ariadne::{ColorGenerator, Label, Report, ReportKind, Source};
 
 pub fn remove_comments(code: &str) -> String {
     code.lines()
@@ -12,13 +13,42 @@ pub fn remove_comments(code: &str) -> String {
         .join("\n")
 }
 
+fn print_parse_error(
+    source_name: &str,
+    source: &str,
+    error: peg::error::ParseError<peg::str::LineCol>,
+) {
+    let a = ColorGenerator::new().next();
+    Report::build(ReportKind::Error, source_name, error.location.offset)
+        .with_message("Error while parsing code")
+        .with_label(
+            Label::new((
+                source_name,
+                error.location.offset..error.location.offset + 1,
+            ))
+            .with_message(format!("Expected: {}", error.expected))
+            .with_color(a),
+        )
+        .finish()
+        .print((source_name, Source::from(source)))
+        .unwrap();
+}
+
 pub fn run_file(path: &str) -> Result<(Variant, Memory)> {
     let code = fs::read_to_string(path)?;
     let filtered_comments = remove_comments(&code);
-    let ast = expr_parser::expr_sequence(&filtered_comments)?;
-    let mut memory = Memory::with_builtins();
-    let result = ast.evaluate(&mut memory)?;
-    Ok((result, memory))
+    let parse_result = expr_parser::expr_sequence(&filtered_comments);
+    match parse_result {
+        Ok(ast) => {
+            let mut memory = Memory::with_builtins();
+            let result = ast.evaluate(&mut memory)?;
+            Ok((result, memory))
+        }
+        Err(error) => {
+            print_parse_error(path, &code, error);
+            bail!("A problem occurred during parsing")
+        }
+    }
 }
 
 pub fn get_files_and_apply_runner(
