@@ -28,7 +28,6 @@ peg::parser!(pub grammar expr_parser() for str {
 
     rule false_() -> Expression = "false" {Expression::Value(Variant::Bool(false))}
 
-
     rule string() -> Expression
         = s:$("\"" (!"\"" [_])* "\"") { Expression::Value(Variant::str(&s[1..s.len()-1])) }
 
@@ -38,7 +37,7 @@ peg::parser!(pub grammar expr_parser() for str {
         }
 
     rule vec() -> Expression
-        = "[" _ v:(expression() ** value_separator()) _ "]" {Expression::Vec(v)}
+        = "[" __ v:(expression() ** value_separator()) __ "]" {Expression::Vec(v)}
 
     rule member() -> (Expression, Expression)
         = k:expression() _ ":" _ v:expression() {
