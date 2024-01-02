@@ -1,11 +1,11 @@
 use crate::{function::Function, memory::Memory, parser::expr_parser, variant::Variant};
 use anyhow::{bail, Result};
+use ariadne::{ColorGenerator, Label, Report, ReportKind, Source};
 use colored::Colorize;
 use itertools::Itertools;
 use std::io::{self, Write};
 use std::time::{Duration, Instant};
 use std::{fs, rc::Rc};
-use ariadne::{ColorGenerator, Label, Report, ReportKind, Source};
 
 pub fn remove_comments(code: &str) -> String {
     code.lines()
@@ -19,6 +19,17 @@ fn print_parse_error(
     error: peg::error::ParseError<peg::str::LineCol>,
 ) {
     let a = ColorGenerator::new().next();
+    let source = Source::from(source);
+    let n_lines = source.lines().count() as i64;
+    let context_labels = (-5..5).map(|i| {
+        let offset = source
+            .lines()
+            .nth((error.location.line as i64 + i).clamp(0, n_lines) as usize)
+            .unwrap()
+            .offset();
+        Label::new((source_name, offset..offset))
+    });
+
     Report::build(ReportKind::Error, source_name, error.location.offset)
         .with_message("Error while parsing code")
         .with_label(
@@ -29,6 +40,7 @@ fn print_parse_error(
             .with_message(format!("Expected: {}", error.expected))
             .with_color(a),
         )
+        .with_labels(context_labels)
         .finish()
         .print((source_name, Source::from(source)))
         .unwrap();
