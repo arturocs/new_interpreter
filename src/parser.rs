@@ -268,9 +268,7 @@ mod tests {
     fn test_index() {
         let ast = expr_parser::expression("a[0]").unwrap();
         let mut memory = Memory::new();
-        memory
-            .set("a", Variant::vec(vec![Variant::Int(1)]))
-            .unwrap();
+        memory.set("a", Variant::vec(vec![Variant::Int(1)]));
         let result = ast.evaluate(&mut memory).unwrap();
         assert_eq!(Variant::Int(1), result);
     }
@@ -278,9 +276,7 @@ mod tests {
     fn test_index_assign() {
         let ast = expr_parser::expression("a[0] = 2").unwrap();
         let mut memory = Memory::new();
-        memory
-            .set("a", Variant::vec(vec![Variant::Int(1)]))
-            .unwrap();
+        memory.set("a", Variant::vec(vec![Variant::Int(1)]));
         ast.evaluate(&mut memory).unwrap();
         let b = memory.get("a").unwrap();
         let a_value = b.index(&Variant::Int(0)).unwrap();
@@ -290,9 +286,7 @@ mod tests {
     fn test_double_index() {
         let ast = expr_parser::expression("a[0][0]").unwrap();
         let mut memory = Memory::new();
-        memory
-            .set("a", Variant::vec(vec![Variant::vec(vec![Variant::Int(1)])]))
-            .unwrap();
+        memory.set("a", Variant::vec(vec![Variant::vec(vec![Variant::Int(1)])]));
         let result = ast.evaluate(&mut memory).unwrap();
         assert_eq!(Variant::Int(1), result);
     }
@@ -325,9 +319,7 @@ mod tests {
         let ast = expr_parser::expression("a.b").unwrap();
         dbg!(&ast);
         let mut memory = Memory::new();
-        memory
-            .set("a", Variant::dict(&[(Variant::str("b"), Variant::Int(1))]))
-            .unwrap();
+        memory.set("a", Variant::dict(&[(Variant::str("b"), Variant::Int(1))]));
         let result = ast.evaluate(&mut memory).unwrap();
         assert_eq!(Variant::Int(1), result);
     }
@@ -336,15 +328,13 @@ mod tests {
     fn test_double_index_by_dot() {
         let ast = expr_parser::expression("a.b.c").unwrap();
         let mut memory = Memory::new();
-        memory
-            .set(
-                "a",
-                Variant::dict(&[(
-                    Variant::str("b"),
-                    Variant::dict(&[(Variant::str("c"), Variant::Int(1))]),
-                )]),
-            )
-            .unwrap();
+        memory.set(
+            "a",
+            Variant::dict(&[(
+                Variant::str("b"),
+                Variant::dict(&[(Variant::str("c"), Variant::Int(1))]),
+            )]),
+        );
         let result = ast.evaluate(&mut memory).unwrap();
         assert_eq!(Variant::Int(1), result);
     }
@@ -353,9 +343,7 @@ mod tests {
     fn test_index_assign_by_dot() {
         let ast = expr_parser::expression("a.b = 2").unwrap();
         let mut memory = Memory::new();
-        memory
-            .set("a", Variant::dict(&[(Variant::str("b"), Variant::Int(1))]))
-            .unwrap();
+        memory.set("a", Variant::dict(&[(Variant::str("b"), Variant::Int(1))]));
         ast.evaluate(&mut memory).unwrap();
         let b = memory.get("a").unwrap();
         let a_value = b.index(&Variant::str("b")).unwrap();
@@ -366,7 +354,7 @@ mod tests {
     fn test_index_assign_declaration() {
         let ast = expr_parser::expression("a.b = 2").unwrap();
         let mut memory = Memory::new();
-        memory.set("a", Variant::dict(&[])).unwrap();
+        memory.set("a", Variant::dict(&[]));
         ast.evaluate(&mut memory).unwrap();
         let b = memory.get("a").unwrap();
         let a_value = b.index(&Variant::str("b")).unwrap();

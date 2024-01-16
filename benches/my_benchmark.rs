@@ -111,38 +111,32 @@ fn benchmark3(c: &mut Criterion) {
 
 fn benchmark4(c: &mut Criterion) {
     let mut variables = Memory::new();
-    variables
-        .set("v", Variant::vec((0..100).map(Variant::Int).collect()))
-        .unwrap();
-    variables
-        .set(
-            "filter",
-            Variant::native_fn(None, move |i, m| {
-                let iter = &i[0];
-                let func = &i[1];
-                Ok(iter
-                    .clone()
-                    .into_iterator()
-                    .unwrap()
-                    .unwrap_iterator()
-                    .borrow_mut()
-                    .filter(func.clone())
-                    .clone()
-                    .to_variant_vec(m))
-            }),
-        )
-        .unwrap();
+    variables.set("v", Variant::vec((0..100).map(Variant::Int).collect()));
+    variables.set(
+        "filter",
+        Variant::native_fn(None, move |i, m| {
+            let iter = &i[0];
+            let func = &i[1];
+            Ok(iter
+                .clone()
+                .into_iterator()
+                .unwrap()
+                .unwrap_iterator()
+                .borrow_mut()
+                .filter(func.clone())
+                .clone()
+                .to_variant_vec(m))
+        }),
+    );
 
-    variables
-        .set(
-            "is_even",
-            Variant::native_fn(None, |i, _| {
-                Ok(Variant::Bool(
-                    i[0].rem(&Variant::Int(2)).unwrap() == Variant::Int(0),
-                ))
-            }),
-        )
-        .unwrap();
+    variables.set(
+        "is_even",
+        Variant::native_fn(None, |i, _| {
+            Ok(Variant::Bool(
+                i[0].rem(&Variant::Int(2)).unwrap() == Variant::Int(0),
+            ))
+        }),
+    );
     c.bench_function("filter with native function", |b| {
         b.iter(|| {
             let expr = Expression::FunctionCall {
@@ -160,43 +154,37 @@ fn benchmark4(c: &mut Criterion) {
 
 fn benchmark5(c: &mut Criterion) {
     let mut variables = Memory::new();
-    variables
-        .set("v", Variant::vec((0..100).map(Variant::Int).collect()))
-        .unwrap();
-    variables
-        .set(
-            "filter",
-            Variant::native_fn(None, |i, m| {
-                let iter = &i[0];
-                let func = &i[1];
-                Ok(iter
-                    .clone()
-                    .into_iterator()
-                    .unwrap()
-                    .unwrap_iterator()
-                    .borrow_mut()
-                    .filter(func.clone())
-                    .clone()
-                    .to_variant_vec(m))
-            }),
-        )
-        .unwrap();
+    variables.set("v", Variant::vec((0..100).map(Variant::Int).collect()));
+    variables.set(
+        "filter",
+        Variant::native_fn(None, |i, m| {
+            let iter = &i[0];
+            let func = &i[1];
+            Ok(iter
+                .clone()
+                .into_iterator()
+                .unwrap()
+                .unwrap_iterator()
+                .borrow_mut()
+                .filter(func.clone())
+                .clone()
+                .to_variant_vec(m))
+        }),
+    );
 
-    variables
-        .set(
-            "is_even",
-            Variant::anonymous_func(
-                vec![("i".into(), None)],
-                vec![Expression::Eq(Box::new((
-                    Expression::Rem(Box::new((
-                        Expression::Identifier("i".to_string()),
-                        Expression::value(Variant::Int(2)),
-                    ))),
-                    Expression::value(Variant::Int(0)),
-                )))],
-            ),
-        )
-        .unwrap();
+    variables.set(
+        "is_even",
+        Variant::anonymous_func(
+            vec![("i".into(), None)],
+            vec![Expression::Eq(Box::new((
+                Expression::Rem(Box::new((
+                    Expression::Identifier("i".to_string()),
+                    Expression::value(Variant::Int(2)),
+                ))),
+                Expression::value(Variant::Int(0)),
+            )))],
+        ),
+    );
 
     c.bench_function("filter with non native function", |b| {
         b.iter(|| {

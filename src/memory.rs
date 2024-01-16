@@ -79,19 +79,18 @@ impl Memory {
             .ok_or_else(|| anyhow!("Variable '{identifier}' not declared"))
     }
 
-    pub fn set(&mut self, identifier: &str, value: Variant) -> Result<()> {
-        match self
+    pub fn set(&mut self, identifier: &str, value: Variant) {
+        let memory_entry = self
             .variables
             .iter_mut()
             .rev()
-            .find_map(|(name, value)| (name.as_ref() == identifier).then_some(value))
-        {
+            .find_map(|(name, value)| (name.as_ref() == identifier).then_some(value));
+        match memory_entry {
             Some(v) => *v = value,
             None => {
                 self.variables.push((identifier.into(), value));
             }
         }
-        Ok(())
     }
 
     pub fn get_functions_starting_with(&self, pattern: &str) -> Vec<(Rc<str>, Rc<Function>)> {

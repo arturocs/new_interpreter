@@ -328,7 +328,7 @@ impl Expression {
         value: &Expression,
     ) -> Result<Variant> {
         let computed_value = value.evaluate(variables)?;
-        variables.set(name, computed_value)?;
+        variables.set(name, computed_value);
         Ok(Variant::Unit)
     }
 
@@ -359,7 +359,7 @@ impl Expression {
         let mut last = Variant::Unit;
 
         for i in iterator.borrow_mut().clone().to_vec(variables) {
-            variables.set(i_name, i)?;
+            variables.set(i_name, i);
 
             last = body.evaluate(variables)?;
         }
@@ -692,7 +692,7 @@ mod tests {
     #[test]
     fn test_native_function_call() {
         let mut variables = Memory::new();
-        variables.set("arg", Variant::Int(1)).unwrap();
+        variables.set("arg", Variant::Int(1));
         let native_function =
             Expression::Value(Variant::native_fn(None, |i, _| i[0].add(&Variant::Int(2))));
         let expr = Expression::FunctionCall {
@@ -716,7 +716,7 @@ mod tests {
     #[test]
     fn test_while_loop() {
         let mut variables = Memory::new();
-        variables.set("i", Variant::Int(0)).unwrap();
+        variables.set("i", Variant::Int(0));
         let expr = Expression::While(Box::new((
             Expression::Lt(Box::new((
                 Expression::Identifier("i".to_string()),
@@ -737,17 +737,15 @@ mod tests {
     #[test]
     fn test_for_loop() {
         let mut variables = Memory::new();
-        variables
-            .set(
-                "v",
-                Variant::vec(vec![
-                    Variant::Int(0),
-                    Variant::Int(1),
-                    Variant::Int(2),
-                    Variant::Int(3),
-                ]),
-            )
-            .unwrap();
+        variables.set(
+            "v",
+            Variant::vec(vec![
+                Variant::Int(0),
+                Variant::Int(1),
+                Variant::Int(2),
+                Variant::Int(3),
+            ]),
+        );
         let expr = Expression::For {
             i_name: "i".to_string(),
             iterable_and_body: Box::new((
@@ -769,28 +767,24 @@ mod tests {
     #[test]
     fn test_filter() {
         let mut variables = Memory::with_builtins();
-        variables
-            .set(
-                "v",
-                Variant::vec(vec![
-                    Variant::Int(0),
-                    Variant::Int(1),
-                    Variant::Int(2),
-                    Variant::Int(3),
-                ]),
-            )
-            .unwrap();
+        variables.set(
+            "v",
+            Variant::vec(vec![
+                Variant::Int(0),
+                Variant::Int(1),
+                Variant::Int(2),
+                Variant::Int(3),
+            ]),
+        );
 
-        variables
-            .set(
-                "is_even",
-                Variant::native_fn(None, |i, _| {
-                    Ok(Variant::Bool(
-                        i[0].rem(&Variant::Int(2)).unwrap() == Variant::Int(0),
-                    ))
-                }),
-            )
-            .unwrap();
+        variables.set(
+            "is_even",
+            Variant::native_fn(None, |i, _| {
+                Ok(Variant::Bool(
+                    i[0].rem(&Variant::Int(2)).unwrap() == Variant::Int(0),
+                ))
+            }),
+        );
 
         let expr = Expression::ExprSequence(vec![Expression::FunctionCall {
             function: Box::new(Expression::Dot(Box::new((
@@ -816,7 +810,7 @@ mod tests {
     #[test]
     fn test_if() {
         let mut variables = Memory::new();
-        variables.set("v", Variant::Int(0)).unwrap();
+        variables.set("v", Variant::Int(0));
         let expr = Expression::Conditional(Box::new((
             Expression::Eq(Box::new((
                 Expression::Identifier("v".to_string()),
@@ -831,7 +825,7 @@ mod tests {
     #[test]
     fn test_if_else() {
         let mut variables = Memory::new();
-        variables.set("v", Variant::Int(0)).unwrap();
+        variables.set("v", Variant::Int(0));
         let expr = Expression::Conditional(Box::new((
             Expression::Eq(Box::new((
                 Expression::Identifier("v".to_string()),
@@ -846,18 +840,16 @@ mod tests {
     #[test]
     fn test_function_call() {
         let mut variables = Memory::new();
-        variables
-            .set(
-                "add_1",
-                Variant::anonymous_func(
-                    vec![("i".into(), None)],
-                    vec![Expression::Add(Box::new((
-                        Expression::Identifier("i".to_string()),
-                        Expression::Value(Variant::Int(1)),
-                    )))],
-                ),
-            )
-            .unwrap();
+        variables.set(
+            "add_1",
+            Variant::anonymous_func(
+                vec![("i".into(), None)],
+                vec![Expression::Add(Box::new((
+                    Expression::Identifier("i".to_string()),
+                    Expression::Value(Variant::Int(1)),
+                )))],
+            ),
+        );
         let expr = Expression::FunctionCall {
             function: Box::new(Expression::Identifier("add_1".to_string())),
             arguments: vec![Expression::Value(Variant::Int(1))],
