@@ -542,7 +542,7 @@ impl Variant {
             bail!("Can't convert {self} to pair because it doesnt have two elements",)
         }
         if let Variant::Vec(v) = self {
-            let first = v.borrow().get(0).unwrap().clone();
+            let first = v.borrow().first().unwrap().clone();
             let second = v.borrow().get(1).unwrap().clone();
             Ok((first, second))
         } else {

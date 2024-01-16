@@ -42,7 +42,7 @@ fn print_parse_error(
         )
         .with_labels(context_labels)
         .finish()
-        .print((source_name, Source::from(source)))
+        .print((source_name, source))
         .unwrap();
 }
 

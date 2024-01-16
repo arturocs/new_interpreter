@@ -48,7 +48,7 @@ impl Memory {
 
     pub fn pop_context(&mut self) {
         // Avoid removing last context
-        if self.context_delimiters.len() >= 1 {
+        if !self.context_delimiters.is_empty() {
             let start = self.context_delimiters.pop().unwrap();
             self.variables.truncate(start);
         } else {
@@ -59,7 +59,7 @@ impl Memory {
     pub fn get_method(&self, identifier: &str) -> Result<Rc<NativeFunction>> {
         self.global_methods
             .get(identifier)
-            .map(|i| i.clone())
+            .cloned()
             .ok_or_else(|| anyhow!("Method '{identifier}' not declared",))
     }
 
@@ -105,7 +105,7 @@ impl Memory {
         match self.regex_cache.entry(pattern.clone()) {
             Entry::Occupied(e) => Ok(e.into_mut()),
             Entry::Vacant(e) => {
-                let clean_pattent = pattern.to_str()?.as_ref();
+                let clean_pattent = pattern.to_str()?;
                 let regex = Regex::new(clean_pattent)?;
                 Ok(e.insert(regex))
             }

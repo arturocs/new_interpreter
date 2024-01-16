@@ -94,10 +94,11 @@ impl Function {
     }
 }
 
+type BoxedFn = Box<dyn Fn(&[Variant], &mut Memory) -> Result<Variant>>;
 pub struct NativeFunction {
     pub name: Option<Box<str>>,
     method_of: Box<[Type]>,
-    function: Box<dyn Fn(&[Variant], &mut Memory) -> Result<Variant>>,
+    function: BoxedFn,
 }
 impl fmt::Debug for NativeFunction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -165,7 +166,7 @@ impl NativeFunction {
         if self.method_of.is_empty() {
             return (self.function)(args, memory);
         }
-        let Some(v) = args.get(0) else {
+        let Some(v) = args.first() else {
             bail!("Cannot call {self} without arguments");
         };
         self.method_of
