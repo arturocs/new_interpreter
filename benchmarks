@@ -75,7 +75,6 @@ a = [
     [].sort,
     [].sort_by,
     [].push,
-    [].contains,
     [].join,
     [].map,
     [].filter,
