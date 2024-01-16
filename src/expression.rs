@@ -402,9 +402,9 @@ impl Expression {
         let rhs = b.evaluate(variables)?;
         let result = match (lhs, rhs) {
             (Variant::Str(sl), Variant::Str(sr)) => sr.contains_str(&sl[..]),
-            (Variant::Str(_), _) =>  bail!("When the in operator is used to search for substrings, the left operand must be a string"),
-            (Variant::Dict(d), i )=> d.borrow().contains_key(&i),
-            (Variant::Vec(v), i) => v.borrow().contains(&i),
+            (_, Variant::Str(_)) =>  bail!("When the in operator is used to search for substrings, the left operand must be a string"),
+            (lhs, Variant::Dict(d) )=> d.borrow().contains_key(&lhs),
+            (lhs, Variant::Vec(v)) => v.borrow().contains(&lhs),
             _ => bail!("in operator can only be used with strings, dictionaries or vectors"),
         };
         Ok(Variant::Bool(result))
