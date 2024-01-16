@@ -1,7 +1,7 @@
 use crate::expression::Expression;
 use crate::memory::Memory;
 use crate::variant::{Type, Variant};
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 use itertools::{EitherOrBoth, Itertools};
 use std::fmt;
 use std::rc::Rc;
@@ -68,19 +68,12 @@ impl Function {
             .zip_longest(arg_values.iter())
             .map(|i| match i {
                 EitherOrBoth::Both((name, _), value) => Ok((name.clone(), value.clone())),
-                EitherOrBoth::Left((name, Some(value))) => {
-                    Ok((name.clone(), value.evaluate(variables)?))
-                }
-                EitherOrBoth::Left((name, None)) => Err(anyhow!("Missing argument {}", name)),
-                EitherOrBoth::Right(_) => {
-                    if let Some(name) = &self.name {
-                        Err(anyhow!("Function {name} called with too many arguments"))
-                    } else {
-                        Err(anyhow!(
-                            "Annonymous function called with too many arguments"
-                        ))
-                    }
-                }
+                EitherOrBoth::Left((name, Some(v))) => Ok((name.clone(), v.evaluate(variables)?)),
+                EitherOrBoth::Left((name, None)) => bail!("Missing argument {name}"),
+                EitherOrBoth::Right(_) => match &self.name {
+                    Some(name) => bail!("Function {name} called with too many arguments"),
+                    None => bail!("Annonymous function called with too many arguments"),
+                },
             })
             .collect();
 
@@ -88,8 +81,8 @@ impl Function {
 
         variables.push_context(context);
         let result = Expression::evaluate_expr_sequence(variables, &self.body);
-
         variables.pop_context();
+
         result
     }
 }
