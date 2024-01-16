@@ -132,18 +132,6 @@ pub fn range(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
     }
 }
 
-pub fn contains(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
-    if args.len() != 2 {
-        bail!("contains function needs two arguments");
-    }
-    let result = match &args[0] {
-        Variant::Str(s) => s.contains_str(args[1].to_string()),
-        Variant::Dict(d) => d.borrow().contains_key(&args[1]),
-        Variant::Vec(v) => v.borrow().contains(&args[1]),
-        _ => bail!("contains function with strings, dictionaries or vectors"),
-    };
-    Ok(Variant::Bool(result))
-}
 
 pub fn join(args: &[Variant], memory: &mut Memory) -> Result<Variant> {
     if args.len() != 2 {
@@ -604,7 +592,6 @@ pub fn export_global_metods() -> impl Iterator<Item = (Rc<str>, Rc<NativeFunctio
         ("sort", sort, vec![Type::Vec]),
         ("sort_by", sort_by, vec![Type::Vec]),
         ("push", push, vec![Type::Vec]),
-        ("contains", contains, vec![Type::Vec, Type::Str, Type::Dict]),
         ("join", join, vec![Type::Vec, Type::Iterator]),
         ("map", map, vec![Type::Vec, Type::Iterator]),
         ("filter", filter, vec![Type::Vec, Type::Iterator]),
@@ -659,7 +646,6 @@ pub fn export_top_level_builtins() -> impl Iterator<Item = (Rc<str>, Variant)> {
         ("err", err),
         ("type", type_),
         ("import", import),
-        ("contains", contains),
         ("len", len),
         ("eval", eval),
         ("catch_err", catch_err),

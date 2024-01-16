@@ -28,6 +28,7 @@ pub enum Expression {
     Ltoe(Box<(Expression, Expression)>),
     And(Box<(Expression, Expression)>),
     Or(Box<(Expression, Expression)>),
+    In(Box<(Expression, Expression)>),
 
     //Unary Operations
     Neg(Box<Expression>),
@@ -153,6 +154,7 @@ impl fmt::Display for Expression {
                 i_name, iterable_and_body.0, iterable_and_body.1
             ),
             Expression::FunctionDeclaration { name: _, function } => write!(fmt, "{function}"),
+            Expression::In(i) => write!(fmt, "{} in {}", i.0, i.1),
         }
     }
 }
@@ -395,6 +397,19 @@ impl Expression {
         Ok(Variant::dict(&vec?))
     }
 
+    fn evaluate_in(variables: &mut Memory, (a, b): &(Expression, Expression)) -> Result<Variant> {
+        let lhs = a.evaluate(variables)?;
+        let rhs = b.evaluate(variables)?;
+        let result = match (lhs, rhs) {
+            (Variant::Str(sl), Variant::Str(sr)) => sr.contains_str(&sl[..]),
+            (Variant::Str(_), _) =>  bail!("When the in operator is used to search for substrings, the left operand must be a string"),
+            (Variant::Dict(d), i )=> d.borrow().contains_key(&i),
+            (Variant::Vec(v), i) => v.borrow().contains(&i),
+            _ => bail!("in operator can only be used with strings, dictionaries or vectors"),
+        };
+        Ok(Variant::Bool(result))
+    }
+
     pub fn evaluate(&self, variables: &mut Memory) -> Result<Variant> {
         match self {
             Expression::Value(v) => Ok(v.clone()),
@@ -444,6 +459,7 @@ impl Expression {
             Expression::FunctionDeclaration { name, function } => {
                 Self::evaluate_declaration(variables, name, &Expression::Value(function.clone()))
             }
+            Expression::In(i) => Self::evaluate_in(variables, i),
         }
     }
 }
