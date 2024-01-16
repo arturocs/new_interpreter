@@ -31,7 +31,7 @@ pub(crate) type Dictionary = IndexMap<Variant, Variant, RandomState>;
 #[derive(Debug, Clone, IsVariant, Unwrap)]
 #[repr(u8)]
 pub enum Variant {
-    Error(Rc<str>),
+    Error(Rc<String>),
     Int(Int),
     Float(Float),
     Bool(bool),
@@ -767,7 +767,7 @@ mod tests {
 
     #[test]
     fn size_of_variant() {
-        assert_eq!(std::mem::size_of::<Variant>(), 24)
+        assert_eq!(std::mem::size_of::<Variant>(), 16)
     }
 
     #[test]
