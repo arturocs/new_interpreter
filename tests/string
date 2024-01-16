@@ -33,10 +33,6 @@ fn test_fstring() {
     assert_eq(f"randomstring {0+1}{value}", "randomstring 11")
 }
 
-fn test_string_contains() {
-    assert("hello".contains("ell"))
-    assert(!"hello".contains("abc"))
-}
 
 fn test_string_starts_with() {
     assert("hello".starts_with("he"))

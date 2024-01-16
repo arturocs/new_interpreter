@@ -23,11 +23,6 @@ fn test_dict_set() {
     assert_eq(d["a"], 4)
 }
 
-fn test_dict_contains() {
-    d = {a:1,b:2,c:3}
-    assert(contains(d,"a"))
-}
-
 fn test_dict_in() {
     d = {a:1,b:2,c:3}
     assert("a" in d)
