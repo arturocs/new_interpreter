@@ -4,26 +4,34 @@ use crate::{
     variant::{Dictionary, Int, Variant},
 };
 use anyhow::{Context, Result};
-use dyn_clone::DynClone;
 use itertools::Itertools;
 use paste::paste;
-use std::{cell::RefCell, fmt, slice};
-pub trait VariantIter: Iterator<Item = Variant> + fmt::Debug + DynClone {}
-impl<T> VariantIter for T where T: Iterator<Item = Variant> + fmt::Debug + DynClone {}
-dyn_clone::clone_trait_object!(VariantIter);
+use std::{cell::RefCell, fmt, rc::Rc, slice};
+trait VariantIter: Iterator<Item = Variant> + fmt::Debug {}
+impl<T> VariantIter for T where T: Iterator<Item = Variant> + fmt::Debug {}
 
 #[derive(Debug, Clone)]
 pub enum Adapter {
-    Generator(Variant),
     Filter(Variant),
     Map(Variant),
     FlatMap(Variant),
     Zip(Variant),
     Flatten,
     Enumerate,
+    Rev,
     StepBy(usize),
     Take(usize),
     Skip(usize),
+
+    // Technically not adapters, but useful to have them here
+    Generator(Variant),
+    Range(Rc<Range>),
+}
+#[derive(Debug)]
+pub struct Range {
+    start: Option<Int>,
+    end: Option<Int>,
+    step: Option<Int>,
 }
 
 impl fmt::Display for Adapter {
@@ -36,16 +44,19 @@ impl fmt::Display for Adapter {
             Adapter::Zip(a) => write!(f, "Zip({a})"),
             Adapter::Flatten => write!(f, "Flatten"),
             Adapter::Enumerate => write!(f, "Enumerate"),
+            Adapter::Rev => write!(f, "Rev"),
             Adapter::StepBy(a) => write!(f, "StepBy({a})"),
             Adapter::Take(a) => write!(f, "Take({a})"),
             Adapter::Skip(a) => write!(f, "Skip({a})"),
+            Adapter::Range(a) => write!(f, "Range({a:?})"),
         }
     }
 }
+
 #[derive(Debug, Clone)]
 pub struct VariantIterator {
     adapters: Vec<Adapter>,
-    base: Box<dyn VariantIter>,
+    base: Variant,
 }
 
 impl fmt::Display for VariantIterator {
@@ -112,18 +123,33 @@ implement_adapters!(StepBy, usize);
 implement_adapters!(Take, usize);
 implement_adapters!(Skip, usize);
 
+fn to_dyn_iter(i: Variant) -> Box<dyn VariantIter> {
+    match i {
+        Variant::Vec(i) => Box::new(i.borrow_mut().clone().into_iter()),
+        Variant::Dict(i) => Box::new(
+            i.borrow_mut()
+                .clone()
+                .into_iter()
+                .map(|(k, v)| Variant::vec(vec![k, v])),
+        ),
+        Variant::Str(i) => Box::new(
+            i.iter()
+                .copied()
+                .collect_vec()
+                .into_iter()
+                .map(Variant::Byte),
+        ),
+        Variant::None => Box::new(std::iter::empty()),
+        e => panic!("to_dyn_iter() error: {e} is not iterable"),
+    }
+}
+
 macro_rules! apply_method_to_iter {
     ($it:expr,$memory:expr,$method:expr) => {{
-        let mut base = $it.base;
+        let mut base = to_dyn_iter($it.base);
         let mem = RefCell::new($memory);
         for a in $it.adapters.iter() {
             base = match a {
-                Adapter::Generator(f) => {
-                    Box::new(std::iter::from_fn(|| match call_helper(f, &[], &mem) {
-                        Variant::Error(_) => None,
-                        a => Some(a),
-                    }))
-                }
                 Adapter::Map(f) => Box::new(base.map(|i| call_helper(f, &[i], &mem))),
                 Adapter::Filter(f) => {
                     Box::new(
@@ -154,6 +180,7 @@ macro_rules! apply_method_to_iter {
                     .collect_vec()
                     .into_iter(),
                 ),
+                Adapter::Rev => Box::new(base.collect_vec().into_iter().rev()),
                 Adapter::Zip(other) => {
                     if let Ok(Variant::Iterator(it)) = other.clone().into_iterator() {
                         Box::new(
@@ -193,6 +220,25 @@ macro_rules! apply_method_to_iter {
                     .collect_vec()
                     .into_iter(),
                 ),
+                Adapter::Range(r) => {
+                    let start = r.start.unwrap_or(0);
+                    match (r.end, r.step) {
+                        (Some(end), Some(step)) => {
+                            Box::new((start..end).step_by(step as usize).map(Variant::Int))
+                        }
+                        (Some(end), None) => Box::new((start..end).map(Variant::Int)),
+                        (None, Some(step)) => {
+                            Box::new((start..).step_by(step as usize).map(Variant::Int))
+                        }
+                        (None, None) => Box::new((start..).map(Variant::Int)),
+                    }
+                }
+                Adapter::Generator(f) => {
+                    Box::new(std::iter::from_fn(|| match call_helper(f, &[], &mem) {
+                        Variant::Error(_) => None,
+                        a => Some(a),
+                    }))
+                }
             }
         }
         ({ $method })(base, &mem)
@@ -200,20 +246,28 @@ macro_rules! apply_method_to_iter {
 }
 
 impl VariantIterator {
-    pub fn new(i: impl VariantIter + 'static) -> Self {
+    pub fn new(base: Variant) -> Self {
         Self {
             adapters: Vec::with_capacity(5),
-            base: Box::new(i),
+            base,
         }
     }
 
-    pub fn from_adapter(adapter: Adapter, i: impl VariantIter + 'static) -> Self {
+    pub fn from_adapter(adapter: Adapter, base: Variant) -> Self {
         let mut adapters = vec![adapter];
         adapters.reserve(5);
-        Self {
-            adapters,
-            base: Box::new(i),
-        }
+        Self { adapters, base }
+    }
+
+    pub fn range(start: Int, end: Option<Int>, step: Option<Int>) -> Self {
+        Self::from_adapter(
+            Adapter::Range(Rc::new(Range {
+                start: Some(start),
+                end,
+                step,
+            })),
+            Variant::None,
+        )
     }
 
     pub fn to_vec(self, memory: &mut Memory) -> Vec<Variant> {

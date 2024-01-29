@@ -10,7 +10,6 @@ use anyhow::{anyhow, bail, Result};
 use bstr::{BString, ByteSlice, ByteVec};
 use derive_more::Display;
 use derive_more::{IsVariant, Unwrap};
-use dyn_clone::DynClone;
 use indexmap::IndexMap;
 use itertools::Itertools;
 use std::{
@@ -20,9 +19,6 @@ use std::{
     hash::{Hash, Hasher},
     rc::Rc,
 };
-pub trait VariantIter: Iterator<Item = Variant> + fmt::Debug + DynClone {}
-impl<T> VariantIter for T where T: Iterator<Item = Variant> + fmt::Debug + DynClone {}
-dyn_clone::clone_trait_object!(VariantIter);
 
 pub(crate) type Int = i64;
 pub(crate) type Float = f64;
@@ -225,8 +221,8 @@ impl Variant {
     pub fn error(e: impl ToString) -> Variant {
         Variant::Error(e.to_string().into())
     }
-    pub fn iterator(i: impl VariantIter + 'static) -> Variant {
-        Variant::Iterator(Shared::new(VariantIterator::new(i)))
+    pub fn iterator(base:Variant) -> Variant {
+        Variant::Iterator(Shared::new(VariantIterator::new(base)))
     }
     pub fn dict(v: &[(Variant, Variant)]) -> Variant {
         Variant::Dict(Shared::new(v.iter().cloned().collect()))
@@ -566,7 +562,7 @@ impl Variant {
         }
     }
 
-    pub fn into_iterator(self) -> Result<Variant> {
+/*     pub fn into_iterator(self) -> Result<Variant> {
         match self {
             Variant::Str(s) => {
                 let i = s.to_vec().into_iter();
@@ -587,6 +583,17 @@ impl Variant {
             a => bail!("Can't convert {a} to iterator"),
         }
     }
+ */
+    pub fn into_iterator(self) -> Result<Variant> {
+        match self {
+            Variant::Str(_) => Ok(Variant::iterator(self)),
+            Variant::Vec(_) => Ok(Variant::iterator(self)),
+            Variant::Dict(_) => Ok(Variant::iterator(self)),
+            Variant::Iterator(_) => Ok(self),
+            a => bail!("Can't convert {a} to iterator"),
+        }
+    }
+
 
     pub fn push(&mut self, element: Variant) -> Result<()> {
         match self {

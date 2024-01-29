@@ -111,7 +111,11 @@ pub fn range(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
             let Variant::Int(end) = &args[0] else {
                 return error;
             };
-            Ok(Variant::iterator((0..*end).map(Variant::Int)))
+            Ok(Variant::Iterator(Shared::new(VariantIterator::range(
+                0,
+                Some(*end),
+                None,
+            ))))
         }
         2 | 3 => {
             let Variant::Int(start) = &args[0] else {
@@ -123,15 +127,16 @@ pub fn range(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
             let Variant::Int(step) = &args.get(2).unwrap_or(&Variant::Int(1)) else {
                 return error;
             };
-            Ok(Variant::iterator(
-                (*start..*end).step_by((*step) as usize).map(Variant::Int),
-            ))
+            Ok(Variant::Iterator(Shared::new(VariantIterator::range(
+                *start,
+                Some(*end),
+                Some(*step),
+            ))))
         }
 
         _ => bail!("range function needs two or three arguments"),
     }
 }
-
 
 pub fn join(args: &[Variant], memory: &mut Memory) -> Result<Variant> {
     if args.len() != 2 {
@@ -388,12 +393,11 @@ pub fn split(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
         bail!("split() method needs two arguments");
     }
     match (&args[0], &args[1]) {
-        (Variant::Str(s1), Variant::Str(s2)) => Ok(Variant::iterator(
+        (Variant::Str(s1), Variant::Str(s2)) => Ok(Variant::iterator(Variant::vec(
             s1.split_str(s2.as_slice())
                 .map(|i| Variant::str(i.to_str_lossy()))
-                .collect_vec()
-                .into_iter(),
-        )),
+                .collect_vec(),
+        ))),
         _ => bail!("split() method only works on strings"),
     }
 }
@@ -447,7 +451,7 @@ pub fn generator(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
         Variant::Func(f) => Ok(Variant::Iterator(Shared::new(
             VariantIterator::from_adapter(
                 Adapter::Generator(Variant::Func(f.clone())),
-                std::iter::empty(),
+                Variant::None,
             ),
         ))),
         _ => bail!("generator() method only works on functions"),
