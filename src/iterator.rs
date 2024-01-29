@@ -340,7 +340,7 @@ impl VariantIterator {
                 })
             }
         );
-        Variant::Unit
+        Variant::None
     }
 }
 

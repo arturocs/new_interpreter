@@ -57,7 +57,7 @@ fn test_type(){
     assert_eq(type(|| ()), "Func")
     assert_eq(type(true), "Bool")
     assert_eq(type(false), "Bool")
-    assert_eq(type(()), "Unit")
+    assert_eq(type(None), "None")
     assert_eq(type(range(1)), "Iterator")
     assert_eq(type(max), "NativeFunc")
     assert_eq(type(err()), "Error")

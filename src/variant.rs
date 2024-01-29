@@ -42,7 +42,7 @@ pub enum Variant {
     Iterator(Shared<VariantIterator>),
     NativeFunc(Rc<NativeFunction>),
     Func(Rc<Function>),
-    Unit,
+    None,
 }
 
 #[derive(Display, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -59,7 +59,7 @@ pub enum Type {
     NativeFunc,
     Func,
     Error,
-    Unit,
+    None,
 }
 
 impl Default for Variant {
@@ -113,7 +113,7 @@ impl PartialEq for Variant {
             (Variant::Iterator(a), Variant::Iterator(b)) => a.as_ptr() == b.as_ptr(),
             (Variant::NativeFunc(a), Variant::NativeFunc(b)) => Rc::ptr_eq(a, b),
             (Variant::Func(a), Variant::Func(b)) => a == b,
-            (Variant::Unit, Variant::Unit) => true,
+            (Variant::None, Variant::None) => true,
             _ => false,
         }
     }
@@ -153,7 +153,7 @@ impl fmt::Display for Variant {
             Variant::Byte(b) => write!(fmt, "\\{:#01x}", b),
             Variant::Iterator(i) => write!(fmt, "{}", i.borrow()),
             Variant::NativeFunc(f) => write!(fmt, "{f}"),
-            Variant::Unit => write!(fmt, "()"),
+            Variant::None => write!(fmt, "()"),
         }
     }
 }
@@ -175,7 +175,7 @@ impl Hash for Variant {
             Variant::Byte(b) => b.hash(state),
             Variant::Iterator(a) => a.as_ptr().hash(state),
             Variant::NativeFunc(f) => Rc::as_ptr(f).hash(state),
-            Variant::Unit => 0_u8.hash(state),
+            Variant::None => 0_u8.hash(state),
         };
     }
 }
@@ -211,7 +211,7 @@ impl Variant {
             Variant::NativeFunc(_) => Type::NativeFunc,
             Variant::Func(_) => Type::Func,
             Variant::Error(_) => Type::Error,
-            Variant::Unit => Type::Unit,
+            Variant::None => Type::None,
         }
     }
     pub fn vec(v: Vec<Variant>) -> Variant {

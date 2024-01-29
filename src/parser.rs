@@ -223,7 +223,7 @@ peg::parser!(pub grammar expr_parser() for str {
 
        // --
        //rule unit_() -> Expression = "()" {Expression::Value(Variant::Unit)}
-        "()" {Expression::Value(Variant::Unit)}
+        ("()"/"None") {Expression::Value(Variant::None)}
         "(" v:expression() ")" { v }
         d:dict() {d}
         b:true_() {b}

@@ -321,7 +321,7 @@ impl Expression {
         *indexable
             .evaluate(variables)?
             .index_mut(&index.evaluate(variables)?)? = value.evaluate(variables)?;
-        Ok(Variant::Unit)
+        Ok(Variant::None)
     }
 
     fn evaluate_declaration(
@@ -331,7 +331,7 @@ impl Expression {
     ) -> Result<Variant> {
         let computed_value = value.evaluate(variables)?;
         variables.set(name, computed_value);
-        Ok(Variant::Unit)
+        Ok(Variant::None)
     }
 
     fn evaluate_while(
@@ -339,7 +339,7 @@ impl Expression {
         (condition, body): &(Expression, Expression),
     ) -> Result<Variant> {
         variables.push_empty_context();
-        let mut last = Variant::Unit;
+        let mut last = Variant::None;
         while condition.evaluate(variables)?.is_true()? {
             last = body.evaluate(variables)?;
         }
@@ -358,7 +358,7 @@ impl Expression {
             bail!("For loop expects an iterator")
         };
         variables.push_empty_context();
-        let mut last = Variant::Unit;
+        let mut last = Variant::None;
 
         for i in iterator.borrow_mut().clone().to_vec(variables) {
             variables.set(i_name, i);
@@ -746,7 +746,7 @@ mod tests {
                 )))),
             },
         )));
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Unit);
+        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::None);
         dbg!(&variables);
         assert_eq!(&*variables.get("i").unwrap(), &Variant::Int(10));
     }
@@ -769,14 +769,14 @@ mod tests {
                 Expression::FunctionCall {
                     function: Box::new(Expression::Value(Variant::native_fn(None, |i, _| {
                         println!("{:?}", i[0]);
-                        Ok(Variant::Unit)
+                        Ok(Variant::None)
                     }))),
                     arguments: vec![Expression::Identifier("i".to_string())],
                 },
             )),
         };
 
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Unit);
+        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::None);
         dbg!(variables);
     }
 

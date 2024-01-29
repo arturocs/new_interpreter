@@ -77,7 +77,7 @@ pub fn sort_by(args: &[Variant], memory: &mut Memory) -> Result<Variant> {
 
 pub fn print(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
     println!("{}", args.iter().join(" "));
-    Ok(Variant::Unit)
+    Ok(Variant::None)
 }
 
 pub fn input(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
@@ -101,7 +101,7 @@ pub fn push(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
         bail!("First argument of push method needs to be a vec");
     };
     v.borrow_mut().extend_from_slice(&args[1..]);
-    Ok(Variant::Unit)
+    Ok(Variant::None)
 }
 
 pub fn range(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
@@ -315,7 +315,7 @@ pub fn write_to_file(args: &[Variant], _memory: &mut Memory) -> Result<Variant> 
     let path = path.to_str_lossy();
     let content = args[1].to_string();
     std::fs::write(path.as_ref(), content)?;
-    Ok(Variant::Unit)
+    Ok(Variant::None)
 }
 
 pub fn items(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
@@ -480,7 +480,7 @@ pub fn assert_eq(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
         Some(e) => Ok(e.clone()),
         None => {
             if args[0] == args[1] {
-                Ok(Variant::Unit)
+                Ok(Variant::None)
             } else {
                 bail!("assert_eq() failed: {} != {}", args[0], args[1])
             }
@@ -494,7 +494,7 @@ pub fn assert_(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
     }
 
     if args[0].is_true().unwrap_or(false) {
-        Ok(Variant::Unit)
+        Ok(Variant::None)
     } else {
         Ok(Variant::error("Assertion failed"))
     }
