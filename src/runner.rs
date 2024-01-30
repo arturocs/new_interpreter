@@ -3,8 +3,10 @@ use anyhow::{bail, Result};
 use ariadne::{ColorGenerator, Label, Report, ReportKind, Source};
 use colored::Colorize;
 use itertools::Itertools;
-use std::io::{self, Write};
-use std::time::{Duration, Instant};
+use std::collections::HashMap;
+use std::io::{self, Read, Write};
+use std::path::Path;
+use std::time::{Duration, Instant, SystemTime};
 use std::{fs, rc::Rc};
 
 pub fn remove_comments(code: &str) -> String {
@@ -89,7 +91,7 @@ fn run_bench(
     memory: &mut Memory,
     warmup_seconds: f64,
     bench_seconds: f64,
-) -> Result<()> {
+) -> Result<Duration> {
     print!("Running {name}: Warming up for {warmup_seconds:.4}s ...");
     io::stdout().flush().unwrap();
 
@@ -123,6 +125,26 @@ fn run_bench(
     println!(
         "\rRan {colored_name} {bench_iterations} times. Average time: {time_formated}{padding}"
     );
+    Ok(average_time)
+}
+
+fn store_results_in_json(path: &str, times: HashMap<String, Duration>) -> Result<()> {
+    let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?.as_millis().to_string();
+    if Path::new(path).exists() {
+        let mut file = fs::OpenOptions::new().open(path)?;
+        let mut buf = String::new();
+        file.read_to_string(&mut buf)?;
+        let mut v: HashMap<String, HashMap<String, Duration>> = serde_json::from_str(&buf)?;
+        v.insert(current_time, times);
+        let data = serde_json::to_string(&v)?;
+        file.write_all(data.as_bytes())?;
+    } else {
+        let mut file = fs::File::create(path)?;
+        let mut v: HashMap<String, HashMap<String, Duration>> = HashMap::new();
+        v.insert(current_time, times);
+        let data = serde_json::to_string(&v)?;
+        file.write_all(data.as_bytes())?;
+    }
     Ok(())
 }
 
@@ -135,9 +157,18 @@ pub fn run_benches_in_file(path: &str) -> Result<()> {
         return Ok(());
     }
     println!("\nFound {n_benches} benches in {path}:\n");
-    for (bench_name, bench_function) in benches {
-        run_bench(&bench_name, &bench_function, &mut memory, 3., 5.)?;
-    }
+
+    let times = benches
+        .into_iter()
+        .map(|(bench_name, bench_function)| {
+            Ok((
+                format!("{path}/{bench_name}"),
+                run_bench(&bench_name, &bench_function, &mut memory, 3., 5.)?,
+            ))
+        })
+        .collect::<Result<HashMap<_, _>>>()?;
+    store_results_in_json("./bench_results.json", times)?;
+
     Ok(())
 }
 
