@@ -2,9 +2,9 @@ use crate::{function::Function, memory::Memory, parser::expr_parser, variant::Va
 use anyhow::{bail, Result};
 use ariadne::{ColorGenerator, Label, Report, ReportKind, Source};
 use colored::Colorize;
+use indexmap::IndexMap;
 use itertools::Itertools;
-use std::collections::HashMap;
-use std::io::{self, Read, Write};
+use std::io::{self, Read, Seek, Write};
 use std::path::Path;
 use std::time::{Duration, Instant, SystemTime};
 use std::{fs, rc::Rc};
@@ -128,23 +128,28 @@ fn run_bench(
     Ok(average_time)
 }
 
-fn store_results_in_json(path: &str, times: HashMap<String, Duration>) -> Result<()> {
-    let current_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?.as_millis().to_string();
-    if Path::new(path).exists() {
-        let mut file = fs::OpenOptions::new().open(path)?;
+fn store_results_in_json(path: &str, times: IndexMap<String, Duration>) -> Result<()> {
+    let current_time = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)?
+        .as_millis()
+        .to_string();
+    let file_exists = Path::new(path).exists();
+    let mut file = fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .append(false)
+        .read(true)
+        .open(path)?;
+    let mut v: IndexMap<String, IndexMap<String, Duration>> = IndexMap::new();
+    if file_exists {
         let mut buf = String::new();
         file.read_to_string(&mut buf)?;
-        let mut v: HashMap<String, HashMap<String, Duration>> = serde_json::from_str(&buf)?;
-        v.insert(current_time, times);
-        let data = serde_json::to_string(&v)?;
-        file.write_all(data.as_bytes())?;
-    } else {
-        let mut file = fs::File::create(path)?;
-        let mut v: HashMap<String, HashMap<String, Duration>> = HashMap::new();
-        v.insert(current_time, times);
-        let data = serde_json::to_string(&v)?;
-        file.write_all(data.as_bytes())?;
+        file.rewind()?;
+        v = serde_json::from_str(&buf)?;
     }
+    v.insert(current_time, times);
+    let data = serde_json::to_string_pretty(&v)?;
+    file.write_all(data.as_bytes())?;
     Ok(())
 }
 
@@ -166,7 +171,7 @@ pub fn run_benches_in_file(path: &str) -> Result<()> {
                 run_bench(&bench_name, &bench_function, &mut memory, 3., 5.)?,
             ))
         })
-        .collect::<Result<HashMap<_, _>>>()?;
+        .collect::<Result<IndexMap<_, _>>>()?;
     store_results_in_json("./bench_results.json", times)?;
 
     Ok(())
