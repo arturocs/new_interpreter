@@ -3,13 +3,12 @@ use crate::memory::Memory;
 use crate::variant::{Type, Variant};
 use anyhow::{bail, Result};
 use itertools::{EitherOrBoth, Itertools};
+use ustr::Ustr;
 use std::fmt;
-use std::rc::Rc;
-
 #[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Function {
-    pub name: Option<Box<str>>,
-    pub arg_names: Box<[(Rc<str>, Option<Expression>)]>,
+    pub name: Option<Ustr>,
+    pub arg_names: Box<[(Ustr, Option<Expression>)]>,
     pub body: Box<[Expression]>,
 }
 impl fmt::Display for Function {
@@ -34,7 +33,7 @@ impl fmt::Display for Function {
     }
 }
 impl Function {
-    pub fn anonymous(args: Vec<(Rc<str>, Option<Expression>)>, body: Vec<Expression>) -> Self {
+    pub fn anonymous(args: Vec<(Ustr, Option<Expression>)>, body: Vec<Expression>) -> Self {
         Function {
             name: None,
             arg_names: args.into(),
@@ -44,7 +43,7 @@ impl Function {
 
     pub fn new(
         name: &str,
-        args: Vec<(Rc<str>, Option<Expression>)>,
+        args: Vec<(Ustr, Option<Expression>)>,
         body: Vec<Expression>,
     ) -> Self {
         Function {
@@ -89,7 +88,7 @@ impl Function {
 
 type BoxedFn = Box<dyn Fn(&[Variant], &mut Memory) -> Result<Variant>>;
 pub struct NativeFunction {
-    pub name: Option<Box<str>>,
+    pub name: Option<Ustr>,
     method_of: Box<[Type]>,
     function: BoxedFn,
 }

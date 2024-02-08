@@ -1,5 +1,5 @@
 use crate::{expression::Expression, variant::Variant};
-use std::rc::Rc;
+use ustr::{ustr,Ustr};
 peg::parser!(pub grammar expr_parser() for str {
     rule _() = [' ' | '\t']*
 
@@ -33,7 +33,7 @@ peg::parser!(pub grammar expr_parser() for str {
 
     rule identifier() -> Expression
         = i:$( ([ 'a'..='z' | 'A'..='Z' | '_' ]['a'..='z' | 'A'..='Z' | '0'..='9' | '_' ]*) ) {
-            Expression::Identifier(i.to_string())
+            Expression::Identifier(ustr(i))
         }
 
     rule vec() -> Expression
@@ -86,7 +86,7 @@ peg::parser!(pub grammar expr_parser() for str {
 
     rule arg_value() -> Expression =  "=" _ e:expression() { e }
 
-    rule function_argument() -> (Rc<str>, Option<Expression>)
+    rule function_argument() -> (Ustr, Option<Expression>)
         = i:$identifier() _ e:arg_value()? { (i.into(), e) }
 
     rule anonymous_function() -> Expression

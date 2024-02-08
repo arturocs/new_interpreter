@@ -3,10 +3,11 @@ use anyhow::{anyhow, bail, Context, Result};
 use bstr::ByteSlice;
 use itertools::Itertools;
 use std::fmt;
+use ustr::{ustr, Ustr};
 #[derive(Debug, Hash, PartialEq, Eq, Clone, PartialOrd, Ord)]
 pub enum Expression {
     Value(Variant),
-    Identifier(String),
+    Identifier(Ustr),
     FunctionCall {
         function: Box<Expression>,
         arguments: Vec<Expression>,
@@ -50,19 +51,19 @@ pub enum Expression {
     Fstring(Vec<Expression>),
 
     FunctionDeclaration {
-        name: Box<str>,
+        name: Ustr,
         function: Variant,
     },
     // "statements"
     Declaration {
-        name: String,
+        name: Ustr,
         value: Box<Expression>,
     },
     // First expression -> condition, second -> body
     While(Box<(Expression, Expression)>),
 
     For {
-        i_name: String,
+        i_name: Ustr,
         // First expression -> iterable, second -> body
         iterable_and_body: Box<(Expression, Expression)>,
     },
@@ -297,7 +298,7 @@ impl Expression {
             let Variant::Str(id) = index else {
                 bail!("dot operator can only be used with identifiers")
             };
-            let Ok(f) = variables.get_method(&id.to_str_lossy()) else {
+            let Ok(f) = variables.get_method(ustr(&id.to_str_lossy())) else {
                 return Self::evaluate_index(variables, indexable_and_index);
             };
             if !f.is_method() {
@@ -713,7 +714,7 @@ mod tests {
             Expression::Value(Variant::native_fn(None, |i, _| i[0].add(&Variant::Int(2))));
         let expr = Expression::FunctionCall {
             function: Box::new(native_function),
-            arguments: vec![Expression::Identifier("arg".to_string())],
+            arguments: vec![Expression::Identifier(ustr("arg"))],
         };
         assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Int(3));
     }
@@ -722,7 +723,7 @@ mod tests {
     fn test_declaration() {
         let mut variables = Memory::new();
         let expr = Expression::Declaration {
-            name: "arg".to_string(),
+            name: ustr("arg"),
             value: Box::new(Expression::Value(Variant::Int(1))),
         };
         expr.evaluate(&mut variables).unwrap();
@@ -735,13 +736,13 @@ mod tests {
         variables.set("i", Variant::Int(0));
         let expr = Expression::While(Box::new((
             Expression::Lt(Box::new((
-                Expression::Identifier("i".to_string()),
+                Expression::Identifier(ustr("i")),
                 Expression::Value(Variant::Int(10)),
             ))),
             Expression::Declaration {
-                name: "i".to_string(),
+                name: ustr("i"),
                 value: Box::new(Expression::Add(Box::new((
-                    Expression::Identifier("i".to_string()),
+                    Expression::Identifier(ustr("i")),
                     Expression::Value(Variant::Int(1)),
                 )))),
             },
@@ -763,15 +764,15 @@ mod tests {
             ]),
         );
         let expr = Expression::For {
-            i_name: "i".to_string(),
+            i_name: ustr("i"),
             iterable_and_body: Box::new((
-                Expression::Identifier("v".to_string()),
+                Expression::Identifier(ustr("v")),
                 Expression::FunctionCall {
                     function: Box::new(Expression::Value(Variant::native_fn(None, |i, _| {
                         println!("{:?}", i[0]);
                         Ok(Variant::None)
                     }))),
-                    arguments: vec![Expression::Identifier("i".to_string())],
+                    arguments: vec![Expression::Identifier(ustr("i"))],
                 },
             )),
         };
@@ -806,10 +807,10 @@ mod tests {
             function: Box::new(Expression::Dot(Box::new((
                 Expression::FunctionCall {
                     function: Box::new(Expression::Dot(Box::new((
-                        Expression::Identifier("v".to_string()),
+                        Expression::Identifier(ustr("v")),
                         Expression::Value(Variant::str("filter")),
                     )))),
-                    arguments: vec![Expression::Identifier("is_even".to_string())],
+                    arguments: vec![Expression::Identifier(ustr("is_even"))],
                 },
                 Expression::Value(Variant::str("to_vec")),
             )))),
@@ -829,7 +830,7 @@ mod tests {
         variables.set("v", Variant::Int(0));
         let expr = Expression::Conditional(Box::new((
             Expression::Eq(Box::new((
-                Expression::Identifier("v".to_string()),
+                Expression::Identifier(ustr("v")),
                 Expression::Value(Variant::Int(0)),
             ))),
             Expression::Value(Variant::Int(1)),
@@ -844,7 +845,7 @@ mod tests {
         variables.set("v", Variant::Int(0));
         let expr = Expression::Conditional(Box::new((
             Expression::Eq(Box::new((
-                Expression::Identifier("v".to_string()),
+                Expression::Identifier(ustr("v")),
                 Expression::Value(Variant::Int(1)),
             ))),
             Expression::Value(Variant::Int(1)),
@@ -861,13 +862,13 @@ mod tests {
             Variant::anonymous_func(
                 vec![("i".into(), None)],
                 vec![Expression::Add(Box::new((
-                    Expression::Identifier("i".to_string()),
+                    Expression::Identifier(ustr("i")),
                     Expression::Value(Variant::Int(1)),
                 )))],
             ),
         );
         let expr = Expression::FunctionCall {
-            function: Box::new(Expression::Identifier("add_1".to_string())),
+            function: Box::new(Expression::Identifier(ustr("add_1"))),
             arguments: vec![Expression::Value(Variant::Int(1))],
         };
         assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Int(2));
@@ -879,16 +880,16 @@ mod tests {
 
         let expr = Expression::Block(vec![
             Expression::Declaration {
-                name: "i".to_string(),
+                name: ustr("i"),
                 value: Box::new(Expression::Value(Variant::Int(1))),
             },
             Expression::Declaration {
-                name: "j".to_string(),
+                name: ustr("j"),
                 value: Box::new(Expression::Value(Variant::Int(2))),
             },
             Expression::Add(Box::new((
-                Expression::Identifier("i".to_string()),
-                Expression::Identifier("j".to_string()),
+                Expression::Identifier(ustr("i")),
+                Expression::Identifier(ustr("j")),
             ))),
         ]);
         assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Int(3));

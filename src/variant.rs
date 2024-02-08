@@ -12,6 +12,7 @@ use derive_more::Display;
 use derive_more::{IsVariant, Unwrap};
 use indexmap::IndexMap;
 use itertools::Itertools;
+use ustr::Ustr;
 use std::{
     cell::{Ref, RefMut},
     cmp::Ordering,
@@ -247,14 +248,14 @@ impl Variant {
     }
 
     pub fn anonymous_func(
-        args: Vec<(Rc<str>, Option<Expression>)>,
+        args: Vec<(Ustr, Option<Expression>)>,
         body: Vec<Expression>,
     ) -> Variant {
         Variant::Func(Rc::new(Function::anonymous(args, body)))
     }
     pub fn func(
         name: &str,
-        args: Vec<(Rc<str>, Option<Expression>)>,
+        args: Vec<(Ustr, Option<Expression>)>,
         body: Vec<Expression>,
     ) -> Variant {
         Variant::Func(Rc::new(Function::new(name, args, body)))

@@ -4,6 +4,7 @@ use ariadne::{ColorGenerator, Label, Report, ReportKind, Source};
 use colored::Colorize;
 use indexmap::IndexMap;
 use itertools::Itertools;
+use ustr::Ustr;
 use std::io::{self, Read, Seek, Write};
 use std::path::Path;
 use std::time::{Duration, Instant, SystemTime};
@@ -86,7 +87,7 @@ pub fn get_files_and_apply_runner(
 }
 
 fn run_bench(
-    name: &str,
+    name: Ustr,
     func: &Function,
     memory: &mut Memory,
     warmup_seconds: f64,
@@ -155,7 +156,7 @@ fn store_results_in_json(path: &str, times: IndexMap<String, Duration>) -> Resul
 
 pub fn run_benches_in_file(path: &str) -> Result<()> {
     let (_result, mut memory) = run_file(path)?;
-    let benches: Vec<(Rc<str>, Rc<Function>)> = memory.get_functions_starting_with("bench_");
+    let benches: Vec<(Ustr, Rc<Function>)> = memory.get_functions_starting_with("bench_");
     let n_benches = benches.len();
     if n_benches == 0 {
         println!("\nNo benches found in {path}\n");
@@ -168,7 +169,7 @@ pub fn run_benches_in_file(path: &str) -> Result<()> {
         .map(|(bench_name, bench_function)| {
             Ok((
                 format!("{path}/{bench_name}"),
-                run_bench(&bench_name, &bench_function, &mut memory, 3., 5.)?,
+                run_bench(bench_name, &bench_function, &mut memory, 3., 5.)?,
             ))
         })
         .collect::<Result<IndexMap<_, _>>>()?;
@@ -179,7 +180,7 @@ pub fn run_benches_in_file(path: &str) -> Result<()> {
 
 pub fn run_tests_in_file(path: &str) -> Result<()> {
     let (_result, mut memory) = run_file(path)?;
-    let tests: Vec<(Rc<str>, Rc<Function>)> = memory.get_functions_starting_with("test_");
+    let tests: Vec<(Ustr, Rc<Function>)> = memory.get_functions_starting_with("test_");
     let n_tests = tests.len();
     if n_tests == 0 {
         println!("\nNo tests found in {path}\n");

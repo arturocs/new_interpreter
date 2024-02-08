@@ -8,13 +8,14 @@ use ahash::AHashMap;
 use anyhow::{anyhow, Ok, Result};
 use bstr::{BString, ByteSlice};
 use regex::bytes::Regex;
+use ustr::{Ustr, UstrMap};
 use std::{collections::hash_map::Entry, rc::Rc};
 
 #[derive(Debug, Default)]
 pub struct Memory {
     context_delimiters: Vec<usize>,
-    variables: Vec<(Rc<str>, Variant)>,
-    global_methods: AHashMap<Rc<str>, Rc<NativeFunction>>,
+    variables: Vec<(Ustr, Variant)>,
+    global_methods: UstrMap<Rc<NativeFunction>>,
     regex_cache: AHashMap<Rc<BString>, Regex>,
 }
 
@@ -41,7 +42,7 @@ impl Memory {
         self.context_delimiters.push(self.variables.len())
     }
 
-    pub fn push_context(&mut self, context: impl Iterator<Item = (Rc<str>, Variant)>) {
+    pub fn push_context(&mut self, context: impl Iterator<Item = (Ustr, Variant)>) {
         self.push_empty_context();
         self.variables.extend(context)
     }
@@ -56,9 +57,9 @@ impl Memory {
         }
     }
 
-    pub fn get_method(&self, identifier: &str) -> Result<Rc<NativeFunction>> {
+    pub fn get_method(&self, identifier: Ustr) -> Result<Rc<NativeFunction>> {
         self.global_methods
-            .get(identifier)
+            .get(&identifier)
             .cloned()
             .ok_or_else(|| anyhow!("Method '{identifier}' not declared",))
     }
@@ -93,7 +94,7 @@ impl Memory {
         }
     }
 
-    pub fn get_functions_starting_with(&self, pattern: &str) -> Vec<(Rc<str>, Rc<Function>)> {
+    pub fn get_functions_starting_with(&self, pattern: &str) -> Vec<(Ustr, Rc<Function>)> {
         self.variables
             .iter()
             .filter(|(name, j)| name.starts_with(pattern) && j.is_func())

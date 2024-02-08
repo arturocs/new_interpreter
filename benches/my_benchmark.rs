@@ -178,7 +178,7 @@ fn benchmark5(c: &mut Criterion) {
             vec![("i".into(), None)],
             vec![Expression::Eq(Box::new((
                 Expression::Rem(Box::new((
-                    Expression::Identifier("i".to_string()),
+                    Expression::Identifier("i".into()),
                     Expression::value(Variant::Int(2)),
                 ))),
                 Expression::value(Variant::Int(0)),

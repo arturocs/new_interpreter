@@ -12,7 +12,7 @@ use rand::Rng;
 use std::io;
 use std::rc::Rc;
 use std::slice;
-
+use ustr::Ustr;
 macro_rules! generate_vec_builtins {
     ($name:ident, $function:expr) => {
         pub fn $name(args: &[Variant], memory: &mut Memory) -> Result<Variant> {
@@ -486,7 +486,7 @@ pub fn assert_eq(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
             if args[0] == args[1] {
                 Ok(Variant::None)
             } else {
-                bail!("assert_eq() failed: {} != {}", args[0], args[1])
+                bail!("assert_eq() failed: ",)
             }
         }
     }
@@ -586,7 +586,7 @@ fn rand_float(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
     }
 }
 
-pub fn export_global_metods() -> impl Iterator<Item = (Rc<str>, Rc<NativeFunction>)> {
+pub fn export_global_metods() -> impl Iterator<Item = (Ustr, Rc<NativeFunction>)> {
     let sum = sum as fn(&[Variant], &mut Memory) -> Result<Variant>;
     [
         ("sum", sum, vec![Type::Vec, Type::Iterator]),
@@ -630,7 +630,7 @@ pub fn export_global_metods() -> impl Iterator<Item = (Rc<str>, Rc<NativeFunctio
     })
 }
 
-pub fn export_top_level_builtins() -> impl Iterator<Item = (Rc<str>, Variant)> {
+pub fn export_top_level_builtins() -> impl Iterator<Item = (Ustr, Variant)> {
     [
         ("min", min as fn(&[Variant], &mut Memory) -> Result<Variant>),
         ("max", max),
