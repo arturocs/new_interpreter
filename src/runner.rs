@@ -32,15 +32,16 @@ fn print_parse_error(
         Label::new((source_name, offset..offset))
     });
 
-    Report::build(ReportKind::Error, source_name, error.location.offset)
+    let span = (
+        source_name,
+        error.location.offset..error.location.offset + 1,
+    );
+    Report::build(ReportKind::Error, span.clone())
         .with_message("Error while parsing code")
         .with_label(
-            Label::new((
-                source_name,
-                error.location.offset..error.location.offset + 1,
-            ))
-            .with_message(format!("Expected: {}", error.expected))
-            .with_color(a),
+            Label::new(span)
+                .with_message(format!("Expected: {}", error.expected))
+                .with_color(a),
         )
         .with_labels(context_labels)
         .finish()
