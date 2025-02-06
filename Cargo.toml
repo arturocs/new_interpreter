@@ -16,7 +16,7 @@ peg = "0.8.2"
 mimalloc = "0.1.39"
 derive_more = { version = "2.0.0", features = ["display", "is_variant", "unwrap"] }
 paste = "1.0.12"
-colored = "2.1.0"
+colored = "3.0.0"
 rand = "0.8.5"
 regex = "1.10.2"
 ariadne = "0.5.0"
