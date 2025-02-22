@@ -10,7 +10,7 @@ use anyhow::{anyhow, bail, Result};
 use bstr::{BString, ByteSlice, ByteVec};
 use derive_more::Display;
 use derive_more::{IsVariant, Unwrap};
-use indexmap::IndexMap;
+use ordermap::OrderMap;
 use itertools::Itertools;
 use std::{
     cell::{Ref, RefMut},
@@ -22,7 +22,7 @@ use std::{
 
 pub(crate) type Int = i64;
 pub(crate) type Float = f64;
-pub(crate) type Dictionary = IndexMap<Variant, Variant, RandomState>;
+pub(crate) type Dictionary = OrderMap<Variant, Variant, RandomState>;
 
 #[derive(Debug, Clone, IsVariant, Unwrap)]
 #[repr(u8)]
@@ -75,9 +75,7 @@ impl Ord for Variant {
             (&Variant::Bool(a), Variant::Bool(b)) => a.cmp(b),
             (&Variant::Byte(a), Variant::Byte(b)) => a.cmp(b),
             (Variant::Str(a), Variant::Str(b)) => a.cmp(b),
-            (Variant::Dict(a), Variant::Dict(b)) => {
-                a.borrow().as_slice().cmp(b.borrow().as_slice())
-            }
+            (Variant::Dict(a), Variant::Dict(b)) => a.cmp(b),
             (Variant::Vec(a), Variant::Vec(b)) => a.cmp(b),
             (Variant::Iterator(a), Variant::Iterator(b)) => a.as_ptr().cmp(&b.as_ptr()),
             (Variant::NativeFunc(a), Variant::NativeFunc(b)) => (a.name).cmp(&b.name),
@@ -104,7 +102,7 @@ impl PartialEq for Variant {
             (Variant::Error(a), Variant::Error(b)) => a == b,
             (&Variant::Byte(a), &Variant::Byte(b)) => a == b,
             (Variant::Str(a), Variant::Str(b)) => a == b,
-            (Variant::Dict(a), Variant::Dict(b)) => a.borrow().as_slice() == b.borrow().as_slice(),
+            (Variant::Dict(a), Variant::Dict(b)) => a == b,
             (Variant::Vec(a), Variant::Vec(b)) => a == b,
             (Variant::Iterator(a), Variant::Iterator(b)) => a.as_ptr() == b.as_ptr(),
             (Variant::NativeFunc(a), Variant::NativeFunc(b)) => Rc::ptr_eq(a, b),
@@ -166,7 +164,7 @@ impl Hash for Variant {
             Variant::Bool(a) => a.hash(state),
             Variant::Str(a) => a.hash(state),
             Variant::Vec(a) => a.borrow().hash(state),
-            Variant::Dict(a) => a.borrow().as_slice().hash(state),
+            Variant::Dict(a) => a.borrow().hash(state),
             Variant::Func(f) => f.hash(state),
             Variant::Byte(b) => b.hash(state),
             Variant::Iterator(a) => a.as_ptr().hash(state),

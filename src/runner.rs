@@ -2,7 +2,7 @@ use crate::{function::Function, memory::Memory, parser::expr_parser, variant::Va
 use anyhow::{bail, Result};
 use ariadne::{ColorGenerator, Label, Report, ReportKind, Source};
 use colored::Colorize;
-use indexmap::IndexMap;
+use ordermap::OrderMap;
 use itertools::Itertools;
 use std::io::{self, Read, Seek, Write};
 use std::path::Path;
@@ -129,7 +129,7 @@ fn run_bench(
     Ok(average_time)
 }
 
-fn store_results_in_json(path: &str, times: IndexMap<String, Duration>) -> Result<()> {
+fn store_results_in_json(path: &str, times: OrderMap<String, Duration>) -> Result<()> {
     let current_time = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)?
         .as_millis()
@@ -141,7 +141,7 @@ fn store_results_in_json(path: &str, times: IndexMap<String, Duration>) -> Resul
         .append(false)
         .read(true)
         .open(path)?;
-    let mut v: IndexMap<String, IndexMap<String, Duration>> = IndexMap::new();
+    let mut v: OrderMap<String, OrderMap<String, Duration>> = OrderMap::new();
     if file_exists {
         let mut buf = String::new();
         file.read_to_string(&mut buf)?;
@@ -172,7 +172,7 @@ pub fn run_benches_in_file(path: &str) -> Result<()> {
                 run_bench(&bench_name, &bench_function, &mut memory, 3., 5.)?,
             ))
         })
-        .collect::<Result<IndexMap<_, _>>>()?;
+        .collect::<Result<OrderMap<_, _>>>()?;
     store_results_in_json("./bench_results.json", times)?;
 
     Ok(())
