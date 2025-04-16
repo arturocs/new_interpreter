@@ -553,9 +553,9 @@ fn catch_err(args: &[Variant], memory: &mut Memory) -> Result<Variant> {
 }
 
 fn rand(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     match args.len() {
-        0 => Ok(Variant::Int(rng.gen_range(0..1))),
+        0 => Ok(Variant::Int(rng.random_range(0..1))),
         2 => {
             let Variant::Int(start) = &args[0] else {
                 bail!("First argument of rand() must be an integer");
@@ -563,16 +563,16 @@ fn rand(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
             let Variant::Int(end) = &args[1] else {
                 bail!("Second argument of rand() must be an integer");
             };
-            Ok(Variant::Int(rng.gen_range(*start..*end)))
+            Ok(Variant::Int(rng.random_range(*start..*end)))
         }
         _ => bail!("rand() function needs zero or two arguments"),
     }
 }
 
 fn rand_float(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     match args.len() {
-        0 => Ok(Variant::Float(rng.gen_range(0.0..1.0))),
+        0 => Ok(Variant::Float(rng.random_range(0.0..1.0))),
         2 => {
             let Variant::Float(start) = &args[0] else {
                 bail!("First argument of rand_float() must be a float");
@@ -580,7 +580,7 @@ fn rand_float(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
             let Variant::Float(end) = &args[1] else {
                 bail!("Second argument of rand_float() must be a float");
             };
-            Ok(Variant::Float(rng.gen_range(*start..*end)))
+            Ok(Variant::Float(rng.random_range(*start..*end)))
         }
         _ => bail!("rand_float() function needs zero or two arguments"),
     }
