@@ -2,7 +2,6 @@
 #![allow(unstable_name_collisions)]
 #![allow(non_snake_case)]
 
-use bstr::ByteSlice;
 use criterion::{criterion_group, criterion_main, Criterion};
 use mimalloc::MiMalloc;
 use new_interpreter::expression::Expression;
@@ -78,7 +77,7 @@ fn benchmark2(c: &mut Criterion) {
                 .map(Variant::native_fn(None, |i, _| Ok(Variant::str(&i[0]))))
                 .filter(Variant::native_fn(None, |i, _| {
                     Ok(Variant::Bool(match &i[0] {
-                        Variant::Str(s) => s.to_str_lossy().parse::<f64>().is_ok(),
+                        Variant::Str(s) => s.parse::<f64>().is_ok(),
                         _ => false,
                     }))
                 }))

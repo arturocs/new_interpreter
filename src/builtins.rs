@@ -6,7 +6,6 @@ use crate::shared::Shared;
 use crate::variant::Type;
 use crate::{memory::Memory, variant::Variant};
 use anyhow::{anyhow, bail, Result};
-use bstr::ByteSlice;
 use itertools::Itertools;
 use rand::RngExt;
 use std::io;
@@ -145,7 +144,7 @@ pub fn join(args: &[Variant], memory: &mut Memory) -> Result<Variant> {
     let Variant::Str(separator) = &args[1] else {
         bail!("Second argument of join must be a string");
     };
-    let separator = &separator.to_str_lossy();
+    let separator = separator.as_str();
 
     let result = match &args[0] {
         Variant::Vec(v) => v.borrow().iter().join(separator),
@@ -292,7 +291,7 @@ pub fn slice(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
     let end = as_number!(&args[2]);
     match &args[0] {
         Variant::Vec(v) => Ok(Variant::vec(v.borrow()[start..end].to_vec())),
-        Variant::Str(s) => Ok(Variant::str(s[start..end].as_bstr())),
+        Variant::Str(s) => Ok(Variant::str(&s[start..end])),
         _ => bail!("Only strings and vecs can be sliced"),
     }
 }
@@ -304,10 +303,10 @@ pub fn read_file(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
     let Variant::Str(path) = &args[0] else {
         bail!("read_file function needs a string as argument");
     };
-    let path = path.to_str_lossy();
+    let path = path.as_str();
 
-    let content = std::fs::read(path.as_ref())?;
-    Ok(Variant::Str(Rc::new(content.into())))
+    let content = std::fs::read(path)?;
+    Ok(Variant::Bytes(content.into()))
 }
 
 pub fn write_to_file(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
@@ -317,9 +316,9 @@ pub fn write_to_file(args: &[Variant], _memory: &mut Memory) -> Result<Variant> 
     let Variant::Str(path) = &args[0] else {
         bail!("write_to_file function needs a string as first argument");
     };
-    let path = path.to_str_lossy();
+    let path = path.as_str();
     let content = args[1].to_string();
-    std::fs::write(path.as_ref(), content)?;
+    std::fs::write(path, content)?;
     Ok(Variant::None)
 }
 
@@ -367,7 +366,7 @@ pub fn int(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
         &Variant::Bool(b) => Variant::Int(b as i64),
         &Variant::Int(i) => Variant::Int(i),
         &Variant::Float(f) => Variant::Int(f as i64),
-        Variant::Str(s) => s.to_str_lossy().parse().map(Variant::Int)?,
+        Variant::Str(s) => s.parse().map(Variant::Int)?,
         e => bail!("{e} cannot be parsed as integer"),
     };
     Ok(result)
@@ -382,7 +381,7 @@ pub fn float(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
         &Variant::Bool(b) => Variant::Float(b as u8 as f64),
         &Variant::Int(i) => Variant::Float(i as f64),
         &Variant::Float(f) => Variant::Float(f),
-        Variant::Str(s) => s.to_str_lossy().parse().map(Variant::Float)?,
+        Variant::Str(s) => s.parse().map(Variant::Float)?,
         e => bail!("{e} cannot be parsed as integer"),
     };
     Ok(result)
@@ -394,9 +393,7 @@ pub fn split(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
     }
     match (&args[0], &args[1]) {
         (Variant::Str(s1), Variant::Str(s2)) => Ok(Variant::iterator(Variant::vec(
-            s1.split_str(s2.as_slice())
-                .map(|i| Variant::str(i.to_str_lossy()))
-                .collect_vec(),
+            s1.split(s2.as_str()).map(|i| Variant::str(i)).collect_vec(),
         ))),
         _ => bail!("split() method only works on strings"),
     }
@@ -407,7 +404,7 @@ fn starts_with(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
         bail!("starts_with() method needs two arguments");
     }
     match (&args[0], &args[1]) {
-        (Variant::Str(s1), Variant::Str(s2)) => Ok(Variant::Bool(s1.starts_with(s2.as_ref()))),
+        (Variant::Str(s1), Variant::Str(s2)) => Ok(Variant::Bool(s1.starts_with(s2.as_str()))),
         _ => bail!("starts_with() method only works on strings"),
     }
 }
@@ -417,7 +414,7 @@ fn ends_with(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
         bail!("ends_with() method needs two arguments");
     }
     match (&args[0], &args[1]) {
-        (Variant::Str(s1), Variant::Str(s2)) => Ok(Variant::Bool(s1.ends_with(s2.as_ref()))),
+        (Variant::Str(s1), Variant::Str(s2)) => Ok(Variant::Bool(s1.ends_with(s2.as_str()))),
         _ => bail!("ends_with() method only works on strings"),
     }
 }
@@ -428,7 +425,7 @@ fn trim(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
     }
     match args.len() {
         1 => match &args[0] {
-            Variant::Str(s) => Ok(Variant::str(s.trim().to_str_lossy())),
+            Variant::Str(s) => Ok(Variant::str(s.trim())),
             _ => bail!("trim() method only works on strings"),
         },
         /*       2 => match (&args[0], &args[1]) {
@@ -511,8 +508,8 @@ pub fn import(args: &[Variant], _memory: &mut Memory) -> Result<Variant> {
     let Variant::Str(path) = &args[0] else {
         bail!("import() function needs a string as argument");
     };
-    let path = path.to_str_lossy();
-    let (_, memory) = runner::run_file(path.as_ref())?;
+    let path = path.as_str();
+    let (_, memory) = runner::run_file(path)?;
     Ok(Variant::Dict(Shared::new(memory.to_dict())))
 }
 
@@ -533,7 +530,7 @@ fn eval(args: &[Variant], memory: &mut Memory) -> Result<Variant> {
         bail!("eval() function needs one argument");
     }
     if let Variant::Str(s) = &args[0] {
-        let filtered_comments = remove_comments(s.to_str_lossy().as_ref());
+        let filtered_comments = remove_comments(s.as_str());
         let ast = expr_parser::expr_sequence(&filtered_comments)?;
         Ok(ast.evaluate(memory)?)
     } else {

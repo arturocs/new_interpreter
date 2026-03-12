@@ -1,6 +1,6 @@
 use crate::{memory::Memory, variant::Variant};
 use anyhow::{anyhow, bail, Context, Result};
-use bstr::ByteSlice;
+
 use itertools::Itertools;
 use std::fmt;
 #[derive(Debug, Hash, PartialEq, Eq, Clone, PartialOrd, Ord)]
@@ -297,7 +297,7 @@ impl Expression {
             let Variant::Str(id) = index else {
                 bail!("dot operator can only be used with identifiers")
             };
-            let Ok(f) = variables.get_method(&id.to_str_lossy()) else {
+            let Ok(f) = variables.get_method(id.as_str()) else {
                 return Self::evaluate_index(variables, indexable_and_index);
             };
             if !f.is_method() {
@@ -401,7 +401,7 @@ impl Expression {
         let lhs = a.evaluate(variables)?;
         let rhs = b.evaluate(variables)?;
         let result = match (lhs, rhs) {
-            (Variant::Str(sl), Variant::Str(sr)) => sr.contains_str(&sl[..]),
+            (Variant::Str(sl), Variant::Str(sr)) => sr.contains(sl.as_str()),
             (_, Variant::Str(_)) =>  bail!("When the in operator is used to search for substrings, the left operand must be a string"),
             (lhs, Variant::Dict(d) )=> d.borrow().contains_key(&lhs),
             (lhs, Variant::Vec(v)) => v.borrow().contains(&lhs),

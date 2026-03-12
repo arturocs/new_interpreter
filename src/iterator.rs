@@ -132,7 +132,8 @@ fn to_dyn_iter(i: Variant) -> Box<dyn VariantIter> {
                 .into_iter()
                 .map(|(k, v)| Variant::vec(vec![k, v])),
         ),
-        Variant::Str(i) => Box::new(
+        Variant::Str(i) => Box::new(i.chars().collect_vec().into_iter().map(Variant::str)),
+        Variant::Bytes(i) => Box::new(
             i.iter()
                 .copied()
                 .collect_vec()
@@ -403,6 +404,6 @@ mod tests {
     use super::*;
     #[test]
     fn size_of_iterator() {
-        assert_eq!(std::mem::size_of::<VariantIterator>(), 40)
+        assert_eq!(std::mem::size_of::<VariantIterator>(), 48)
     }
 }

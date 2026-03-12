@@ -6,8 +6,7 @@ use crate::{
 };
 use ahash::AHashMap;
 use anyhow::{anyhow, Ok, Result};
-use bstr::{BString, ByteSlice};
-use regex::bytes::Regex;
+use regex::Regex;
 use std::{collections::hash_map::Entry, rc::Rc};
 
 #[derive(Debug, Default)]
@@ -15,7 +14,7 @@ pub struct Memory {
     context_delimiters: Vec<usize>,
     variables: Vec<(Rc<str>, Variant)>,
     global_methods: AHashMap<Rc<str>, Rc<NativeFunction>>,
-    regex_cache: AHashMap<Rc<BString>, Regex>,
+    regex_cache: AHashMap<ecow::EcoString, Regex>,
 }
 
 impl Memory {
@@ -101,11 +100,11 @@ impl Memory {
             .collect()
     }
 
-    pub fn get_regex(&mut self, pattern: Rc<BString>) -> Result<&Regex> {
+    pub fn get_regex(&mut self, pattern: ecow::EcoString) -> Result<&Regex> {
         match self.regex_cache.entry(pattern.clone()) {
             Entry::Occupied(e) => Ok(e.into_mut()),
             Entry::Vacant(e) => {
-                let clean_pattent = pattern.to_str()?;
+                let clean_pattent = pattern.as_str();
                 let regex = Regex::new(clean_pattent)?;
                 Ok(e.insert(regex))
             }

@@ -7,9 +7,9 @@ use crate::{
 };
 use ahash::RandomState;
 use anyhow::{anyhow, bail, Result};
-use bstr::{BString, ByteSlice, ByteVec};
 use derive_more::Display;
 use derive_more::{IsVariant, Unwrap};
+use ecow::EcoString;
 use itertools::Itertools;
 use ordermap::OrderMap;
 use std::{
@@ -33,7 +33,8 @@ pub enum Variant {
     Bool(bool),
     Byte(u8),
     Vec(Shared<Vec<Variant>>),
-    Str(Rc<BString>),
+    Str(EcoString),
+    Bytes(Rc<[u8]>),
     Dict(Shared<Dictionary>),
     Iterator(Shared<VariantIterator>),
     NativeFunc(Rc<NativeFunction>),
@@ -50,6 +51,7 @@ pub enum Type {
     Byte,
     Vec,
     Str,
+    Bytes,
     Dict,
     Iterator,
     NativeFunc,
@@ -75,6 +77,7 @@ impl Ord for Variant {
             (&Variant::Bool(a), Variant::Bool(b)) => a.cmp(b),
             (&Variant::Byte(a), Variant::Byte(b)) => a.cmp(b),
             (Variant::Str(a), Variant::Str(b)) => a.cmp(b),
+            (Variant::Bytes(a), Variant::Bytes(b)) => a.cmp(b),
             (Variant::Dict(a), Variant::Dict(b)) => a.cmp(b),
             (Variant::Vec(a), Variant::Vec(b)) => a.cmp(b),
             (Variant::Iterator(a), Variant::Iterator(b)) => a.as_ptr().cmp(&b.as_ptr()),
@@ -102,6 +105,7 @@ impl PartialEq for Variant {
             (Variant::Error(a), Variant::Error(b)) => a == b,
             (&Variant::Byte(a), &Variant::Byte(b)) => a == b,
             (Variant::Str(a), Variant::Str(b)) => a == b,
+            (Variant::Bytes(a), Variant::Bytes(b)) => a == b,
             (Variant::Dict(a), Variant::Dict(b)) => a == b,
             (Variant::Vec(a), Variant::Vec(b)) => a == b,
             (Variant::Iterator(a), Variant::Iterator(b)) => a.as_ptr() == b.as_ptr(),
@@ -121,7 +125,8 @@ impl fmt::Display for Variant {
             Variant::Bool(b) => write!(fmt, "{b}"),
             Variant::Float(f) => write!(fmt, "{f}"),
             Variant::Int(i) => write!(fmt, "{i}"),
-            Variant::Str(s) => write!(fmt, "{}", s.as_bstr()),
+            Variant::Str(s) => write!(fmt, "{s}"),
+            Variant::Bytes(b) => write!(fmt, "{:?}", b),
             Variant::Error(e) => write!(fmt, "Error: {e}"),
             Variant::Vec(v) => {
                 let content = v
@@ -163,6 +168,7 @@ impl Hash for Variant {
             Variant::Float(a) => a.to_bits().hash(state),
             Variant::Bool(a) => a.hash(state),
             Variant::Str(a) => a.hash(state),
+            Variant::Bytes(a) => a.hash(state),
             Variant::Vec(a) => a.borrow().hash(state),
             Variant::Dict(a) => a.borrow().hash(state),
             Variant::Func(f) => f.hash(state),
@@ -200,6 +206,7 @@ impl Variant {
             Variant::Byte(_) => Type::Byte,
             Variant::Vec(_) => Type::Vec,
             Variant::Str(_) => Type::Str,
+            Variant::Bytes(_) => Type::Bytes,
             Variant::Dict(_) => Type::Dict,
             Variant::Iterator(_) => Type::Iterator,
             Variant::NativeFunc(_) => Type::NativeFunc,
@@ -213,7 +220,11 @@ impl Variant {
     }
 
     pub fn str(s: impl ToString) -> Variant {
-        Variant::Str(Rc::new(s.to_string().into()))
+        Variant::Str(EcoString::from(s.to_string()))
+    }
+
+    pub fn bytes(b: impl Into<Rc<[u8]>>) -> Variant {
+        Variant::Bytes(b.into())
     }
 
     pub fn error(e: impl ToString) -> Variant {
@@ -261,7 +272,7 @@ impl Variant {
     fn to_string_in_collection(&self) -> String {
         match self {
             Variant::Error(_) => format!("\"{self}\"",),
-            Variant::Str(s) => format!("\"{}\"", s.as_bstr()),
+            Variant::Str(s) => format!("\"{s}\""),
             _ => self.to_string(),
         }
     }
@@ -296,14 +307,19 @@ impl Variant {
                 apply_op_between_vecs(&a.borrow(), &b.borrow(), Self::add)?
             }
             (Variant::Str(a), b) => {
-                let mut c = (**a).as_bstr().to_owned();
+                let mut c = a.clone();
                 c.push_str(b.to_string().trim_matches('"'));
-                Variant::Str(Rc::from(c))
+                Variant::Str(c)
             }
             (a, Variant::Str(b)) => {
-                let mut c: BString = a.to_string().trim_matches('"').to_string().into();
-                c.push_str(b.as_bstr());
-                Variant::str(c)
+                let mut c = EcoString::from(a.to_string().trim_matches('"'));
+                c.push_str(b.as_str());
+                Variant::Str(c)
+            }
+            (Variant::Bytes(a), Variant::Bytes(b)) => {
+                let mut c = a.to_vec();
+                c.extend_from_slice(b);
+                Variant::Bytes(c.into())
             }
             _ => bail!("Cannot add {self} and {other}"),
         };
@@ -380,7 +396,7 @@ impl Variant {
             }
             (Variant::Str(a), &Variant::Int(b)) => {
                 if b >= 0 {
-                    Variant::str(a.repeat(b as usize).as_bstr())
+                    Variant::Str(a.repeat(b as usize).into())
                 } else {
                     bail!("Cannot multiply a string by a negative value");
                 }
@@ -613,6 +629,7 @@ impl Variant {
         let l = match self {
             Variant::Vec(v) => v.borrow().len(),
             Variant::Str(s) => s.len(),
+            Variant::Bytes(b) => b.len(),
             Variant::Dict(d) => d.borrow().len(),
             _ => bail!("{self} doesn't have a lenght attribute"),
         };
@@ -630,7 +647,6 @@ impl Variant {
 
 #[cfg(test)]
 mod tests {
-    use bstr::ByteSlice;
     use std::{
         collections::hash_map::DefaultHasher,
         hash::{Hash, Hasher},
@@ -732,6 +748,7 @@ mod tests {
             Variant::Byte(0),
             Variant::vec(vec![]),
             Variant::str("string"),
+            Variant::bytes(vec![]),
             Variant::dict(&[]),
         ]
         .map(|i| i.get_type());
@@ -744,6 +761,7 @@ mod tests {
                 Type::Byte,
                 Type::Vec,
                 Type::Str,
+                Type::Bytes,
                 Type::Dict
             ],
             v
@@ -771,7 +789,7 @@ mod tests {
 
     #[test]
     fn size_of_variant() {
-        assert_eq!(std::mem::size_of::<Variant>(), 16)
+        assert_eq!(std::mem::size_of::<Variant>(), 24)
     }
 
     #[test]
@@ -889,7 +907,7 @@ mod tests {
             }))
             .filter(Variant::native_fn(None, |i, _| {
                 Ok(Variant::Bool(match &i[0] {
-                    Variant::Str(s) => s.to_str_lossy().parse::<f64>().is_ok(),
+                    Variant::Str(s) => s.parse::<f64>().is_ok(),
                     _ => false,
                 }))
             }))
