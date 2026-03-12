@@ -3,11 +3,12 @@
 #![allow(non_snake_case)]
 
 use bstr::ByteSlice;
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use mimalloc::MiMalloc;
 use new_interpreter::expression::Expression;
 use new_interpreter::memory::Memory;
 use new_interpreter::variant::Variant;
+use std::hint::black_box;
 
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
