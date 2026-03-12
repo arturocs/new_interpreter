@@ -662,7 +662,6 @@ impl Variant {
 
 #[cfg(test)]
 mod tests {
-    use bstr::ByteSlice;
     use std::{
         collections::hash_map::DefaultHasher,
         hash::{Hash, Hasher},

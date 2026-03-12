@@ -6,7 +6,7 @@ use crate::{
 };
 use ahash::AHashMap;
 use anyhow::{anyhow, Ok, Result};
-use bstr::{BStr, BString, ByteSlice};
+use bstr::{BString, ByteSlice};
 use regex::Regex;
 use std::{collections::hash_map::Entry, rc::Rc};
 
