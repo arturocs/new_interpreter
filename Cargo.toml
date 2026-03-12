@@ -7,23 +7,27 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.68"
-ordermap = { version = "1.0.0", features = ["serde"] }
+anyhow = "1.0.102"
+ordermap = { version = "1.1.0", features = ["serde"] }
 itertools = "0.14.0"
-ahash = "0.8.7"
-bstr = "1.8.0"
-peg = "0.8.2"
-mimalloc = "0.1.39"
-derive_more = { version = "2.0.0", features = ["display", "is_variant", "unwrap"] }
-paste = "1.0.12"
+ahash = "0.8.12"
+bstr = "1.12.1"
+peg = "0.8.5"
+mimalloc = "0.1.48"
+derive_more = { version = "2.1.1", features = [
+    "display",
+    "is_variant",
+    "unwrap",
+] }
+paste = "1.0.15"
 rand = "0.10.0"
-colored = "3.0.0"
-regex = "1.10.2"
+colored = "3.1.1"
+regex = "1.12.3"
 ariadne = "0.6.0"
-serde_json = "1.0"
+serde_json = "1.0.149"
 
 [dev-dependencies]
-criterion = "0.8.1"
+criterion = "0.8.2"
 
 [[bench]]
 name = "my_benchmark"
