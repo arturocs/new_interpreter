@@ -3,6 +3,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use bstr::ByteSlice;
 
 use itertools::Itertools;
+use std::borrow::Cow;
 use std::fmt;
 #[derive(Debug, Hash, PartialEq, Eq, Clone, PartialOrd, Ord)]
 pub enum Expression {
@@ -161,88 +162,100 @@ impl fmt::Display for Expression {
 }
 
 impl Expression {
-    fn apply_binary_exp(
+    fn apply_binary_exp<'a>(
         variables: &mut Memory,
-        (a, b): &(Expression, Expression),
+        (a, b): &'a (Expression, Expression),
         expr: fn(&Variant, &Variant) -> Result<Variant>,
-    ) -> Result<Variant> {
+    ) -> Result<Cow<'a, Variant>> {
         let lhs = a.evaluate(variables)?;
         let rhs = b.evaluate(variables)?;
-        expr(&lhs, &rhs)
+        expr(&lhs, &rhs).map(Cow::Owned)
     }
 
-    fn apply_unary_exp(
+    fn apply_unary_exp<'a>(
         variables: &mut Memory,
-        i: &Expression,
+        i: &'a Expression,
         expr: fn(&Variant) -> Result<Variant>,
-    ) -> Result<Variant> {
+    ) -> Result<Cow<'a, Variant>> {
         let value = i.evaluate(variables)?;
-        expr(&value)
+        expr(&value).map(Cow::Owned)
     }
 
-    fn apply_logical_exp(
+    fn apply_logical_exp<'a>(
         variables: &mut Memory,
-        (a, b): &(Expression, Expression),
+        (a, b): &'a (Expression, Expression),
         expr: fn(&Variant, &Variant) -> bool,
-    ) -> Result<Variant> {
+    ) -> Result<Cow<'a, Variant>> {
         let lhs = a.evaluate(variables)?;
         let rhs = b.evaluate(variables)?;
-        Ok(Variant::Bool(expr(&lhs, &rhs)))
+        Ok(Cow::Owned(Variant::Bool(expr(&lhs, &rhs))))
     }
 
-    fn evaluate_identifier(variables: &mut Memory, i: &str) -> Result<Variant> {
-        variables.get(i).map(|i| i.clone())
+    fn evaluate_identifier<'a>(variables: &mut Memory, i: &str) -> Result<Cow<'a, Variant>> {
+        variables.get(i).map(|i| Cow::Owned(i.clone()))
     }
 
-    fn evaluate_function_call(
+    fn evaluate_function_call<'a>(
         variables: &mut Memory,
-        function: &Expression,
-        arguments: &[Expression],
-    ) -> Result<Variant> {
-        match function.evaluate(variables)? {
+        function: &'a Expression,
+        arguments: &'a [Expression],
+    ) -> Result<Cow<'a, Variant>> {
+        match &*function.evaluate(variables)? {
             Variant::NativeFunc(f) => {
                 let evaluated_args = arguments
                     .iter()
-                    .map(|e| e.evaluate(variables))
+                    .map(|e| e.evaluate(variables).map(|c| c.into_owned()))
                     .collect::<Result<Vec<_>>>()?;
-                f.call(&evaluated_args, variables)
+                f.call(&evaluated_args, variables).map(Cow::Owned)
             }
             Variant::Func(f) => {
-                let evaluated_args: Result<Vec<_>> =
-                    arguments.iter().map(|e| e.evaluate(variables)).collect();
-                f.call(&evaluated_args?, variables)
+                let evaluated_args: Result<Vec<_>> = arguments
+                    .iter()
+                    .map(|e| e.evaluate(variables).map(|c| c.into_owned()))
+                    .collect();
+                f.call(&evaluated_args?, variables).map(Cow::Owned)
             }
             a => bail!("{a} is not a function"),
         }
     }
 
-    pub fn evaluate_expr_sequence(
+    pub fn evaluate_expr_sequence<'a>(
         variables: &mut Memory,
-        statements: &[Expression],
-    ) -> Result<Variant> {
+        statements: &'a [Expression],
+    ) -> Result<Cow<'a, Variant>> {
         let results: Result<Vec<_>> = statements
             .iter()
             .map(|e| match e.evaluate(variables) {
-                Ok(Variant::Error(e)) => Err(anyhow!("{}", e.trim_start_matches("Error: "))),
+                Ok(v) if matches!(&*v, Variant::Error(_)) => {
+                    let err_str = v.to_string();
+                    Err(anyhow!(
+                        "{}",
+                        err_str.trim_start_matches("Error: ").trim_matches('"')
+                    ))
+                }
                 a => a,
             })
             .collect();
         let results = results?;
-        results.last().context("No statements in scope").cloned()
+        let last = results.into_iter().last();
+        last.context("No statements in scope")
     }
 
-    fn evaluate_block(variables: &mut Memory, statements: &[Expression]) -> Result<Variant> {
+    fn evaluate_block<'a>(
+        variables: &mut Memory,
+        statements: &'a [Expression],
+    ) -> Result<Cow<'a, Variant>> {
         variables.push_empty_context();
         let result = Self::evaluate_expr_sequence(variables, statements);
         variables.pop_context();
         result
     }
 
-    fn evaluate_conditional(
+    fn evaluate_conditional<'a>(
         variables: &mut Memory,
-        (condition, if_body, else_body): &(Expression, Expression, Option<Expression>),
-    ) -> Result<Variant> {
-        if condition.evaluate(variables)? == Variant::Bool(true) {
+        (condition, if_body, else_body): &'a (Expression, Expression, Option<Expression>),
+    ) -> Result<Cow<'a, Variant>> {
+        if *condition.evaluate(variables)? == Variant::Bool(true) {
             variables.push_empty_context();
             let result = if_body.evaluate(variables);
             variables.pop_context();
@@ -253,47 +266,51 @@ impl Expression {
             variables.pop_context();
             result
         } else {
-            Ok(Variant::error("No else body"))
+            Ok(Cow::Owned(Variant::error("No else body")))
         }
     }
 
-    fn evaluate_index(
+    fn evaluate_index<'a>(
         variables: &mut Memory,
-        (indexable, index): &(Expression, Expression),
-    ) -> Result<Variant> {
+        (indexable, index): &'a (Expression, Expression),
+    ) -> Result<Cow<'a, Variant>> {
         indexable
             .evaluate(variables)?
-            .index(&index.evaluate(variables)?)
-            .map(|i| i.clone())
+            .index(&*index.evaluate(variables)?)
+            .map(|i| Cow::Owned(i.clone()))
     }
 
-    fn evaluate_dot(
+    fn evaluate_dot<'a>(
         variables: &mut Memory,
-        indexable_and_index: &(Expression, Expression),
-    ) -> Result<Variant> {
+        indexable_and_index: &'a (Expression, Expression),
+    ) -> Result<Cow<'a, Variant>> {
         let Expression::Value(index) = &indexable_and_index.1 else {
             bail!("dot operator can only be used with identifiers")
         };
         let indexable = indexable_and_index.0.evaluate(variables)?;
 
         if indexable.is_dict() {
-            let Variant::Func(f) = &*indexable.index(index)? else {
-                return Self::evaluate_index(variables, indexable_and_index);
+            let f = {
+                let borrowed_f = indexable.index(index)?;
+                let Variant::Func(f) = &*borrowed_f else {
+                    return Self::evaluate_index(variables, indexable_and_index);
+                };
+                if !f.is_method() {
+                    return Self::evaluate_index(variables, indexable_and_index);
+                }
+                f.clone()
             };
-            if !f.is_method() {
-                return Self::evaluate_index(variables, indexable_and_index);
-            }
 
             let mut body = Vec::with_capacity(f.body.len() + 1);
             body.push(Expression::Declaration {
                 name: "self".into(),
-                value: Box::new(Expression::Value(indexable.clone())),
+                value: Box::new(Expression::Value(indexable.into_owned())),
             });
 
             body.extend_from_slice(f.body.as_ref());
             let new_function = Variant::func("", f.arg_names.to_vec(), body);
 
-            Ok(new_function)
+            Ok(Cow::Owned(new_function))
         } else if matches!(index, Variant::ShortStr(_, _) | Variant::Str(_)) {
             let id = index.as_bstr().unwrap().to_str_lossy();
             let Ok(f) = variables.get_method(id.as_ref()) else {
@@ -303,74 +320,78 @@ impl Expression {
                 return Self::evaluate_index(variables, indexable_and_index);
             }
             let name = f.name.clone();
+            let indexable_owned = indexable.into_owned();
             let new_function = Variant::native_fn(name.as_deref(), move |a, memory| {
                 let mut args = Vec::with_capacity(a.len() + 1);
-                args.push(indexable.clone());
+                args.push(indexable_owned.clone());
                 args.extend(a.iter().cloned());
                 f.call(&args, memory)
             });
-            Ok(new_function)
+            Ok(Cow::Owned(new_function))
         } else {
             bail!("dot operator can only be used with identifiers")
         }
     }
 
-    fn evaluate_index_assign(
+    fn evaluate_index_assign<'a>(
         variables: &mut Memory,
-        (indexable, index, value): &(Expression, Expression, Expression),
-    ) -> Result<Variant> {
-        *indexable
-            .evaluate(variables)?
-            .index_mut(&index.evaluate(variables)?)? = value.evaluate(variables)?;
-        Ok(Variant::None)
+        (indexable, index, value): &'a (Expression, Expression, Expression),
+    ) -> Result<Cow<'a, Variant>> {
+        let mut indexable = indexable.evaluate(variables)?;
+        *indexable.to_mut().index_mut(&*index.evaluate(variables)?)? =
+            value.evaluate(variables)?.into_owned();
+        Ok(Cow::Owned(Variant::None))
     }
 
-    fn evaluate_declaration(
+    fn evaluate_declaration<'a>(
         variables: &mut Memory,
         name: &str,
-        value: &Expression,
-    ) -> Result<Variant> {
+        value: &'a Expression,
+    ) -> Result<Cow<'a, Variant>> {
         let computed_value = value.evaluate(variables)?;
-        variables.set(name, computed_value);
-        Ok(Variant::None)
+        variables.set(name, computed_value.into_owned());
+        Ok(Cow::Owned(Variant::None))
     }
 
-    fn evaluate_while(
+    fn evaluate_while<'a>(
         variables: &mut Memory,
-        (condition, body): &(Expression, Expression),
-    ) -> Result<Variant> {
+        (condition, body): &'a (Expression, Expression),
+    ) -> Result<Cow<'a, Variant>> {
         variables.push_empty_context();
-        let mut last = Variant::None;
+        let mut last = Cow::Owned(Variant::None);
         while condition.evaluate(variables)?.is_true()? {
-            last = body.evaluate(variables)?;
+            last = Cow::Owned(body.evaluate(variables)?.into_owned());
         }
         variables.pop_context();
         Ok(last)
     }
 
-    fn evaluate_for(
+    fn evaluate_for<'a>(
         variables: &mut Memory,
         i_name: &str,
-        (iterable, body): &(Expression, Expression),
-    ) -> Result<Variant> {
-        let iterable = iterable.evaluate(variables)?.into_iterator()?;
+        (iterable, body): &'a (Expression, Expression),
+    ) -> Result<Cow<'a, Variant>> {
+        let iterable = iterable.evaluate(variables)?.into_owned().into_iterator()?;
         let mut iterable = iterable;
         let Variant::Iterator(iterator) = &mut iterable else {
             bail!("For loop expects an iterator")
         };
         variables.push_empty_context();
-        let mut last = Variant::None;
+        let mut last = Cow::Owned(Variant::None);
 
         for i in iterator.borrow_mut().clone().to_vec(variables) {
             variables.set(i_name, i);
 
-            last = body.evaluate(variables)?;
+            last = Cow::Owned(body.evaluate(variables)?.into_owned());
         }
         variables.pop_context();
         Ok(last)
     }
 
-    fn evaluate_fstring(variables: &mut Memory, i: &[Expression]) -> Result<Variant> {
+    fn evaluate_fstring<'a>(
+        variables: &mut Memory,
+        i: &'a [Expression],
+    ) -> Result<Cow<'a, Variant>> {
         let mut result = Vec::new();
         for expr in i {
             let eval = expr.evaluate(variables)?;
@@ -379,49 +400,63 @@ impl Expression {
                 None => result.extend_from_slice(eval.to_string().as_bytes()),
             }
         }
-        Ok(Variant::str(result))
+        Ok(Cow::Owned(Variant::str(result)))
     }
 
     pub fn value(variant: Variant) -> Expression {
         Expression::Value(variant)
     }
 
-    fn evaluate_vector(variables: &mut Memory, i: &[Expression]) -> Result<Variant> {
-        let vec: Result<Vec<_>> = i.iter().map(|i| i.evaluate(variables)).collect();
-        Ok(Variant::vec(vec?))
-    }
-
-    fn evaluate_dictionary(
+    fn evaluate_vector<'a>(
         variables: &mut Memory,
-        i: &[(Expression, Expression)],
-    ) -> Result<Variant> {
+        i: &'a [Expression],
+    ) -> Result<Cow<'a, Variant>> {
         let vec: Result<Vec<_>> = i
             .iter()
-            .map(|(k, v)| Ok((k.evaluate(variables)?, v.evaluate(variables)?)))
+            .map(|i| i.evaluate(variables).map(|c| c.into_owned()))
             .collect();
-        Ok(Variant::dict(&vec?))
+        Ok(Cow::Owned(Variant::vec(vec?)))
     }
 
-    fn evaluate_in(variables: &mut Memory, (a, b): &(Expression, Expression)) -> Result<Variant> {
+    fn evaluate_dictionary<'a>(
+        variables: &mut Memory,
+        i: &'a [(Expression, Expression)],
+    ) -> Result<Cow<'a, Variant>> {
+        let vec: Result<Vec<_>> = i
+            .iter()
+            .map(|(k, v)| {
+                Ok((
+                    k.evaluate(variables)?.into_owned(),
+                    v.evaluate(variables)?.into_owned(),
+                ))
+            })
+            .collect();
+        Ok(Cow::Owned(Variant::dict(&vec?)))
+    }
+
+    fn evaluate_in<'a>(
+        variables: &mut Memory,
+        (a, b): &'a (Expression, Expression),
+    ) -> Result<Cow<'a, Variant>> {
         let lhs = a.evaluate(variables)?;
         let rhs = b.evaluate(variables)?;
-        let result = match (lhs, rhs) {
+        let result = match (&*lhs, &*rhs) {
             (a @ Variant::ShortStr(_, _) | a @ Variant::Str(_), b @ Variant::ShortStr(_, _) | b @ Variant::Str(_)) => {
                 let sl_bstr = a.as_bstr().unwrap();
                 let sr_bstr = b.as_bstr().unwrap();
                 sr_bstr.contains_str(sl_bstr)
             },
             (_, Variant::Str(_)) =>  bail!("When the in operator is used to search for substrings, the left operand must be a string"),
-            (lhs, Variant::Dict(d) )=> d.borrow().contains_key(&lhs),
-            (lhs, Variant::Vec(v)) => v.borrow().contains(&lhs),
+            (lhs, Variant::Dict(d) )=> d.borrow().contains_key(&*lhs),
+            (lhs, Variant::Vec(v)) => v.borrow().contains(&*lhs),
             _ => bail!("in operator can only be used with strings, dictionaries or vectors"),
         };
-        Ok(Variant::Bool(result))
+        Ok(Cow::Owned(Variant::Bool(result)))
     }
 
-    pub fn evaluate(&self, variables: &mut Memory) -> Result<Variant> {
+    pub fn evaluate<'a>(&'a self, variables: &mut Memory) -> Result<Cow<'a, Variant>> {
         match self {
-            Expression::Value(v) => Ok(v.clone()),
+            Expression::Value(v) => Ok(Cow::Borrowed(v)),
             Expression::Identifier(i) => Self::evaluate_identifier(variables, i),
             Expression::FunctionCall {
                 function,
@@ -466,7 +501,8 @@ impl Expression {
             Expression::Dictionary(i) => Self::evaluate_dictionary(variables, i),
             Expression::Vec(i) => Self::evaluate_vector(variables, i),
             Expression::FunctionDeclaration { name, function } => {
-                Self::evaluate_declaration(variables, name, &Expression::Value(function.clone()))
+                variables.set(name, function.clone());
+                Ok(Cow::Owned(Variant::None))
             }
             Expression::In(i) => Self::evaluate_in(variables, i),
         }
@@ -489,7 +525,10 @@ mod tests {
             Expression::Value(Variant::Int(1)),
             Expression::Value(Variant::Int(2)),
         )));
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Int(2));
+        assert_eq!(
+            expr.evaluate(&mut variables).unwrap().into_owned(),
+            Variant::Int(2)
+        );
     }
 
     #[test]
@@ -499,7 +538,10 @@ mod tests {
             Expression::Value(Variant::Int(1)),
             Expression::Value(Variant::Int(2)),
         )));
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Float(0.5));
+        assert_eq!(
+            expr.evaluate(&mut variables).unwrap().into_owned(),
+            Variant::Float(0.5)
+        );
     }
 
     #[test]
@@ -510,7 +552,10 @@ mod tests {
             Expression::Value(Variant::Int(2)),
         )));
 
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Int(1));
+        assert_eq!(
+            expr.evaluate(&mut variables).unwrap().into_owned(),
+            Variant::Int(1)
+        );
     }
 
     #[test]
@@ -520,7 +565,10 @@ mod tests {
             Expression::Value(Variant::Int(1)),
             Expression::Value(Variant::Int(2)),
         )));
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Int(3));
+        assert_eq!(
+            expr.evaluate(&mut variables).unwrap().into_owned(),
+            Variant::Int(3)
+        );
     }
 
     #[test]
@@ -530,7 +578,10 @@ mod tests {
             Expression::Value(Variant::Int(1)),
             Expression::Value(Variant::Int(2)),
         )));
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Int(-1));
+        assert_eq!(
+            expr.evaluate(&mut variables).unwrap().into_owned(),
+            Variant::Int(-1)
+        );
     }
 
     #[test]
@@ -540,7 +591,10 @@ mod tests {
             Expression::Value(Variant::Int(1)),
             Expression::Value(Variant::Int(2)),
         )));
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Bool(false));
+        assert_eq!(
+            expr.evaluate(&mut variables).unwrap().into_owned(),
+            Variant::Bool(false)
+        );
     }
 
     #[test]
@@ -550,7 +604,10 @@ mod tests {
             Expression::Value(Variant::Int(1)),
             Expression::Value(Variant::Int(2)),
         )));
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Bool(true));
+        assert_eq!(
+            expr.evaluate(&mut variables).unwrap().into_owned(),
+            Variant::Bool(true)
+        );
     }
 
     #[test]
@@ -560,7 +617,10 @@ mod tests {
             Expression::Value(Variant::Int(1)),
             Expression::Value(Variant::Int(2)),
         )));
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Bool(false));
+        assert_eq!(
+            expr.evaluate(&mut variables).unwrap().into_owned(),
+            Variant::Bool(false)
+        );
     }
 
     #[test]
@@ -570,7 +630,10 @@ mod tests {
             Expression::Value(Variant::Int(1)),
             Expression::Value(Variant::Int(2)),
         )));
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Bool(true));
+        assert_eq!(
+            expr.evaluate(&mut variables).unwrap().into_owned(),
+            Variant::Bool(true)
+        );
     }
 
     #[test]
@@ -580,7 +643,10 @@ mod tests {
             Expression::Value(Variant::Int(1)),
             Expression::Value(Variant::Int(2)),
         )));
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Bool(false));
+        assert_eq!(
+            expr.evaluate(&mut variables).unwrap().into_owned(),
+            Variant::Bool(false)
+        );
     }
 
     #[test]
@@ -590,7 +656,10 @@ mod tests {
             Expression::Value(Variant::Int(1)),
             Expression::Value(Variant::Int(2)),
         )));
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Bool(true));
+        assert_eq!(
+            expr.evaluate(&mut variables).unwrap().into_owned(),
+            Variant::Bool(true)
+        );
     }
 
     #[test]
@@ -600,7 +669,10 @@ mod tests {
             Expression::Value(Variant::Bool(true)),
             Expression::Value(Variant::Bool(false)),
         )));
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Bool(false));
+        assert_eq!(
+            expr.evaluate(&mut variables).unwrap().into_owned(),
+            Variant::Bool(false)
+        );
     }
 
     #[test]
@@ -610,14 +682,20 @@ mod tests {
             Expression::Value(Variant::Bool(true)),
             Expression::Value(Variant::Bool(false)),
         )));
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Bool(true));
+        assert_eq!(
+            expr.evaluate(&mut variables).unwrap().into_owned(),
+            Variant::Bool(true)
+        );
     }
 
     #[test]
     fn test_not() {
         let mut variables = Memory::new();
         let expr = Expression::Not(Box::new(Expression::Value(Variant::Bool(true))));
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Bool(false));
+        assert_eq!(
+            expr.evaluate(&mut variables).unwrap().into_owned(),
+            Variant::Bool(false)
+        );
     }
 
     #[test]
@@ -627,7 +705,10 @@ mod tests {
             Expression::Value(Variant::dict(&[(Variant::Int(1), Variant::str("test"))])),
             Expression::Value(Variant::Int(1)),
         )));
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::str("test"));
+        assert_eq!(
+            expr.evaluate(&mut variables).unwrap().into_owned(),
+            Variant::str("test")
+        );
     }
 
     #[test]
@@ -663,7 +744,10 @@ mod tests {
             Expression::Value(Variant::vec(vec![Variant::Int(1)])),
             Expression::Value(Variant::Int(0)),
         )));
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Int(1));
+        assert_eq!(
+            expr.evaluate(&mut variables).unwrap().into_owned(),
+            Variant::Int(1)
+        );
     }
 
     #[test]
@@ -709,7 +793,7 @@ mod tests {
             Expression::Value(Variant::str(" test C")),
         ]);
         assert_eq!(
-            expr.evaluate(&mut variables).unwrap(),
+            expr.evaluate(&mut variables).unwrap().into_owned(),
             Variant::str("test A 0.5 test B false test C")
         );
     }
@@ -724,7 +808,10 @@ mod tests {
             function: Box::new(native_function),
             arguments: vec![Expression::Identifier("arg".to_string())],
         };
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Int(3));
+        assert_eq!(
+            expr.evaluate(&mut variables).unwrap().into_owned(),
+            Variant::Int(3)
+        );
     }
 
     #[test]
@@ -734,7 +821,7 @@ mod tests {
             name: "arg".to_string(),
             value: Box::new(Expression::Value(Variant::Int(1))),
         };
-        expr.evaluate(&mut variables).unwrap();
+        expr.evaluate(&mut variables).unwrap().into_owned();
         assert_eq!(&*variables.get("arg").unwrap(), &Variant::Int(1));
     }
 
@@ -755,7 +842,10 @@ mod tests {
                 )))),
             },
         )));
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::None);
+        assert_eq!(
+            expr.evaluate(&mut variables).unwrap().into_owned(),
+            Variant::None
+        );
         dbg!(&variables);
         assert_eq!(&*variables.get("i").unwrap(), &Variant::Int(10));
     }
@@ -785,7 +875,10 @@ mod tests {
             )),
         };
 
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::None);
+        assert_eq!(
+            expr.evaluate(&mut variables).unwrap().into_owned(),
+            Variant::None
+        );
         dbg!(variables);
     }
 
@@ -827,7 +920,7 @@ mod tests {
 
         dbg!(&variables);
         assert_eq!(
-            expr.evaluate(&mut variables).unwrap(),
+            expr.evaluate(&mut variables).unwrap().into_owned(),
             Variant::vec(vec![Variant::Int(0), Variant::Int(2),])
         );
     }
@@ -844,7 +937,10 @@ mod tests {
             Expression::Value(Variant::Int(1)),
             Some(Expression::Value(Variant::Int(2))),
         )));
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Int(1));
+        assert_eq!(
+            expr.evaluate(&mut variables).unwrap().into_owned(),
+            Variant::Int(1)
+        );
     }
 
     #[test]
@@ -859,7 +955,10 @@ mod tests {
             Expression::Value(Variant::Int(1)),
             Some(Expression::Value(Variant::Int(2))),
         )));
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Int(2));
+        assert_eq!(
+            expr.evaluate(&mut variables).unwrap().into_owned(),
+            Variant::Int(2)
+        );
     }
 
     #[test]
@@ -879,7 +978,10 @@ mod tests {
             function: Box::new(Expression::Identifier("add_1".to_string())),
             arguments: vec![Expression::Value(Variant::Int(1))],
         };
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Int(2));
+        assert_eq!(
+            expr.evaluate(&mut variables).unwrap().into_owned(),
+            Variant::Int(2)
+        );
     }
 
     #[test]
@@ -900,6 +1002,9 @@ mod tests {
                 Expression::Identifier("j".to_string()),
             ))),
         ]);
-        assert_eq!(expr.evaluate(&mut variables).unwrap(), Variant::Int(3));
+        assert_eq!(
+            expr.evaluate(&mut variables).unwrap().into_owned(),
+            Variant::Int(3)
+        );
     }
 }

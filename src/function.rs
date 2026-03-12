@@ -68,7 +68,9 @@ impl Function {
             .zip_longest(arg_values.iter())
             .map(|i| match i {
                 EitherOrBoth::Both((name, _), value) => Ok((name.clone(), value.clone())),
-                EitherOrBoth::Left((name, Some(v))) => Ok((name.clone(), v.evaluate(variables)?)),
+                EitherOrBoth::Left((name, Some(v))) => {
+                    Ok((name.clone(), v.evaluate(variables)?.into_owned()))
+                }
                 EitherOrBoth::Left((name, None)) => bail!("Missing argument {name}"),
                 EitherOrBoth::Right(_) => match &self.name {
                     Some(name) => bail!("Function {name} called with too many arguments"),
@@ -83,7 +85,7 @@ impl Function {
         let result = Expression::evaluate_expr_sequence(variables, &self.body);
         variables.pop_context();
 
-        result
+        result.map(|c| c.into_owned())
     }
 }
 

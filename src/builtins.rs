@@ -560,7 +560,7 @@ fn eval(args: &[Variant], memory: &mut Memory) -> Result<Variant> {
     if let Some(s) = &args[0].as_bstr() {
         let filtered_comments = remove_comments(s.to_str_lossy().as_ref());
         let ast = expr_parser::expr_sequence(&filtered_comments)?;
-        Ok(ast.evaluate(memory)?)
+        Ok(ast.evaluate(memory)?.into_owned())
     } else {
         bail!("eval() function only works on strings")
     }

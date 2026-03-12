@@ -2,8 +2,8 @@ use crate::{function::Function, memory::Memory, parser::expr_parser, variant::Va
 use anyhow::{bail, Result};
 use ariadne::{ColorGenerator, Label, Report, ReportKind, Source};
 use colored::Colorize;
-use ordermap::OrderMap;
 use itertools::Itertools;
+use ordermap::OrderMap;
 use std::io::{self, Read, Seek, Write};
 use std::path::Path;
 use std::time::{Duration, Instant, SystemTime};
@@ -56,7 +56,7 @@ pub fn run_file(path: &str) -> Result<(Variant, Memory)> {
     match parse_result {
         Ok(ast) => {
             let mut memory = Memory::with_builtins();
-            let result = ast.evaluate(&mut memory)?;
+            let result = ast.evaluate(&mut memory)?.into_owned();
             Ok((result, memory))
         }
         Err(error) => {

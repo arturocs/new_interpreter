@@ -28,7 +28,7 @@ fn benchmark0(c: &mut Criterion) {
             Expression::value(Variant::str(" test C")),
         ]);
         b.iter(|| {
-            let val = ast.evaluate(&mut variables).unwrap();
+            let val = ast.evaluate(&mut variables).unwrap().into_owned();
             black_box(val)
         });
     });
@@ -52,7 +52,7 @@ fn benchmark1(c: &mut Criterion) {
                     ))),
                     Expression::value(Variant::str(" test C")),
                 ]);
-                let val = expr.evaluate(&mut variables).unwrap();
+                let val = expr.evaluate(&mut variables).unwrap().into_owned();
                 Expression::value(val)
             });
             black_box(a)
@@ -107,7 +107,7 @@ fn benchmark3(c: &mut Criterion) {
                 ))),
                 Expression::value(Variant::Int(3)),
             )));
-            let val = expr.evaluate(&mut variables).unwrap();
+            let val = expr.evaluate(&mut variables).unwrap().into_owned();
             black_box(val)
         });
     });
@@ -151,7 +151,7 @@ fn benchmark4(c: &mut Criterion) {
                 ],
             };
 
-            black_box(expr.evaluate(&mut variables).unwrap())
+            black_box(expr.evaluate(&mut variables).unwrap().into_owned())
         });
     });
 }
@@ -200,7 +200,7 @@ fn benchmark5(c: &mut Criterion) {
                 ],
             };
 
-            black_box(expr.evaluate(&mut variables).unwrap())
+            black_box(expr.evaluate(&mut variables).unwrap().into_owned())
         });
     });
 }
