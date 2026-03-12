@@ -10,8 +10,8 @@ use anyhow::{anyhow, bail, Result};
 use bstr::{BString, ByteSlice, ByteVec};
 use derive_more::Display;
 use derive_more::{IsVariant, Unwrap};
-use ordermap::OrderMap;
 use itertools::Itertools;
+use ordermap::OrderMap;
 use std::{
     cell::{Ref, RefMut},
     cmp::Ordering,
@@ -219,7 +219,7 @@ impl Variant {
     pub fn error(e: impl ToString) -> Variant {
         Variant::Error(e.to_string().into())
     }
-    pub fn iterator(base:Variant) -> Variant {
+    pub fn iterator(base: Variant) -> Variant {
         Variant::Iterator(Shared::new(VariantIterator::new(base)))
     }
     pub fn dict(v: &[(Variant, Variant)]) -> Variant {
@@ -484,7 +484,7 @@ impl Variant {
         }
     }
 
-    pub fn index(&self, index: &Variant) -> Result<Ref<Variant>> {
+    pub fn index(&self, index: &Variant) -> Result<Ref<'_, Variant>> {
         self.is_indexable_guard(index, false)?;
         let reference = match (self, index) {
             (Variant::Vec(a), &Variant::Int(i)) => {
@@ -499,7 +499,7 @@ impl Variant {
         Ok(reference)
     }
 
-    pub fn index_mut(&mut self, index: &Variant) -> Result<RefMut<Variant>> {
+    pub fn index_mut(&mut self, index: &Variant) -> Result<RefMut<'_, Variant>> {
         self.is_indexable_guard(index, true)?;
         let reference = match (self, index) {
             (Variant::Vec(a), &Variant::Int(i)) => {
@@ -560,28 +560,28 @@ impl Variant {
         }
     }
 
-/*     pub fn into_iterator(self) -> Result<Variant> {
-        match self {
-            Variant::Str(s) => {
-                let i = s.to_vec().into_iter();
-                Ok(Variant::iterator(i.map(Variant::Byte)))
-            }
-            Variant::Vec(v) => Ok(Variant::iterator(
-                v.unwrap_or_clone().into_inner().into_iter(),
-            )),
-            Variant::Dict(d) => Ok(Variant::iterator(
-                d.borrow()
-                    .iter()
-                    .map(|(k, v)| Variant::vec(vec![k.clone(), v.clone()]))
-                    .collect_vec()
-                    .into_iter(),
-            )),
-            Variant::Iterator(i) => Ok(Variant::Iterator(i)),
+    /*     pub fn into_iterator(self) -> Result<Variant> {
+           match self {
+               Variant::Str(s) => {
+                   let i = s.to_vec().into_iter();
+                   Ok(Variant::iterator(i.map(Variant::Byte)))
+               }
+               Variant::Vec(v) => Ok(Variant::iterator(
+                   v.unwrap_or_clone().into_inner().into_iter(),
+               )),
+               Variant::Dict(d) => Ok(Variant::iterator(
+                   d.borrow()
+                       .iter()
+                       .map(|(k, v)| Variant::vec(vec![k.clone(), v.clone()]))
+                       .collect_vec()
+                       .into_iter(),
+               )),
+               Variant::Iterator(i) => Ok(Variant::Iterator(i)),
 
-            a => bail!("Can't convert {a} to iterator"),
-        }
-    }
- */
+               a => bail!("Can't convert {a} to iterator"),
+           }
+       }
+    */
     pub fn into_iterator(self) -> Result<Variant> {
         match self {
             Variant::Str(_) => Ok(Variant::iterator(self)),
@@ -591,7 +591,6 @@ impl Variant {
             a => bail!("Can't convert {a} to iterator"),
         }
     }
-
 
     pub fn push(&mut self, element: Variant) -> Result<()> {
         match self {
