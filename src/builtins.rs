@@ -8,7 +8,7 @@ use crate::{memory::Memory, variant::Variant};
 use anyhow::{anyhow, bail, Result};
 use bstr::ByteSlice;
 use itertools::Itertools;
-use rand::Rng;
+use rand::RngExt;
 use std::io;
 use std::rc::Rc;
 use std::slice;
