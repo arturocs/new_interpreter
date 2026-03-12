@@ -120,3 +120,13 @@ d4={a:1}
 fn bench_dict_get_by_dot() {
     d4.a
 }
+
+d5 = {}
+fn bench_number_dict_set_by_brackets() {
+    d5[1]=1
+}
+
+d6 = {1:1}
+fn bench_number_dict_get_by_brackets() {
+    d6[1]
+}
