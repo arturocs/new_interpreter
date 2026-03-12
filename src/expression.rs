@@ -1,5 +1,6 @@
 use crate::{memory::Memory, variant::Variant};
 use anyhow::{anyhow, bail, Context, Result};
+use bstr::ByteSlice;
 
 use itertools::Itertools;
 use std::fmt;
@@ -293,11 +294,9 @@ impl Expression {
             let new_function = Variant::func("", f.arg_names.to_vec(), body);
 
             Ok(new_function)
-        } else {
-            let Variant::Str(id) = index else {
-                bail!("dot operator can only be used with identifiers")
-            };
-            let Ok(f) = variables.get_method(id.as_str()) else {
+        } else if matches!(index, Variant::ShortStr(_, _) | Variant::Str(_)) {
+            let id = index.as_bstr().unwrap().to_str_lossy();
+            let Ok(f) = variables.get_method(id.as_ref()) else {
                 return Self::evaluate_index(variables, indexable_and_index);
             };
             if !f.is_method() {
@@ -311,6 +310,8 @@ impl Expression {
                 f.call(&args, memory)
             });
             Ok(new_function)
+        } else {
+            bail!("dot operator can only be used with identifiers")
         }
     }
 
@@ -370,11 +371,15 @@ impl Expression {
     }
 
     fn evaluate_fstring(variables: &mut Memory, i: &[Expression]) -> Result<Variant> {
-        let s: Result<String> = i
-            .iter()
-            .map(|e| Ok(e.evaluate(variables)?.to_string()))
-            .collect();
-        Ok(Variant::str(s?))
+        let mut result = Vec::new();
+        for expr in i {
+            let eval = expr.evaluate(variables)?;
+            match eval.as_bstr() {
+                Some(b) => result.extend_from_slice(b),
+                None => result.extend_from_slice(eval.to_string().as_bytes()),
+            }
+        }
+        Ok(Variant::str(result))
     }
 
     pub fn value(variant: Variant) -> Expression {
@@ -401,7 +406,11 @@ impl Expression {
         let lhs = a.evaluate(variables)?;
         let rhs = b.evaluate(variables)?;
         let result = match (lhs, rhs) {
-            (Variant::Str(sl), Variant::Str(sr)) => sr.contains(sl.as_str()),
+            (a @ Variant::ShortStr(_, _) | a @ Variant::Str(_), b @ Variant::ShortStr(_, _) | b @ Variant::Str(_)) => {
+                let sl_bstr = a.as_bstr().unwrap();
+                let sr_bstr = b.as_bstr().unwrap();
+                sr_bstr.contains_str(sl_bstr)
+            },
             (_, Variant::Str(_)) =>  bail!("When the in operator is used to search for substrings, the left operand must be a string"),
             (lhs, Variant::Dict(d) )=> d.borrow().contains_key(&lhs),
             (lhs, Variant::Vec(v)) => v.borrow().contains(&lhs),

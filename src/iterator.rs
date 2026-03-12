@@ -132,14 +132,11 @@ fn to_dyn_iter(i: Variant) -> Box<dyn VariantIter> {
                 .into_iter()
                 .map(|(k, v)| Variant::vec(vec![k, v])),
         ),
-        Variant::Str(i) => Box::new(i.chars().collect_vec().into_iter().map(Variant::str)),
-        Variant::Bytes(i) => Box::new(
-            i.iter()
-                .copied()
-                .collect_vec()
-                .into_iter()
-                .map(Variant::Byte),
-        ),
+        Variant::ShortStr(_, _) | Variant::Str(_) => {
+            let s = i.as_bstr().unwrap();
+            let arr = s.to_vec().into_iter().map(Variant::Byte).collect_vec();
+            Box::new(arr.into_iter())
+        }
         Variant::None => Box::new(std::iter::empty()),
         e => panic!("to_dyn_iter() error: {e} is not iterable"),
     }
@@ -404,6 +401,6 @@ mod tests {
     use super::*;
     #[test]
     fn size_of_iterator() {
-        assert_eq!(std::mem::size_of::<VariantIterator>(), 48)
+        assert_eq!(std::mem::size_of::<VariantIterator>(), 40)
     }
 }

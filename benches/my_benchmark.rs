@@ -74,10 +74,14 @@ fn benchmark2(c: &mut Criterion) {
                 .unwrap()
                 .unwrap_iterator()
                 .borrow_mut()
-                .map(Variant::native_fn(None, |i, _| Ok(Variant::str(&i[0]))))
+                .map(Variant::native_fn(None, |i, _| {
+                    Ok(Variant::str(i[0].to_string()))
+                }))
                 .filter(Variant::native_fn(None, |i, _| {
                     Ok(Variant::Bool(match &i[0] {
-                        Variant::Str(s) => s.parse::<f64>().is_ok(),
+                        Variant::ShortStr(_, _) | Variant::Str(_) => {
+                            i[0].to_string().parse::<f64>().is_ok()
+                        }
                         _ => false,
                     }))
                 }))

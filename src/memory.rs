@@ -6,6 +6,7 @@ use crate::{
 };
 use ahash::AHashMap;
 use anyhow::{anyhow, Ok, Result};
+use bstr::{BStr, BString, ByteSlice};
 use regex::Regex;
 use std::{collections::hash_map::Entry, rc::Rc};
 
@@ -14,7 +15,7 @@ pub struct Memory {
     context_delimiters: Vec<usize>,
     variables: Vec<(Rc<str>, Variant)>,
     global_methods: AHashMap<Rc<str>, Rc<NativeFunction>>,
-    regex_cache: AHashMap<ecow::EcoString, Regex>,
+    regex_cache: AHashMap<Rc<BString>, Regex>,
 }
 
 impl Memory {
@@ -100,12 +101,15 @@ impl Memory {
             .collect()
     }
 
-    pub fn get_regex(&mut self, pattern: ecow::EcoString) -> Result<&Regex> {
-        match self.regex_cache.entry(pattern.clone()) {
+    pub fn get_regex(&mut self, pattern: BString) -> Result<&Regex> {
+        let rc_pattern = Rc::new(pattern);
+        match self.regex_cache.entry(rc_pattern.clone()) {
             Entry::Occupied(e) => Ok(e.into_mut()),
             Entry::Vacant(e) => {
-                let clean_pattent = pattern.as_str();
-                let regex = Regex::new(clean_pattent)?;
+                let regex = match rc_pattern.to_str() {
+                    std::result::Result::Ok(s) => Regex::new(s)?,
+                    std::result::Result::Err(_) => Regex::new(rc_pattern.to_str_lossy().as_ref())?,
+                };
                 Ok(e.insert(regex))
             }
         }
@@ -115,7 +119,7 @@ impl Memory {
         let builtins_len = Memory::with_builtins().variables.len();
         self.variables[builtins_len..]
             .iter()
-            .map(|(name, value)| (Variant::str(name), value.clone()))
+            .map(|(name, value)| (Variant::str(name.as_ref()), value.clone()))
             .collect()
     }
 }
