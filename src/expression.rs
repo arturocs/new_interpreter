@@ -1,10 +1,9 @@
 use crate::{
-    memory::{self, Memory},
-    variant::Variant,
+    memory::Memory,
+    variant::{Dictionary, Variant},
 };
 use anyhow::{anyhow, bail, Context, Result};
 use bstr::ByteSlice;
-
 use itertools::Itertools;
 use std::borrow::Cow;
 use std::fmt;
@@ -183,8 +182,14 @@ impl fmt::Display for Expression {
             Expression::In(i) => write!(fmt, "{} in {}", i.0, i.1),
             Expression::DestructureVecAssign { names, value } => todo!(),
             Expression::DestructureDictAssign { names, value } => todo!(),
-            Expression::DestructureVecFor { names, iterable_and_body } => todo!(),
-            Expression::DestructureDictFor { names, iterable_and_body } => todo!(),
+            Expression::DestructureVecFor {
+                names,
+                iterable_and_body,
+            } => todo!(),
+            Expression::DestructureDictFor {
+                names,
+                iterable_and_body,
+            } => todo!(),
         }
     }
 }
@@ -498,60 +503,63 @@ impl Expression {
     //     Ok(vec3.iter().cloned())
     // }
 
-    fn evaluate_destructure_vec_assign(
+    fn evaluate_destructure_vec_assign<'a>(
         variables: &mut Memory,
         names: &[String],
         value: &Expression,
-    ) -> Result<Variant> {
-        let Variant::Vec(vec) = value.evaluate(variables)? else {
-            bail!("Cannot destructure {value} into {names:?}")
+    ) -> Result<Cow<'a, Variant>> {
+        let vec = match value.evaluate(variables)? {
+            Cow::Owned(Variant::Vec(vec)) => vec.clone(),
+            Cow::Borrowed(Variant::Vec(vec)) => vec.clone(),
+            _ => bail!("Cannot destructure {value} into {names:?}"),
         };
-        let vec = &*vec.borrow();
+        let vec: &Vec<Variant> = &*vec.borrow();
         if vec.len() != names.len() {
             bail!("Expected {} values, got {}", names.len(), vec.len())
         }
         for (name, value) in names.iter().zip(vec) {
             variables.set(name, value.clone());
         }
-        Ok(Variant::None)
+        Ok(Cow::Owned(Variant::None))
     }
 
-    fn evaluate_destructure_dict_assign(
+    fn evaluate_destructure_dict_assign<'a>(
         variables: &mut Memory,
         names: &[String],
         value: &Expression,
-    ) -> Result<Variant> {
-        let Variant::Dict(dict) = value.evaluate(variables)? else {
-            bail!("Cannot destructure {value} into {names:?}")
+    ) -> Result<Cow<'a, Variant>> {
+        let dict = match value.evaluate(variables)? {
+            Cow::Owned(Variant::Dict(dict)) => dict.clone(),
+            Cow::Borrowed(Variant::Dict(dict)) => dict.clone(),
+            _ => bail!("Cannot destructure {value} into {names:?}"),
         };
-
-        let dict = &*dict.borrow();
+        let dict: &Dictionary = &*dict.borrow();
         if dict.len() != names.len() {
             bail!("Expected {} values, got {}", names.len(), dict.len())
         }
 
         for (name, (_key, value)) in names.iter().zip(dict) {
-            if dict.contains_key(&Variant::str(name)) {
+            if dict.contains_key(&Variant::str(name.as_str())) {
                 variables.set(name, value.clone());
             } else {
                 bail!("Key {name} not found in dictionary {dict:?}")
             }
         }
-        Ok(Variant::None)
+        Ok(Cow::Owned(Variant::None))
     }
 
-    fn evaluate_destructure_vec_for(
+    fn evaluate_destructure_vec_for<'a>(
         variables: &mut Memory,
         names: &[String],
-        (iterable, body): &(Expression, Expression),
-    ) -> Result<Variant> {
-        let iterable = iterable.evaluate(variables)?.into_iterator()?;
+        (iterable, body): &'a (Expression, Expression),
+    ) -> Result<Cow<'a, Variant>> {
+        let iterable = iterable.evaluate(variables)?.into_owned().into_iterator()?;
         let mut iterable = iterable;
         let Variant::Iterator(iterator) = &mut iterable else {
             bail!("For loop expects an iterator")
         };
         variables.push_empty_context();
-        let mut last = Variant::None;
+        let mut last = Cow::Owned(Variant::None);
 
         for i in iterator.borrow_mut().clone().to_vec(variables) {
             let Variant::Vec(vec) = i else {
@@ -571,18 +579,18 @@ impl Expression {
         Ok(last)
     }
 
-    fn evaluate_destructure_dict_for(
+    fn evaluate_destructure_dict_for<'a>(
         variables: &mut Memory,
         names: &[String],
-        (iterable, body): &(Expression, Expression),
-    ) -> Result<Variant> {
-        let iterable = iterable.evaluate(variables)?.into_iterator()?;
+        (iterable, body): &'a (Expression, Expression),
+    ) -> Result<Cow<'a, Variant>> {
+        let iterable = iterable.evaluate(variables)?.into_owned().into_iterator()?;
         let mut iterable = iterable;
         let Variant::Iterator(iterator) = &mut iterable else {
             bail!("For loop expects an iterator")
         };
         variables.push_empty_context();
-        let mut last = Variant::None;
+        let mut last = Cow::Owned(Variant::None);
 
         for i in iterator.borrow_mut().clone().to_vec(variables) {
             let Variant::Dict(dict) = i else {
@@ -594,7 +602,7 @@ impl Expression {
             }
 
             for (name, (_key, value)) in names.iter().zip(dict) {
-                if dict.contains_key(&Variant::str(name)) {
+                if dict.contains_key(&Variant::str(name.as_str())) {
                     variables.set(name, value.clone());
                 } else {
                     bail!("Key {name} not found in dictionary {dict:?}")
@@ -660,8 +668,14 @@ impl Expression {
             Expression::In(i) => Self::evaluate_in(variables, i),
             Expression::DestructureVecAssign { names, value } => todo!(),
             Expression::DestructureDictAssign { names, value } => todo!(),
-            Expression::DestructureVecFor { names, iterable_and_body } => todo!(),
-            Expression::DestructureDictFor { names, iterable_and_body } => todo!(),
+            Expression::DestructureVecFor {
+                names,
+                iterable_and_body,
+            } => todo!(),
+            Expression::DestructureDictFor {
+                names,
+                iterable_and_body,
+            } => todo!(),
         }
     }
 }
