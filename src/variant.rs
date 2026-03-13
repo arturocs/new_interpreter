@@ -260,14 +260,6 @@ impl Variant {
         }
     }
 
-    pub fn method(
-        name: &str,
-        f: impl Fn(&[Variant], &mut Memory) -> Result<Variant> + 'static,
-        method_of: Vec<Type>,
-    ) -> Variant {
-        Variant::NativeFunc(Rc::new(NativeFunction::method(name, f, method_of)))
-    }
-
     pub fn anonymous_func(
         args: Vec<(Rc<str>, Option<Expression>)>,
         body: Vec<Expression>,
@@ -375,23 +367,6 @@ impl Variant {
                 apply_op_between_vecs(&a.borrow(), &b.borrow(), Self::div)?
             }
             _ => bail!("Cannot div {self} and {other}"),
-        };
-        Ok(result)
-    }
-
-    pub fn div_exact(&self, other: &Variant) -> Result<Variant> {
-        if other.is_zero() {
-            bail!("Cannot divide by zero");
-        }
-        let result = match (self, other) {
-            (Variant::Int(a), Variant::Int(b)) => Variant::Int(a / b),
-            (Variant::Float(a), Variant::Float(b)) => Variant::Int(*a as Int / *b as Int),
-            (Variant::Int(a), Variant::Float(b)) => Variant::Int(a / *b as Int),
-            (Variant::Float(a), Variant::Int(b)) => Variant::Int(*a as Int / b),
-            (Variant::Vec(a), Variant::Vec(b)) => {
-                apply_op_between_vecs(&a.borrow(), &b.borrow(), Self::div_exact)?
-            }
-            _ => bail!("Cannot div_exact {self} and {other}"),
         };
         Ok(result)
     }
@@ -549,71 +524,6 @@ impl Variant {
         Ok(reference)
     }
 
-    pub fn into_vec(self, memory: &mut Memory) -> Result<Variant> {
-        match self {
-            Variant::Dict(d) => Ok(Variant::vec(
-                d.borrow()
-                    .iter()
-                    .map(|(a, b)| Variant::vec(vec![a.clone(), b.clone()]))
-                    .collect(),
-            )),
-            Variant::Iterator(r) => Ok(r.borrow_mut().clone().to_variant_vec(memory)),
-            Variant::Vec(v) => Ok(Variant::Vec(v)),
-            a => bail!("Can't convert {a} to Vec"),
-        }
-    }
-
-    pub fn into_pair(&self) -> Result<(Variant, Variant)> {
-        if self.len()? != 2 {
-            bail!("Can't convert {self} to pair because it doesnt have two elements",)
-        }
-        if let Variant::Vec(v) = self {
-            let first = v.borrow().first().unwrap().clone();
-            let second = v.borrow().get(1).unwrap().clone();
-            Ok((first, second))
-        } else {
-            bail!("Can't convert {self} to pair because it's not a Vec")
-        }
-    }
-
-    pub fn into_dict(self, memory: &mut Memory) -> Result<Variant> {
-        match self {
-            Variant::Vec(v) => {
-                let r: Result<Dictionary> =
-                    v.borrow().iter().map(|i| i.clone().into_pair()).collect();
-                Ok(Variant::Dict(Shared::new(r?)))
-            }
-            Variant::Iterator(i) => {
-                let r = i.borrow_mut().clone().to_dict(memory);
-                Ok(Variant::Dict(Shared::new(r?)))
-            }
-            Variant::Dict(d) => Ok(Variant::Dict(d)),
-            a => bail!("Can't convert {a} to dict"),
-        }
-    }
-
-    /*     pub fn into_iterator(self) -> Result<Variant> {
-           match self {
-               Variant::Str(s) => {
-                   let i = s.to_vec().into_iter();
-                   Ok(Variant::iterator(i.map(Variant::Byte)))
-               }
-               Variant::Vec(v) => Ok(Variant::iterator(
-                   v.unwrap_or_clone().into_inner().into_iter(),
-               )),
-               Variant::Dict(d) => Ok(Variant::iterator(
-                   d.borrow()
-                       .iter()
-                       .map(|(k, v)| Variant::vec(vec![k.clone(), v.clone()]))
-                       .collect_vec()
-                       .into_iter(),
-               )),
-               Variant::Iterator(i) => Ok(Variant::Iterator(i)),
-
-               a => bail!("Can't convert {a} to iterator"),
-           }
-       }
-    */
     pub fn into_iterator(self) -> Result<Variant> {
         match self {
             Variant::Str(_) => Ok(Variant::iterator(self)),
@@ -782,25 +692,6 @@ mod tests {
             ],
             v
         );
-    }
-
-    #[test]
-    fn to_dict_to_vec() {
-        let memory = &mut Memory::new();
-        let v1 = Variant::vec(vec![
-            Variant::vec(vec![Variant::default(), Variant::Int(0)]),
-            Variant::vec(vec![Variant::Int(1), Variant::Int(1)]),
-            Variant::vec(vec![Variant::Float(2.0), Variant::Int(2)]),
-            Variant::vec(vec![Variant::str("s"), Variant::Int(3)]),
-        ]);
-        assert_eq!(
-            v1,
-            v1.clone()
-                .into_dict(memory)
-                .unwrap()
-                .into_vec(memory)
-                .unwrap()
-        )
     }
 
     #[test]

@@ -3,7 +3,7 @@ use crate::{
     shared::Shared,
     variant::{Dictionary, Int, Variant},
 };
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use bstr::{BStr, BString};
 use itertools::Itertools;
 use paste::paste;
@@ -290,8 +290,21 @@ impl VariantIterator {
     }
 
     pub fn to_dict(self, memory: &mut Memory) -> Result<Dictionary> {
+        let vec_to_pair = |vec: Variant| -> Result<(Variant, Variant)> {
+            if vec.len()? != 2 {
+                bail!("Can't convert {vec} to pair because it doesnt have two elements",)
+            }
+            if let Variant::Vec(v) = vec {
+                let first = v.borrow().first().unwrap().clone();
+                let second = v.borrow().get(1).unwrap().clone();
+                Ok((first, second))
+            } else {
+                bail!("Can't convert {vec} to pair because it's not a Vec")
+            }
+        };
+
         apply_method_to_iter!(self, memory, |i: Box<dyn VariantIter>, _| i
-            .map(|j| j.into_pair())
+            .map(vec_to_pair)
             .collect())
     }
 
