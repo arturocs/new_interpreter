@@ -130,3 +130,9 @@ fn test_reduce_to_object(){
         })
     assert_eq(d, {0:"0 ",1:"6 ",2:"12 ",3:"18 "})
 }
+
+
+fn test_dict_iterator(){
+    d = {a:1,b:2,c:3}
+    assert_eq(items(d).to_vec(), [["a",1],["b",2],["c",3]])
+}

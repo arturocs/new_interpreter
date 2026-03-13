@@ -48,3 +48,8 @@ fn test_string_in(){
     assert("a" in "abc")
     assert(! ("d" in "abc"))
 }
+
+fn test_string_iterator(){
+    a = "abc".to_vec()
+    assert_eq(a, ["a","b","c"])
+}
