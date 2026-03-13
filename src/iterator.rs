@@ -269,7 +269,19 @@ impl VariantIterator {
         )
     }
 
-    pub fn to_vec(self, memory: &mut Memory) -> Vec<Variant> {
+    pub fn to_vec(mut self, memory: &mut Memory) -> Vec<Variant> {
+        let stringify = |&b: &u8| {
+            b.is_ascii()
+                .then(|| Variant::str(&[b]))
+                .unwrap_or(Variant::Byte(b))
+        };
+        self.base = match self.base {
+            Variant::Str(s) => Variant::vec(s.iter().map(stringify).collect()),
+            Variant::ShortStr(n, s) => {
+                Variant::vec(s.iter().take(n as usize).map(stringify).collect())
+            }
+            i => i,
+        };
         apply_method_to_iter!(self, memory, |i, _| Vec::from_iter(i))
     }
 
