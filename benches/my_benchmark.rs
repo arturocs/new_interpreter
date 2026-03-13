@@ -2,12 +2,12 @@
 #![allow(unstable_name_collisions)]
 #![allow(non_snake_case)]
 
-use bstr::ByteSlice;
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use mimalloc::MiMalloc;
 use new_interpreter::expression::Expression;
 use new_interpreter::memory::Memory;
 use new_interpreter::variant::Variant;
+use std::hint::black_box;
 
 #[global_allocator]
 static GLOBAL: MiMalloc = MiMalloc;
@@ -28,7 +28,7 @@ fn benchmark0(c: &mut Criterion) {
             Expression::value(Variant::str(" test C")),
         ]);
         b.iter(|| {
-            let val = ast.evaluate(&mut variables).unwrap();
+            let val = ast.evaluate(&mut variables).unwrap().into_owned();
             black_box(val)
         });
     });
@@ -52,7 +52,7 @@ fn benchmark1(c: &mut Criterion) {
                     ))),
                     Expression::value(Variant::str(" test C")),
                 ]);
-                let val = expr.evaluate(&mut variables).unwrap();
+                let val = expr.evaluate(&mut variables).unwrap().into_owned();
                 Expression::value(val)
             });
             black_box(a)
@@ -74,10 +74,14 @@ fn benchmark2(c: &mut Criterion) {
                 .unwrap()
                 .unwrap_iterator()
                 .borrow_mut()
-                .map(Variant::native_fn(None, |i, _| Ok(Variant::str(&i[0]))))
+                .map(Variant::native_fn(None, |i, _| {
+                    Ok(Variant::str(i[0].to_string()))
+                }))
                 .filter(Variant::native_fn(None, |i, _| {
                     Ok(Variant::Bool(match &i[0] {
-                        Variant::Str(s) => s.to_str_lossy().parse::<f64>().is_ok(),
+                        Variant::ShortStr(_, _) | Variant::Str(_) => {
+                            i[0].to_string().parse::<f64>().is_ok()
+                        }
                         _ => false,
                     }))
                 }))
@@ -103,7 +107,7 @@ fn benchmark3(c: &mut Criterion) {
                 ))),
                 Expression::value(Variant::Int(3)),
             )));
-            let val = expr.evaluate(&mut variables).unwrap();
+            let val = expr.evaluate(&mut variables).unwrap().into_owned();
             black_box(val)
         });
     });
@@ -147,7 +151,7 @@ fn benchmark4(c: &mut Criterion) {
                 ],
             };
 
-            black_box(expr.evaluate(&mut variables).unwrap())
+            black_box(expr.evaluate(&mut variables).unwrap().into_owned())
         });
     });
 }
@@ -196,7 +200,7 @@ fn benchmark5(c: &mut Criterion) {
                 ],
             };
 
-            black_box(expr.evaluate(&mut variables).unwrap())
+            black_box(expr.evaluate(&mut variables).unwrap().into_owned())
         });
     });
 }

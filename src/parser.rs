@@ -248,14 +248,14 @@ mod tests {
     #[test]
     fn test_expression() {
         let ast = expr_parser::expression("1 + 2*3").unwrap();
-        let result = ast.evaluate(&mut Memory::new()).unwrap();
+        let result = ast.evaluate(&mut Memory::new()).unwrap().into_owned();
         assert_eq!(Variant::Int(7), result);
     }
 
     #[test]
     fn test_string_mul() {
         let ast = expr_parser::expression(r#""a"*5"#).unwrap();
-        let result = ast.evaluate(&mut Memory::new()).unwrap();
+        let result = ast.evaluate(&mut Memory::new()).unwrap().into_owned();
         assert_eq!(Variant::str("aaaaa"), result);
     }
 
@@ -264,7 +264,7 @@ mod tests {
         let ast = expr_parser::expression("a[0]").unwrap();
         let mut memory = Memory::new();
         memory.set("a", Variant::vec(vec![Variant::Int(1)]));
-        let result = ast.evaluate(&mut memory).unwrap();
+        let result = ast.evaluate(&mut memory).unwrap().into_owned();
         assert_eq!(Variant::Int(1), result);
     }
     #[test]
@@ -272,7 +272,7 @@ mod tests {
         let ast = expr_parser::expression("a[0] = 2").unwrap();
         let mut memory = Memory::new();
         memory.set("a", Variant::vec(vec![Variant::Int(1)]));
-        ast.evaluate(&mut memory).unwrap();
+        ast.evaluate(&mut memory).unwrap().into_owned();
         let b = memory.get("a").unwrap();
         let a_value = b.index(&Variant::Int(0)).unwrap();
         assert_eq!(Variant::Int(2), a_value.clone());
@@ -282,7 +282,7 @@ mod tests {
         let ast = expr_parser::expression("a[0][0]").unwrap();
         let mut memory = Memory::new();
         memory.set("a", Variant::vec(vec![Variant::vec(vec![Variant::Int(1)])]));
-        let result = ast.evaluate(&mut memory).unwrap();
+        let result = ast.evaluate(&mut memory).unwrap().into_owned();
         assert_eq!(Variant::Int(1), result);
     }
 
@@ -296,7 +296,7 @@ mod tests {
         "#;
         let ast = expr_parser::expr_sequence(code).unwrap();
         let mut memory = Memory::new();
-        let result = ast.evaluate(&mut memory).unwrap();
+        let result = ast.evaluate(&mut memory).unwrap().into_owned();
         assert_eq!(Variant::Int(1), result);
     }
 
@@ -305,7 +305,7 @@ mod tests {
         let code = "a = {}";
         let ast = expr_parser::expr_sequence(code).unwrap();
         let mut memory = Memory::new();
-        ast.evaluate(&mut memory).unwrap();
+        ast.evaluate(&mut memory).unwrap().into_owned();
         let a_value = memory.get("a").unwrap().clone();
         assert_eq!(Variant::dict(&[]), a_value);
     }
@@ -315,7 +315,7 @@ mod tests {
         dbg!(&ast);
         let mut memory = Memory::new();
         memory.set("a", Variant::dict(&[(Variant::str("b"), Variant::Int(1))]));
-        let result = ast.evaluate(&mut memory).unwrap();
+        let result = ast.evaluate(&mut memory).unwrap().into_owned();
         assert_eq!(Variant::Int(1), result);
     }
 
@@ -330,7 +330,7 @@ mod tests {
                 Variant::dict(&[(Variant::str("c"), Variant::Int(1))]),
             )]),
         );
-        let result = ast.evaluate(&mut memory).unwrap();
+        let result = ast.evaluate(&mut memory).unwrap().into_owned();
         assert_eq!(Variant::Int(1), result);
     }
 
@@ -339,7 +339,7 @@ mod tests {
         let ast = expr_parser::expression("a.b = 2").unwrap();
         let mut memory = Memory::new();
         memory.set("a", Variant::dict(&[(Variant::str("b"), Variant::Int(1))]));
-        ast.evaluate(&mut memory).unwrap();
+        ast.evaluate(&mut memory).unwrap().into_owned();
         let b = memory.get("a").unwrap();
         let a_value = b.index(&Variant::str("b")).unwrap();
         assert_eq!(Variant::Int(2), a_value.clone());
@@ -350,7 +350,7 @@ mod tests {
         let ast = expr_parser::expression("a.b = 2").unwrap();
         let mut memory = Memory::new();
         memory.set("a", Variant::dict(&[]));
-        ast.evaluate(&mut memory).unwrap();
+        ast.evaluate(&mut memory).unwrap().into_owned();
         let b = memory.get("a").unwrap();
         let a_value = b.index(&Variant::str("b")).unwrap();
         assert_eq!(Variant::Int(2), a_value.clone());
@@ -360,14 +360,14 @@ mod tests {
     fn test_function_call() {
         let ast = expr_parser::expression("min(1, 2, 3)").unwrap();
         let mut memory = Memory::with_builtins();
-        let result = ast.evaluate(&mut memory).unwrap();
+        let result = ast.evaluate(&mut memory).unwrap().into_owned();
         assert_eq!(Variant::Int(1), result);
     }
 
     #[test]
     fn test_fstring() {
         let ast = expr_parser::expression(r#"f"{1+1} = 2""#).unwrap();
-        let result = ast.evaluate(&mut Memory::new()).unwrap();
+        let result = ast.evaluate(&mut Memory::new()).unwrap().into_owned();
         assert_eq!(Variant::str("2 = 2"), result);
     }
 
@@ -375,7 +375,7 @@ mod tests {
     fn test_declaration() {
         let ast = expr_parser::expression("a = 1").unwrap();
         let mut memory = Memory::with_builtins();
-        ast.evaluate(&mut memory).unwrap();
+        ast.evaluate(&mut memory).unwrap().into_owned();
         let a_value = memory.get("a").unwrap().clone();
         assert_eq!(Variant::Int(1), a_value);
     }
@@ -396,7 +396,7 @@ mod tests {
     fn test_logical_expr_and_variables() {
         let ast = expr_parser::expr_sequence("a = 1; b = a == 1").unwrap();
         let mut memory = Memory::with_builtins();
-        ast.evaluate(&mut memory).unwrap();
+        ast.evaluate(&mut memory).unwrap().into_owned();
         let a_value = memory.get("b").unwrap().clone();
         assert_eq!(Variant::Bool(true), a_value);
     }
@@ -412,7 +412,7 @@ mod tests {
         )
         .unwrap();
         let mut memory = Memory::new();
-        let result = ast.evaluate(&mut memory).unwrap();
+        let result = ast.evaluate(&mut memory).unwrap().into_owned();
 
         assert_eq!(Variant::Int(2), result);
     }
@@ -426,7 +426,7 @@ mod tests {
 
         let ast = expr_parser::expr_sequence(code).unwrap();
         let mut memory = Memory::with_builtins();
-        ast.evaluate(&mut memory).unwrap();
+        ast.evaluate(&mut memory).unwrap().into_owned();
         let a_value = memory.get("a").unwrap().clone();
         assert_eq!(Variant::Int(10), a_value);
     }
@@ -440,7 +440,7 @@ mod tests {
 
         let ast = expr_parser::expr_sequence(code).unwrap();
         let mut memory = Memory::with_builtins();
-        ast.evaluate(&mut memory).unwrap();
+        ast.evaluate(&mut memory).unwrap().into_owned();
         let a_value = memory.get("a").unwrap().clone();
         assert_eq!(Variant::Int(10), a_value);
     }
@@ -458,7 +458,7 @@ mod tests {
 
         let ast = expr_parser::expr_sequence(code).unwrap();
         let mut memory = Memory::with_builtins();
-        ast.evaluate(&mut memory).unwrap();
+        ast.evaluate(&mut memory).unwrap().into_owned();
         let a_value = memory.get("a").unwrap().clone();
         assert_eq!(Variant::Int(14), a_value);
     }
@@ -472,7 +472,7 @@ mod tests {
 
         let ast = expr_parser::expr_sequence(code).unwrap();
         let mut memory = Memory::with_builtins();
-        ast.evaluate(&mut memory).unwrap();
+        ast.evaluate(&mut memory).unwrap().into_owned();
         let a_value = memory.get("a").unwrap().clone();
         assert_eq!(Variant::Int(2), a_value);
     }
@@ -484,7 +484,7 @@ mod tests {
 
         let ast = expr_parser::expr_sequence(code).unwrap();
         let mut memory = Memory::with_builtins();
-        let result = ast.evaluate(&mut memory).unwrap();
+        let result = ast.evaluate(&mut memory).unwrap().into_owned();
         assert_eq!(Variant::Int(2), result);
     }
     #[test]
@@ -496,7 +496,7 @@ mod tests {
 
         let ast = expr_parser::expr_sequence(code).unwrap();
         let mut memory = Memory::with_builtins();
-        let result = ast.evaluate(&mut memory).unwrap();
+        let result = ast.evaluate(&mut memory).unwrap().into_owned();
         assert_eq!(Variant::Int(2), result);
     }
 
@@ -506,7 +506,7 @@ mod tests {
 
         let ast = expr_parser::expr_sequence(code).unwrap();
         let mut memory = Memory::with_builtins();
-        let result = ast.evaluate(&mut memory).unwrap();
+        let result = ast.evaluate(&mut memory).unwrap().into_owned();
         assert_eq!(Variant::Int(2), result);
     }
 
@@ -515,7 +515,7 @@ mod tests {
         let code = r"a = true";
         let ast = expr_parser::expr_sequence(code).unwrap();
         let mut memory = Memory::new();
-        ast.evaluate(&mut memory).unwrap();
+        ast.evaluate(&mut memory).unwrap().into_owned();
         let a_value = memory.get("a").unwrap().clone();
         assert_eq!(Variant::Bool(true), a_value);
     }
@@ -527,7 +527,7 @@ mod tests {
         ";
         let ast = expr_parser::expr_sequence(code).unwrap();
         let mut memory = Memory::with_builtins();
-        ast.evaluate(&mut memory).unwrap();
+        ast.evaluate(&mut memory).unwrap().into_owned();
         let a_value = memory.get("a").unwrap().clone();
         assert_eq!(
             Variant::vec((0..10).map(|i| Variant::Int(i * 2)).collect()),
@@ -540,7 +540,7 @@ mod tests {
         let code = r"a=(||1) == (||1)";
         let ast = expr_parser::expr_sequence(code).unwrap();
         let mut memory = Memory::with_builtins();
-        ast.evaluate(&mut memory).unwrap();
+        ast.evaluate(&mut memory).unwrap().into_owned();
         let a_value = memory.get("a").unwrap().clone();
         assert_eq!(Variant::Bool(true), a_value);
     }
@@ -559,7 +559,7 @@ mod tests {
         a+=1";
         let ast = expr_parser::expr_sequence(code).unwrap();
         let mut memory = Memory::with_builtins();
-        ast.evaluate(&mut memory).unwrap();
+        ast.evaluate(&mut memory).unwrap().into_owned();
         let a_value = memory.get("a").unwrap().clone();
         assert_eq!(Variant::Int(1), a_value);
     }

@@ -7,11 +7,11 @@ use crate::{
 };
 use ahash::RandomState;
 use anyhow::{anyhow, bail, Result};
-use bstr::{BString, ByteSlice, ByteVec};
+use bstr::{BStr, BString, ByteSlice, ByteVec};
 use derive_more::Display;
 use derive_more::{IsVariant, Unwrap};
-use indexmap::IndexMap;
 use itertools::Itertools;
+use ordermap::OrderMap;
 use std::{
     cell::{Ref, RefMut},
     cmp::Ordering,
@@ -22,7 +22,7 @@ use std::{
 
 pub(crate) type Int = i64;
 pub(crate) type Float = f64;
-pub(crate) type Dictionary = IndexMap<Variant, Variant, RandomState>;
+pub(crate) type Dictionary = OrderMap<Variant, Variant, RandomState>;
 
 #[derive(Debug, Clone, IsVariant, Unwrap)]
 #[repr(u8)]
@@ -33,6 +33,7 @@ pub enum Variant {
     Bool(bool),
     Byte(u8),
     Vec(Shared<Vec<Variant>>),
+    ShortStr(u8, [u8; 14]),
     Str(Rc<BString>),
     Dict(Shared<Dictionary>),
     Iterator(Shared<VariantIterator>),
@@ -49,6 +50,7 @@ pub enum Type {
     Bool,
     Byte,
     Vec,
+    ShortStr,
     Str,
     Dict,
     Iterator,
@@ -74,10 +76,11 @@ impl Ord for Variant {
             (&Variant::Float(a), Variant::Float(b)) => a.total_cmp(b),
             (&Variant::Bool(a), Variant::Bool(b)) => a.cmp(b),
             (&Variant::Byte(a), Variant::Byte(b)) => a.cmp(b),
-            (Variant::Str(a), Variant::Str(b)) => a.cmp(b),
-            (Variant::Dict(a), Variant::Dict(b)) => {
-                a.borrow().as_slice().cmp(b.borrow().as_slice())
-            }
+            (Variant::ShortStr(_, _), Variant::ShortStr(_, _))
+            | (Variant::Str(_), Variant::Str(_))
+            | (Variant::ShortStr(_, _), Variant::Str(_))
+            | (Variant::Str(_), Variant::ShortStr(_, _)) => self.as_bstr().cmp(&other.as_bstr()),
+            (Variant::Dict(a), Variant::Dict(b)) => a.cmp(b),
             (Variant::Vec(a), Variant::Vec(b)) => a.cmp(b),
             (Variant::Iterator(a), Variant::Iterator(b)) => a.as_ptr().cmp(&b.as_ptr()),
             (Variant::NativeFunc(a), Variant::NativeFunc(b)) => (a.name).cmp(&b.name),
@@ -103,8 +106,11 @@ impl PartialEq for Variant {
             (&Variant::Bool(a), &Variant::Bool(b)) => a == b,
             (Variant::Error(a), Variant::Error(b)) => a == b,
             (&Variant::Byte(a), &Variant::Byte(b)) => a == b,
-            (Variant::Str(a), Variant::Str(b)) => a == b,
-            (Variant::Dict(a), Variant::Dict(b)) => a.borrow().as_slice() == b.borrow().as_slice(),
+            (Variant::ShortStr(_, _), Variant::ShortStr(_, _))
+            | (Variant::Str(_), Variant::Str(_))
+            | (Variant::ShortStr(_, _), Variant::Str(_))
+            | (Variant::Str(_), Variant::ShortStr(_, _)) => self.as_bstr() == other.as_bstr(),
+            (Variant::Dict(a), Variant::Dict(b)) => a == b,
             (Variant::Vec(a), Variant::Vec(b)) => a == b,
             (Variant::Iterator(a), Variant::Iterator(b)) => a.as_ptr() == b.as_ptr(),
             (Variant::NativeFunc(a), Variant::NativeFunc(b)) => Rc::ptr_eq(a, b),
@@ -123,7 +129,7 @@ impl fmt::Display for Variant {
             Variant::Bool(b) => write!(fmt, "{b}"),
             Variant::Float(f) => write!(fmt, "{f}"),
             Variant::Int(i) => write!(fmt, "{i}"),
-            Variant::Str(s) => write!(fmt, "{}", s.as_bstr()),
+            Variant::ShortStr(_, _) | Variant::Str(_) => write!(fmt, "{}", self.as_bstr().unwrap()),
             Variant::Error(e) => write!(fmt, "Error: {e}"),
             Variant::Vec(v) => {
                 let content = v
@@ -164,9 +170,9 @@ impl Hash for Variant {
             Variant::Int(a) => a.hash(state),
             Variant::Float(a) => a.to_bits().hash(state),
             Variant::Bool(a) => a.hash(state),
-            Variant::Str(a) => a.hash(state),
+            Variant::ShortStr(_, _) | Variant::Str(_) => self.as_bstr().unwrap().hash(state),
             Variant::Vec(a) => a.borrow().hash(state),
-            Variant::Dict(a) => a.borrow().as_slice().hash(state),
+            Variant::Dict(a) => a.borrow().hash(state),
             Variant::Func(f) => f.hash(state),
             Variant::Byte(b) => b.hash(state),
             Variant::Iterator(a) => a.as_ptr().hash(state),
@@ -201,6 +207,7 @@ impl Variant {
             Variant::Bool(_) => Type::Bool,
             Variant::Byte(_) => Type::Byte,
             Variant::Vec(_) => Type::Vec,
+            Variant::ShortStr(_, _) => Type::ShortStr,
             Variant::Str(_) => Type::Str,
             Variant::Dict(_) => Type::Dict,
             Variant::Iterator(_) => Type::Iterator,
@@ -214,14 +221,29 @@ impl Variant {
         Variant::Vec(Shared::new(v))
     }
 
-    pub fn str(s: impl ToString) -> Variant {
-        Variant::Str(Rc::new(s.to_string().into()))
+    pub fn as_bstr<'a>(&'a self) -> Option<&'a BStr> {
+        match self {
+            Variant::ShortStr(len, arr) => Some(BStr::new(&arr[..*len as usize])),
+            Variant::Str(s) => Some(s.as_bstr()),
+            _ => None,
+        }
+    }
+
+    pub fn str(s: impl Into<BString>) -> Variant {
+        let bytes = s.into();
+        if bytes.len() <= 14 {
+            let mut arr = [0; 14];
+            arr[..bytes.len()].copy_from_slice(bytes.as_ref());
+            Variant::ShortStr(bytes.len() as u8, arr)
+        } else {
+            Variant::Str(Rc::new(bytes))
+        }
     }
 
     pub fn error(e: impl ToString) -> Variant {
         Variant::Error(e.to_string().into())
     }
-    pub fn iterator(base:Variant) -> Variant {
+    pub fn iterator(base: Variant) -> Variant {
         Variant::Iterator(Shared::new(VariantIterator::new(base)))
     }
     pub fn dict(v: &[(Variant, Variant)]) -> Variant {
@@ -263,7 +285,7 @@ impl Variant {
     fn to_string_in_collection(&self) -> String {
         match self {
             Variant::Error(_) => format!("\"{self}\"",),
-            Variant::Str(s) => format!("\"{}\"", s.as_bstr()),
+            Variant::ShortStr(_, _) | Variant::Str(_) => format!("\"{self}\""),
             _ => self.to_string(),
         }
     }
@@ -297,14 +319,22 @@ impl Variant {
             (Variant::Vec(a), Variant::Vec(b)) => {
                 apply_op_between_vecs(&a.borrow(), &b.borrow(), Self::add)?
             }
-            (Variant::Str(a), b) => {
-                let mut c = (**a).as_bstr().to_owned();
-                c.push_str(b.to_string().trim_matches('"'));
-                Variant::Str(Rc::from(c))
+            (
+                Variant::ShortStr(_, _) | Variant::Str(_),
+                Variant::ShortStr(_, _) | Variant::Str(_),
+            ) => {
+                let mut c: BString = self.as_bstr().unwrap().into();
+                c.push_str(other.as_bstr().unwrap());
+                Variant::str(c)
             }
-            (a, Variant::Str(b)) => {
-                let mut c: BString = a.to_string().trim_matches('"').to_string().into();
-                c.push_str(b.as_bstr());
+            (Variant::ShortStr(_, _) | Variant::Str(_), b) => {
+                let mut c: BString = self.as_bstr().unwrap().into();
+                c.push_str(b.to_string().trim_matches('"'));
+                Variant::str(c)
+            }
+            (a, Variant::ShortStr(_, _) | Variant::Str(_)) => {
+                let mut c: BString = a.to_string().trim_matches('"').into();
+                c.push_str(other.as_bstr().unwrap());
                 Variant::str(c)
             }
             _ => bail!("Cannot add {self} and {other}"),
@@ -380,9 +410,9 @@ impl Variant {
             (Variant::Vec(a), Variant::Vec(b)) => {
                 apply_op_between_vecs(&a.borrow(), &b.borrow(), Self::mul)?
             }
-            (Variant::Str(a), &Variant::Int(b)) => {
+            (Variant::ShortStr(_, _) | Variant::Str(_), &Variant::Int(b)) => {
                 if b >= 0 {
-                    Variant::str(a.repeat(b as usize).as_bstr())
+                    Variant::str(self.as_bstr().unwrap().repeat(b as usize))
                 } else {
                     bail!("Cannot multiply a string by a negative value");
                 }
@@ -486,7 +516,7 @@ impl Variant {
         }
     }
 
-    pub fn index(&self, index: &Variant) -> Result<Ref<Variant>> {
+    pub fn index(&self, index: &Variant) -> Result<Ref<'_, Variant>> {
         self.is_indexable_guard(index, false)?;
         let reference = match (self, index) {
             (Variant::Vec(a), &Variant::Int(i)) => {
@@ -501,7 +531,7 @@ impl Variant {
         Ok(reference)
     }
 
-    pub fn index_mut(&mut self, index: &Variant) -> Result<RefMut<Variant>> {
+    pub fn index_mut(&mut self, index: &Variant) -> Result<RefMut<'_, Variant>> {
         self.is_indexable_guard(index, true)?;
         let reference = match (self, index) {
             (Variant::Vec(a), &Variant::Int(i)) => {
@@ -562,28 +592,28 @@ impl Variant {
         }
     }
 
-/*     pub fn into_iterator(self) -> Result<Variant> {
-        match self {
-            Variant::Str(s) => {
-                let i = s.to_vec().into_iter();
-                Ok(Variant::iterator(i.map(Variant::Byte)))
-            }
-            Variant::Vec(v) => Ok(Variant::iterator(
-                v.unwrap_or_clone().into_inner().into_iter(),
-            )),
-            Variant::Dict(d) => Ok(Variant::iterator(
-                d.borrow()
-                    .iter()
-                    .map(|(k, v)| Variant::vec(vec![k.clone(), v.clone()]))
-                    .collect_vec()
-                    .into_iter(),
-            )),
-            Variant::Iterator(i) => Ok(Variant::Iterator(i)),
+    /*     pub fn into_iterator(self) -> Result<Variant> {
+           match self {
+               Variant::Str(s) => {
+                   let i = s.to_vec().into_iter();
+                   Ok(Variant::iterator(i.map(Variant::Byte)))
+               }
+               Variant::Vec(v) => Ok(Variant::iterator(
+                   v.unwrap_or_clone().into_inner().into_iter(),
+               )),
+               Variant::Dict(d) => Ok(Variant::iterator(
+                   d.borrow()
+                       .iter()
+                       .map(|(k, v)| Variant::vec(vec![k.clone(), v.clone()]))
+                       .collect_vec()
+                       .into_iter(),
+               )),
+               Variant::Iterator(i) => Ok(Variant::Iterator(i)),
 
-            a => bail!("Can't convert {a} to iterator"),
-        }
-    }
- */
+               a => bail!("Can't convert {a} to iterator"),
+           }
+       }
+    */
     pub fn into_iterator(self) -> Result<Variant> {
         match self {
             Variant::Str(_) => Ok(Variant::iterator(self)),
@@ -593,7 +623,6 @@ impl Variant {
             a => bail!("Can't convert {a} to iterator"),
         }
     }
-
 
     pub fn push(&mut self, element: Variant) -> Result<()> {
         match self {
@@ -615,7 +644,7 @@ impl Variant {
     pub fn len(&self) -> Result<usize> {
         let l = match self {
             Variant::Vec(v) => v.borrow().len(),
-            Variant::Str(s) => s.len(),
+            Variant::ShortStr(_, _) | Variant::Str(_) => self.as_bstr().unwrap().len(),
             Variant::Dict(d) => d.borrow().len(),
             _ => bail!("{self} doesn't have a lenght attribute"),
         };
@@ -633,7 +662,6 @@ impl Variant {
 
 #[cfg(test)]
 mod tests {
-    use bstr::ByteSlice;
     use std::{
         collections::hash_map::DefaultHasher,
         hash::{Hash, Hasher},
@@ -735,6 +763,7 @@ mod tests {
             Variant::Byte(0),
             Variant::vec(vec![]),
             Variant::str("string"),
+            Variant::str("a very long string that won't fit inside 14 bytes"),
             Variant::dict(&[]),
         ]
         .map(|i| i.get_type());
@@ -746,6 +775,7 @@ mod tests {
                 Type::Bool,
                 Type::Byte,
                 Type::Vec,
+                Type::ShortStr,
                 Type::Str,
                 Type::Dict
             ],
@@ -888,11 +918,13 @@ mod tests {
             .unwrap_iterator()
             .borrow_mut()
             .map(Variant::native_fn(None, |i, _| {
-                Ok(Variant::str(i[0].clone()))
+                Ok(Variant::str(i[0].to_string()))
             }))
             .filter(Variant::native_fn(None, |i, _| {
                 Ok(Variant::Bool(match &i[0] {
-                    Variant::Str(s) => s.to_str_lossy().parse::<f64>().is_ok(),
+                    Variant::ShortStr(_, _) | Variant::Str(_) => {
+                        i[0].to_string().trim_matches('"').parse::<f64>().is_ok()
+                    }
                     _ => false,
                 }))
             }))

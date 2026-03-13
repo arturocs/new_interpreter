@@ -2,8 +2,8 @@ use crate::{function::Function, memory::Memory, parser::expr_parser, variant::Va
 use anyhow::{bail, Result};
 use ariadne::{ColorGenerator, Label, Report, ReportKind, Source};
 use colored::Colorize;
-use indexmap::IndexMap;
 use itertools::Itertools;
+use ordermap::OrderMap;
 use std::io::{self, Read, Seek, Write};
 use std::path::Path;
 use std::time::{Duration, Instant, SystemTime};
@@ -32,15 +32,16 @@ fn print_parse_error(
         Label::new((source_name, offset..offset))
     });
 
-    Report::build(ReportKind::Error, source_name, error.location.offset)
+    let span = (
+        source_name,
+        error.location.offset..error.location.offset + 1,
+    );
+    Report::build(ReportKind::Error, span.clone())
         .with_message("Error while parsing code")
         .with_label(
-            Label::new((
-                source_name,
-                error.location.offset..error.location.offset + 1,
-            ))
-            .with_message(format!("Expected: {}", error.expected))
-            .with_color(a),
+            Label::new(span)
+                .with_message(format!("Expected: {}", error.expected))
+                .with_color(a),
         )
         .with_labels(context_labels)
         .finish()
@@ -55,7 +56,7 @@ pub fn run_file(path: &str) -> Result<(Variant, Memory)> {
     match parse_result {
         Ok(ast) => {
             let mut memory = Memory::with_builtins();
-            let result = ast.evaluate(&mut memory)?;
+            let result = ast.evaluate(&mut memory)?.into_owned();
             Ok((result, memory))
         }
         Err(error) => {
@@ -128,7 +129,7 @@ fn run_bench(
     Ok(average_time)
 }
 
-fn store_results_in_json(path: &str, times: IndexMap<String, Duration>) -> Result<()> {
+fn store_results_in_json(path: &str, times: OrderMap<String, Duration>) -> Result<()> {
     let current_time = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)?
         .as_millis()
@@ -140,7 +141,7 @@ fn store_results_in_json(path: &str, times: IndexMap<String, Duration>) -> Resul
         .append(false)
         .read(true)
         .open(path)?;
-    let mut v: IndexMap<String, IndexMap<String, Duration>> = IndexMap::new();
+    let mut v: OrderMap<String, OrderMap<String, Duration>> = OrderMap::new();
     if file_exists {
         let mut buf = String::new();
         file.read_to_string(&mut buf)?;
@@ -171,7 +172,7 @@ pub fn run_benches_in_file(path: &str) -> Result<()> {
                 run_bench(&bench_name, &bench_function, &mut memory, 3., 5.)?,
             ))
         })
-        .collect::<Result<IndexMap<_, _>>>()?;
+        .collect::<Result<OrderMap<_, _>>>()?;
     store_results_in_json("./bench_results.json", times)?;
 
     Ok(())

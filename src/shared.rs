@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell, RefMut};
 use std::rc::Rc;
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Shared<T: Clone> {
@@ -12,11 +12,11 @@ impl<T: Clone> Shared<T> {
         }
     }
 
-    pub fn borrow(&self) -> std::cell::Ref<T> {
+    pub fn borrow(&self) -> Ref<'_, T> {
         self.value.borrow()
     }
 
-    pub fn borrow_mut(&self) -> std::cell::RefMut<T> {
+    pub fn borrow_mut(&self) -> RefMut<'_, T> {
         self.value.borrow_mut()
     }
 
