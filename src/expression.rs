@@ -1,8 +1,12 @@
-use crate::{memory::Memory, variant::Variant};
+use crate::{
+    memory::{self, Memory},
+    variant::Variant,
+};
 use anyhow::{anyhow, bail, Context, Result};
 use bstr::ByteSlice;
 use itertools::Itertools;
 use std::fmt;
+
 #[derive(Debug, Hash, PartialEq, Eq, Clone, PartialOrd, Ord)]
 pub enum Expression {
     Value(Variant),
@@ -44,6 +48,16 @@ pub enum Expression {
     // First expression -> indexable, second -> index, third -> value
     IndexAssign(Box<(Expression, Expression, Expression)>),
 
+    DestructureVecAssign {
+        names: Vec<String>,
+        value: Box<Expression>,
+    },
+
+    DestructureDictAssign {
+        names: Vec<String>,
+        value: Box<Expression>,
+    },
+
     // First expression -> indexable, second -> index
     Dot(Box<(Expression, Expression)>),
 
@@ -64,6 +78,16 @@ pub enum Expression {
     For {
         i_name: String,
         // First expression -> iterable, second -> body
+        iterable_and_body: Box<(Expression, Expression)>,
+    },
+
+    DestructureVecFor {
+        names: Vec<String>,
+        iterable_and_body: Box<(Expression, Expression)>,
+    },
+
+    DestructureDictFor {
+        names: Vec<String>,
         iterable_and_body: Box<(Expression, Expression)>,
     },
 }
@@ -155,6 +179,10 @@ impl fmt::Display for Expression {
             ),
             Expression::FunctionDeclaration { name: _, function } => write!(fmt, "{function}"),
             Expression::In(i) => write!(fmt, "{} in {}", i.0, i.1),
+            Expression::DestructureVecAssign { names, value } => todo!(),
+            Expression::DestructureDictAssign { names, value } => todo!(),
+            Expression::DestructureVecFor { names, iterable_and_body } => todo!(),
+            Expression::DestructureDictFor { names, iterable_and_body } => todo!(),
         }
     }
 }
@@ -410,6 +438,131 @@ impl Expression {
         Ok(Variant::Bool(result))
     }
 
+    // fn destructure_checks(
+    //     variables: &mut Memory,
+    //     names: &[String],
+    //     value: &Expression,
+    // ) -> Result<impl Iterator<Item = Variant>> {
+    //     let Variant::Vec(vec) = value.evaluate(variables)? else {
+    //         bail!("Cannot destructure {value} into {names:?}")
+    //     };
+    //     let vec2 = vec.clone();
+    //     let vec3 = vec2.borrow();
+    //     if vec3.len() != names.len() {
+    //         bail!("Expected {} values, got {}", names.len(), vec3.len())
+    //     }
+    //     Ok(vec3.iter().cloned())
+    // }
+
+    fn evaluate_destructure_vec_assign(
+        variables: &mut Memory,
+        names: &[String],
+        value: &Expression,
+    ) -> Result<Variant> {
+        let Variant::Vec(vec) = value.evaluate(variables)? else {
+            bail!("Cannot destructure {value} into {names:?}")
+        };
+        let vec = &*vec.borrow();
+        if vec.len() != names.len() {
+            bail!("Expected {} values, got {}", names.len(), vec.len())
+        }
+        for (name, value) in names.iter().zip(vec) {
+            variables.set(name, value.clone());
+        }
+        Ok(Variant::None)
+    }
+
+    fn evaluate_destructure_dict_assign(
+        variables: &mut Memory,
+        names: &[String],
+        value: &Expression,
+    ) -> Result<Variant> {
+        let Variant::Dict(dict) = value.evaluate(variables)? else {
+            bail!("Cannot destructure {value} into {names:?}")
+        };
+
+        let dict = &*dict.borrow();
+        if dict.len() != names.len() {
+            bail!("Expected {} values, got {}", names.len(), dict.len())
+        }
+
+        for (name, (_key, value)) in names.iter().zip(dict) {
+            if dict.contains_key(&Variant::str(name)) {
+                variables.set(name, value.clone());
+            } else {
+                bail!("Key {name} not found in dictionary {dict:?}")
+            }
+        }
+        Ok(Variant::None)
+    }
+
+    fn evaluate_destructure_vec_for(
+        variables: &mut Memory,
+        names: &[String],
+        (iterable, body): &(Expression, Expression),
+    ) -> Result<Variant> {
+        let iterable = iterable.evaluate(variables)?.into_iterator()?;
+        let mut iterable = iterable;
+        let Variant::Iterator(iterator) = &mut iterable else {
+            bail!("For loop expects an iterator")
+        };
+        variables.push_empty_context();
+        let mut last = Variant::None;
+
+        for i in iterator.borrow_mut().clone().to_vec(variables) {
+            let Variant::Vec(vec) = i else {
+                bail!("Cannot destructure {i} into {names:?}")
+            };
+            let vec = &*vec.borrow();
+            if vec.len() != names.len() {
+                bail!("Expected {} values, got {}", names.len(), vec.len())
+            }
+            for (name, value) in names.iter().zip(vec) {
+                variables.set(name, value.clone());
+            }
+
+            last = body.evaluate(variables)?;
+        }
+        variables.pop_context();
+        Ok(last)
+    }
+
+    fn evaluate_destructure_dict_for(
+        variables: &mut Memory,
+        names: &[String],
+        (iterable, body): &(Expression, Expression),
+    ) -> Result<Variant> {
+        let iterable = iterable.evaluate(variables)?.into_iterator()?;
+        let mut iterable = iterable;
+        let Variant::Iterator(iterator) = &mut iterable else {
+            bail!("For loop expects an iterator")
+        };
+        variables.push_empty_context();
+        let mut last = Variant::None;
+
+        for i in iterator.borrow_mut().clone().to_vec(variables) {
+            let Variant::Dict(dict) = i else {
+                bail!("Cannot destructure {i} into {names:?}")
+            };
+            let dict = &*dict.borrow();
+            if dict.len() != names.len() {
+                bail!("Expected {} values, got {}", names.len(), dict.len())
+            }
+
+            for (name, (_key, value)) in names.iter().zip(dict) {
+                if dict.contains_key(&Variant::str(name)) {
+                    variables.set(name, value.clone());
+                } else {
+                    bail!("Key {name} not found in dictionary {dict:?}")
+                }
+            }
+
+            last = body.evaluate(variables)?;
+        }
+        variables.pop_context();
+        Ok(last)
+    }
+
     pub fn evaluate(&self, variables: &mut Memory) -> Result<Variant> {
         match self {
             Expression::Value(v) => Ok(v.clone()),
@@ -460,6 +613,10 @@ impl Expression {
                 Self::evaluate_declaration(variables, name, &Expression::Value(function.clone()))
             }
             Expression::In(i) => Self::evaluate_in(variables, i),
+            Expression::DestructureVecAssign { names, value } => todo!(),
+            Expression::DestructureDictAssign { names, value } => todo!(),
+            Expression::DestructureVecFor { names, iterable_and_body } => todo!(),
+            Expression::DestructureDictFor { names, iterable_and_body } => todo!(),
         }
     }
 }
