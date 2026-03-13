@@ -4,6 +4,7 @@ use crate::{
     variant::{Dictionary, Int, Variant},
 };
 use anyhow::{Context, Result};
+use bstr::{BStr, BString};
 use itertools::Itertools;
 use paste::paste;
 use std::{cell::RefCell, fmt, rc::Rc, slice};
@@ -402,5 +403,9 @@ mod tests {
     #[test]
     fn size_of_iterator() {
         assert_eq!(std::mem::size_of::<VariantIterator>(), 40)
+    }
+    #[test]
+    fn size_of_adapter() {
+        assert_eq!(std::mem::size_of::<Adapter>(), 24)
     }
 }

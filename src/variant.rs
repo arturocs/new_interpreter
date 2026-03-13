@@ -617,6 +617,7 @@ impl Variant {
     pub fn into_iterator(self) -> Result<Variant> {
         match self {
             Variant::Str(_) => Ok(Variant::iterator(self)),
+            Variant::ShortStr(_, _) => Ok(Variant::iterator(self)),
             Variant::Vec(_) => Ok(Variant::iterator(self)),
             Variant::Dict(_) => Ok(Variant::iterator(self)),
             Variant::Iterator(_) => Ok(self),

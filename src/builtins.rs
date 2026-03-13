@@ -624,7 +624,11 @@ pub fn export_global_metods() -> impl Iterator<Item = (Rc<str>, Rc<NativeFunctio
         ("join", join, vec![Type::Vec, Type::Iterator]),
         ("map", map, vec![Type::Vec, Type::Iterator]),
         ("filter", filter, vec![Type::Vec, Type::Iterator]),
-        ("to_vec", to_vec, vec![Type::Vec, Type::Iterator]),
+        (
+            "to_vec",
+            to_vec,
+            vec![Type::Vec, Type::Str, Type::ShortStr, Type::Iterator],
+        ),
         ("to_dict", to_dict, vec![Type::Vec, Type::Iterator]),
         ("count", count, vec![Type::Vec, Type::Iterator]),
         ("reduce", reduce, vec![Type::Vec, Type::Iterator]),
@@ -632,8 +636,8 @@ pub fn export_global_metods() -> impl Iterator<Item = (Rc<str>, Rc<NativeFunctio
         ("any", any, vec![Type::Vec, Type::Iterator]),
         ("find", find, vec![Type::Vec, Type::Iterator]),
         ("for_each", for_each, vec![Type::Vec, Type::Iterator]),
-        ("slice", slice, vec![Type::Vec, Type::Str]),
-        ("split", split, vec![Type::Str]),
+        ("slice", slice, vec![Type::Vec, Type::Str, Type::ShortStr]),
+        ("split", split, vec![Type::Str, Type::ShortStr]),
         ("step_by", step_by, vec![Type::Vec, Type::Iterator]),
         ("zip", zip, vec![Type::Vec, Type::Iterator]),
         ("take", take, vec![Type::Vec, Type::Iterator]),
@@ -641,10 +645,10 @@ pub fn export_global_metods() -> impl Iterator<Item = (Rc<str>, Rc<NativeFunctio
         ("flat_map", flat_map, vec![Type::Vec, Type::Iterator]),
         ("enumerate", enumerate, vec![Type::Vec, Type::Iterator]),
         ("flatten", flatten, vec![Type::Vec, Type::Iterator]),
-        ("starts_with", starts_with, vec![Type::Str]),
-        ("ends_with", ends_with, vec![Type::Str]),
-        ("trim", trim, vec![Type::Str]),
-        ("len", len, vec![Type::Str, Type::Vec]),
+        ("starts_with", starts_with, vec![Type::Str, Type::ShortStr]),
+        ("ends_with", ends_with, vec![Type::Str, Type::ShortStr]),
+        ("trim", trim, vec![Type::Str, Type::ShortStr]),
+        ("len", len, vec![Type::Str, Type::ShortStr, Type::Vec]),
     ]
     .into_iter()
     .map(|(name, f, method_of)| {

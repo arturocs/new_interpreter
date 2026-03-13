@@ -180,15 +180,15 @@ impl fmt::Display for Expression {
             ),
             Expression::FunctionDeclaration { name: _, function } => write!(fmt, "{function}"),
             Expression::In(i) => write!(fmt, "{} in {}", i.0, i.1),
-            Expression::DestructureVecAssign { names, value } => todo!(),
-            Expression::DestructureDictAssign { names, value } => todo!(),
+            Expression::DestructureVecAssign { names: _, value: _ } => todo!(),
+            Expression::DestructureDictAssign { names: _, value: _ } => todo!(),
             Expression::DestructureVecFor {
-                names,
-                iterable_and_body,
+                names: _,
+                iterable_and_body: _,
             } => todo!(),
             Expression::DestructureDictFor {
-                names,
-                iterable_and_body,
+                names: _,
+                iterable_and_body: _,
             } => todo!(),
         }
     }
@@ -503,7 +503,7 @@ impl Expression {
     //     Ok(vec3.iter().cloned())
     // }
 
-    fn evaluate_destructure_vec_assign<'a>(
+    fn _evaluate_destructure_vec_assign<'a>(
         variables: &mut Memory,
         names: &[String],
         value: &Expression,
@@ -523,7 +523,7 @@ impl Expression {
         Ok(Cow::Owned(Variant::None))
     }
 
-    fn evaluate_destructure_dict_assign<'a>(
+    fn _evaluate_destructure_dict_assign<'a>(
         variables: &mut Memory,
         names: &[String],
         value: &Expression,
@@ -548,7 +548,7 @@ impl Expression {
         Ok(Cow::Owned(Variant::None))
     }
 
-    fn evaluate_destructure_vec_for<'a>(
+    fn _evaluate_destructure_vec_for<'a>(
         variables: &mut Memory,
         names: &[String],
         (iterable, body): &'a (Expression, Expression),
@@ -579,7 +579,7 @@ impl Expression {
         Ok(last)
     }
 
-    fn evaluate_destructure_dict_for<'a>(
+    fn _evaluate_destructure_dict_for<'a>(
         variables: &mut Memory,
         names: &[String],
         (iterable, body): &'a (Expression, Expression),
@@ -666,15 +666,15 @@ impl Expression {
                 Ok(Cow::Owned(Variant::None))
             }
             Expression::In(i) => Self::evaluate_in(variables, i),
-            Expression::DestructureVecAssign { names, value } => todo!(),
-            Expression::DestructureDictAssign { names, value } => todo!(),
+            Expression::DestructureVecAssign { names: _, value: _ } => todo!(),
+            Expression::DestructureDictAssign { names: _, value: _ } => todo!(),
             Expression::DestructureVecFor {
-                names,
-                iterable_and_body,
+                names: _,
+                iterable_and_body: _,
             } => todo!(),
             Expression::DestructureDictFor {
-                names,
-                iterable_and_body,
+                names: _,
+                iterable_and_body: _,
             } => todo!(),
         }
     }

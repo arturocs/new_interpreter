@@ -51,7 +51,8 @@ fn test_slice(){
 fn test_type(){
     assert_eq(type(1), "Int")
     assert_eq(type(1.0), "Float")
-    assert_eq(type("1"), "Str")
+    assert_eq(type("1"), "ShortStr")
+    assert_eq(type("12345678901234567890"), "Str")
     assert_eq(type([]), "Vec")
     assert_eq(type({}), "Dict")
     assert_eq(type(|| ()), "Func")
